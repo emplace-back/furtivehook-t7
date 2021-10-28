@@ -1,0 +1,152 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="debug|x64">
+      <Configuration>debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="release|x64">
+      <Configuration>release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{9853C09C-04BE-7413-4DFC-25B9B9A55268}</ProjectGuid>
+    <IgnoreWarnCompileDuplicatedFilename>true</IgnoreWarnCompileDuplicatedFilename>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>steam_api</RootNamespace>
+    <LatestTargetPlatformVersion>$([Microsoft.Build.Utilities.ToolLocationHelper]::GetLatestSDKTargetPlatformVersion('Windows', '10.0'))</LatestTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>$(LatestTargetPlatformVersion)</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
+    <OutDir>bin\debug\</OutDir>
+    <IntDir>obj\debug\steam_api\</IntDir>
+    <TargetName>steam_api</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
+    <OutDir>bin\release\</OutDir>
+    <IntDir>obj\release\steam_api\</IntDir>
+    <TargetName>steam_api</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <DisableSpecificWarnings>4005;4099;5054;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>NOMINMAX;WIN32_LEAN_AND_MEAN;_CRT_SECURE_NO_WARNINGS;ASMJIT_STATIC;DEBUG;STEAM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\src;$(DXSDK_DIR)include;..\thirdparty\steam_api;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>Disabled</Optimization>
+      <MinimalRebuild>false</MinimalRebuild>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/Zm200 /utf-8 /std:c++latest %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+    <BuildLog>
+      <Path>$(SolutionDir)\obj\debug\$(ProjectName).log</Path>
+    </BuildLog>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <DisableSpecificWarnings>4005;4099;5054;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>NOMINMAX;WIN32_LEAN_AND_MEAN;_CRT_SECURE_NO_WARNINGS;ASMJIT_STATIC;NDEBUG;STEAM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\src;$(DXSDK_DIR)include;..\thirdparty\steam_api;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>Disabled</Optimization>
+      <MinimalRebuild>false</MinimalRebuild>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/Zm200 /utf-8 /std:c++latest %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+    <BuildLog>
+      <Path>$(SolutionDir)\obj\release\$(ProjectName).log</Path>
+    </BuildLog>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="..\thirdparty\steam_api\isteamapplist.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteamapps.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteamappticket.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteamclient.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteamcontroller.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteamfriends.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteamgamecoordinator.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteamgameserver.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteamgameserverstats.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteamhtmlsurface.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteamhttp.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteaminput.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteaminventory.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteammasterserverupdater.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteammatchmaking.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteammusic.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteammusicremote.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteamnetworking.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteamnetworkingsockets.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteamnetworkingutils.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteamparentalsettings.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteamps3overlayrenderer.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteamremoteplay.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteamremotestorage.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteamscreenshots.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteamugc.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteamuser.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteamuserstats.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteamutils.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\isteamvideo.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\matchmakingtypes.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\steam_api.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\steam_api_common.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\steam_api_flat.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\steam_api_internal.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\steam_gameserver.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\steamclientpublic.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\steamdatagram_tickets.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\steamencryptedappticket.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\steamhttpenums.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\steamnetworkingtypes.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\steamps3params.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\steamtypes.hpp" />
+    <ClInclude Include="..\thirdparty\steam_api\steamuniverse.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\thirdparty\steam_api\lib\steam_api.lib" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
