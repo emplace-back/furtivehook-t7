@@ -7,7 +7,8 @@ namespace exception::dvar
 	{
 		renderer = 1, 
 		main = 2,
-		count = 3,
+		predict_ps = 3333333,
+		count = 4,
 	};
 	
 	using callback = std::function<void(const LPEXCEPTION_POINTERS&)>;

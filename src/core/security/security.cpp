@@ -33,13 +33,13 @@ namespace security
 			return false;
 		}); 
 		
-		events::instant_message::on_message('f', [=](const auto& sender_id, const auto&)
+		events::instant_message::dispatch::on_message('f', [=](const auto& sender_id, const auto&)
 		{
 			PRINT_LOG("Ignoring friend instant message from (%llu)", sender_id);
 			return true;
 		});
 
-		events::instant_message::on_message('e', [=](const auto& sender_id, const auto&)
+		events::instant_message::dispatch::on_message('e', [=](const auto& sender_id, const auto&)
 		{
 			PRINT_LOG("Ignoring remote command instant message from (%llu)", sender_id);
 			return true;

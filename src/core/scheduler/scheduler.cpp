@@ -123,20 +123,20 @@ namespace scheduler
 	{
 		exception::dvar::register_exception(exception::dvar::main, [](auto& ex)
 		{
-			execute(pipeline::main); 
-				
 			ex->ContextRecord->Rcx = reinterpret_cast<std::uintptr_t>(game::com_smoothframes_original);
 			ex->ContextRecord->Rbx = reinterpret_cast<std::uintptr_t>(game::com_smoothframes_original);
 			ex->ContextRecord->Rip = game::base_address + 0x22BC95E;
+
+			execute(pipeline::main);
 		});
 
 		exception::dvar::register_exception(exception::dvar::renderer, [](auto& ex)
 		{
-			execute(pipeline::renderer);
-
 			ex->ContextRecord->Rcx = reinterpret_cast<std::uintptr_t>(game::r_fxShadows_original);
 			ex->ContextRecord->Rbx = reinterpret_cast<std::uintptr_t>(game::r_fxShadows_original);
 			ex->ContextRecord->Rip = game::base_address + 0x22BE2EE;
+
+			execute(pipeline::renderer);
 		});
 	}
 }

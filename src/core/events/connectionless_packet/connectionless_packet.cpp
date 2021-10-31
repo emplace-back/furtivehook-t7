@@ -16,16 +16,16 @@ namespace events::connectionless_packet
 
 	bool handle_command(const std::string& command, game::netadr_t* from, game::msg_t& msg)
 	{
-		const auto cmd_string = utils::string::to_lower(command);
+		const auto cmd_string{ utils::string::to_lower(command) };
 
-		if (const auto command_func = commands.find(cmd_string); command_func != commands.end())
+		if (const auto command_func{ commands.find(cmd_string) }; command_func != commands.end())
 		{
 			const command::args_ args{};
 
 			if (args.size() > 0)
 			{
-				const auto msg_backup = msg;
-				const auto cb = command_func->second(args, *from, msg);
+				const auto msg_backup{ msg };
+				const auto cb{ command_func->second(args, *from, msg) };
 
 				if(msg.readcount != msg_backup.readcount)
 					msg = msg_backup;

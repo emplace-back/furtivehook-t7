@@ -21,7 +21,7 @@ namespace scheduler
 	using task_list = std::vector<task>; 
 	static const bool cond_continue = false;
 	static const bool cond_end = true;
-	
+
 	void schedule(const std::function<bool()>& callback, const pipeline type = pipeline::main, const std::chrono::milliseconds delay = 0ms);
 	void loop(const std::function<void()>& callback, const pipeline type = pipeline::main, const std::chrono::milliseconds delay = 0ms);
 	void once(const std::function<void()>& callback, const pipeline type = pipeline::main, const std::chrono::milliseconds delay = 0ms);

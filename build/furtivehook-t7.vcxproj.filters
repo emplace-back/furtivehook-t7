@@ -4,6 +4,9 @@
     <Filter Include="core">
       <UniqueIdentifier>{4E40957C-3A77-960D-E363-7C10CF79120F}</UniqueIdentifier>
     </Filter>
+    <Filter Include="core\aimbot">
+      <UniqueIdentifier>{D92A1B60-45E0-9355-CED4-8D2C3A898A59}</UniqueIdentifier>
+    </Filter>
     <Filter Include="core\command">
       <UniqueIdentifier>{7CBF790B-6822-09B0-11A8-4166FDE9D432}</UniqueIdentifier>
     </Filter>
@@ -73,6 +76,9 @@
     <Filter Include="dependencies\hooks">
       <UniqueIdentifier>{FFD401BD-EBB8-C212-5419-BD65401CAD94}</UniqueIdentifier>
     </Filter>
+    <Filter Include="dependencies\math">
+      <UniqueIdentifier>{05F6956A-710C-9400-BA83-1F2226D96488}</UniqueIdentifier>
+    </Filter>
     <Filter Include="steam">
       <UniqueIdentifier>{9F586110-0B6D-89C1-D4EE-2C2140C285F2}</UniqueIdentifier>
     </Filter>
@@ -102,6 +108,12 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\core\aimbot\aimbot.hpp">
+      <Filter>core\aimbot</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\core\aimbot\autowall.hpp">
+      <Filter>core\aimbot</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\core\command\command.hpp">
       <Filter>core\command</Filter>
     </ClInclude>
@@ -110,6 +122,9 @@
     </ClInclude>
     <ClInclude Include="..\src\core\events\connectionless_packet\connectionless_packet.hpp">
       <Filter>core\events\connectionless_packet</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\core\events\events.hpp">
+      <Filter>core\events</Filter>
     </ClInclude>
     <ClInclude Include="..\src\core\events\instant_message\instant_message.hpp">
       <Filter>core\events\instant_message</Filter>
@@ -173,6 +188,9 @@
     </ClInclude>
     <ClInclude Include="..\src\dependencies\hooks\MinHook.h">
       <Filter>dependencies\hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\dependencies\math\math.hpp">
+      <Filter>dependencies\math</Filter>
     </ClInclude>
     <ClInclude Include="..\src\dependencies\std_include.hpp">
       <Filter>dependencies</Filter>
@@ -425,6 +443,12 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\core\aimbot\aimbot.cpp">
+      <Filter>core\aimbot</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\core\aimbot\autowall.cpp">
+      <Filter>core\aimbot</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\core\command\command.cpp">
       <Filter>core\command</Filter>
     </ClCompile>
@@ -433,6 +457,9 @@
     </ClCompile>
     <ClCompile Include="..\src\core\events\connectionless_packet\connectionless_packet.cpp">
       <Filter>core\events\connectionless_packet</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\core\events\events.cpp">
+      <Filter>core\events</Filter>
     </ClCompile>
     <ClCompile Include="..\src\core\events\instant_message\instant_message.cpp">
       <Filter>core\events\instant_message</Filter>
@@ -490,6 +517,9 @@
     </ClCompile>
     <ClCompile Include="..\src\dependencies\game\game.cpp">
       <Filter>dependencies\game</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\dependencies\math\math.cpp">
+      <Filter>dependencies\math</Filter>
     </ClCompile>
     <ClCompile Include="..\src\steam\steam.cpp">
       <Filter>steam</Filter>

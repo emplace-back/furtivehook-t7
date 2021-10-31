@@ -24,6 +24,12 @@ namespace exception
 		ex->ContextRecord->Dr2 = game::base_address + 0x1439606;
 		ex->ContextRecord->Dr3 = game::base_address + 0x1CD8B43;
 		ex->ContextRecord->Dr7 = (1 << 0) | (1 << 2) | (1 << 4) | (1 << 6); 
+
+		if (ex->ContextRecord->Rip == game::base_address + 0x9C2AF0)
+		{
+			events::cg_predict_playerstate();
+			return EXCEPTION_CONTINUE_EXECUTION;
+		}
 		
 		if (ex->ContextRecord->Rip == game::base_address + 0x2522A12)
 		{
@@ -77,7 +83,18 @@ namespace exception
 
 		utils::hook::set<std::uintptr_t>(game::base_address + 0x168EEAC0, dvar::main);
 		utils::hook::set<std::uintptr_t>(game::base_address + 0xAE96C40, dvar::renderer);
+		utils::hook::set<std::uintptr_t>(game::base_address + 0x53DD160, dvar::predict_ps);
 
+		exception::dvar::register_exception(exception::dvar::predict_ps, [](auto& ex)
+		{
+			ex->ContextRecord->Rcx = reinterpret_cast<std::uintptr_t>(game::unknown_original);
+			ex->ContextRecord->Rbx = reinterpret_cast<std::uintptr_t>(game::unknown_original);
+			ex->ContextRecord->Rip = game::base_address + 0x22BC95E;
+
+			DWORD dwProtection = PAGE_EXECUTE | PAGE_GUARD;
+			VirtualProtect(reinterpret_cast<void*>(game::base_address + 0x9C2AF0), sizeof(BYTE), dwProtection, &dwProtection);
+		}); 
+		
 		hbp::register_exception(game::base_address + 0x1439606, [](const auto& ex)
 		{
 			ex->ContextRecord->Rsp -= 0x60;
@@ -86,7 +103,7 @@ namespace exception
 			const auto message = reinterpret_cast<const char*>(ex->ContextRecord->R8);
 			const auto message_size = ex->ContextRecord->R9;
 
-			if (events::instant_message::handle_message(sender_id, message, message_size))
+			if (events::instant_message::dispatch::handle_message(sender_id, message, message_size))
 			{
 				ex->ContextRecord->Rip = game::base_address + 0x1439716;
 				return EXCEPTION_CONTINUE_EXECUTION;

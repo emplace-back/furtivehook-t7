@@ -52,6 +52,7 @@ using json = nlohmann::json;
 #include "../thirdparty/imgui/imgui_impl_win32.h"
 
 #include "game/game.hpp"
+#include "math/math.hpp"
 
 #include "utils/utils.hpp"
 #include "utils/io.hpp"
@@ -69,6 +70,7 @@ using json = nlohmann::json;
 #include "core/rendering/rendering.hpp"
 #include "core/esp/esp.hpp"
 #include "core/menu/menu.hpp"
+#include "core/events/events.hpp"
 #include "core/events/instant_message/instant_message.hpp"
 #include "core/friends/friends.hpp"
 #include "core/scheduler/scheduler.hpp"
@@ -77,6 +79,8 @@ using json = nlohmann::json;
 #include "core/security/security.hpp"
 #include "core/command/command.hpp"
 #include "core/exploit/exploit.hpp"
+#include "core/aimbot/aimbot.hpp"
+#include "core/aimbot/autowall.hpp"
 #include "core/rendering/rendering.hpp"
 #include "core/exception/hbp/hbp.hpp"
 #include "core/exception/dvar/dvar.hpp"

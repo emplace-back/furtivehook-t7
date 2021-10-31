@@ -5,6 +5,7 @@ namespace steam
 {
 	utils::hook::detour get_persona_name_hook;
 	utils::hook::detour live_steam_filter_persona_name_hook;
+	utils::hook::detour utf8safe_strncpyz_hook;
 	
 	ISteamFriends* steam_friends; 
 	std::string persona_name = "";
@@ -39,11 +40,18 @@ namespace steam
 		return 0;
 	}
 
+	void __fastcall utf8safe_strncpyz(const char *src, char *dest, int destsize)
+	{
+		utf8safe_strncpyz_hook.invoke<void>(src, dest, 32);
+		utf8safe_strncpyz_hook.clear();
+	}
+
 	const char* __fastcall get_persona_name(ISteamFriends* thisptr)
 	{
 		if (!persona_name.empty())
 		{
 			live_steam_filter_persona_name_hook.create(game::base_address + 0x1EAF350, live_steam_filter_persona_name);
+			utf8safe_strncpyz_hook.create(game::base_address + 0x1EB06C0, utf8safe_strncpyz);
 			return persona_name.data();
 		}
 		

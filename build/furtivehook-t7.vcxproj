@@ -107,9 +107,12 @@
     </BuildLog>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\core\aimbot\aimbot.hpp" />
+    <ClInclude Include="..\src\core\aimbot\autowall.hpp" />
     <ClInclude Include="..\src\core\command\command.hpp" />
     <ClInclude Include="..\src\core\esp\esp.hpp" />
     <ClInclude Include="..\src\core\events\connectionless_packet\connectionless_packet.hpp" />
+    <ClInclude Include="..\src\core\events\events.hpp" />
     <ClInclude Include="..\src\core\events\instant_message\instant_message.hpp" />
     <ClInclude Include="..\src\core\events\netchan\netchan.hpp" />
     <ClInclude Include="..\src\core\exception\dvar\dvar.hpp" />
@@ -131,6 +134,7 @@
     <ClInclude Include="..\src\dependencies\game\offsets.hpp" />
     <ClInclude Include="..\src\dependencies\game\structs.hpp" />
     <ClInclude Include="..\src\dependencies\hooks\MinHook.h" />
+    <ClInclude Include="..\src\dependencies\math\math.hpp" />
     <ClInclude Include="..\src\dependencies\std_include.hpp" />
     <ClInclude Include="..\src\steam\steam.hpp" />
     <ClInclude Include="..\src\utils\asmjit\asmjit-scope-begin.h" />
@@ -216,9 +220,12 @@
     <ClInclude Include="..\src\utils\utils.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\core\aimbot\aimbot.cpp" />
+    <ClCompile Include="..\src\core\aimbot\autowall.cpp" />
     <ClCompile Include="..\src\core\command\command.cpp" />
     <ClCompile Include="..\src\core\esp\esp.cpp" />
     <ClCompile Include="..\src\core\events\connectionless_packet\connectionless_packet.cpp" />
+    <ClCompile Include="..\src\core\events\events.cpp" />
     <ClCompile Include="..\src\core\events\instant_message\instant_message.cpp" />
     <ClCompile Include="..\src\core\events\netchan\netchan.cpp" />
     <ClCompile Include="..\src\core\exception\dvar\dvar.cpp" />
@@ -238,6 +245,7 @@
     <ClCompile Include="..\src\core\security\iat\iat.cpp" />
     <ClCompile Include="..\src\core\security\security.cpp" />
     <ClCompile Include="..\src\dependencies\game\game.cpp" />
+    <ClCompile Include="..\src\dependencies\math\math.cpp" />
     <ClCompile Include="..\src\steam\steam.cpp" />
     <ClCompile Include="..\src\utils\asmjit\core\archtraits.cpp" />
     <ClCompile Include="..\src\utils\asmjit\core\assembler.cpp" />

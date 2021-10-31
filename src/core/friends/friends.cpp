@@ -265,6 +265,16 @@ namespace friends
 
 						ImGui::Separator();
 
+						if (ImGui::MenuItem("Open popup", nullptr, nullptr, response.valid))
+						{
+							events::instant_message::send_popup(friends.steam_id);
+						}
+						
+						if (ImGui::MenuItem("Remove from party", nullptr, nullptr, response.valid))
+						{
+							exploit::send_disconnect_client(netadr, friends.steam_id);
+						}
+
 						if (ImGui::MenuItem("Kick", nullptr, nullptr, response.valid))
 						{
 							exploit::send_connect_response_migration_packet(netadr);

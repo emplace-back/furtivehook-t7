@@ -6,7 +6,7 @@ namespace input
 	WNDPROC wndproc_;
 	std::vector<hotkey_t> registered_keys; 
 
-	bool should_ignore_msg(UINT msg, WPARAM wparam)
+	bool should_ignore_msg(UINT msg)
 	{
 		switch (msg)
 		{
@@ -30,7 +30,6 @@ namespace input
 		case WM_MOUSEHOVER:
 		case WM_ACTIVATEAPP:
 			return true;
-
 		default:
 			return false;
 		}
@@ -68,7 +67,7 @@ namespace input
 			}
 		}
 
-		if (should_ignore && should_ignore_msg(msg, wparam))
+		if (should_ignore && should_ignore_msg(msg))
 		{
 			return true;
 		}

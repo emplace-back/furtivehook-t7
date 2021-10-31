@@ -66,22 +66,41 @@ namespace game
 	Vec2 get_screen_pos(const Vec3 & world_pos);
 	Vec2 get_scale(const centity_t * cent, const float pos);
 	Vec3 get_top_position(const centity_t * cent);
+	bool AimTarget_GetTagPos(const game::centity_t * cent, const scr_string_t & tag_name, Vec3 * end);
+	bool CG_GetPlayerViewOrigin(const game::playerState_s* ps, Vec3* view_origin);
+	void adjust_user_cmd_movement(usercmd_s * cmd_old, const float angle, const float old_angle);
 	
 	extern std::unordered_map<std::string, bool> handlers;
 	extern std::array<scr_string_t, static_cast<std::uint32_t>(bone_tag::num_tags)> bone_tags;
 	extern LobbySession* session;
 	extern dvar_t* com_smoothframes_original;
 	extern dvar_t* r_fxShadows_original;
+	extern dvar_t* unknown_original;
 
 	const static auto base_address = reinterpret_cast<std::uintptr_t>(GetModuleHandleA(nullptr)) + 0x1000;
 	const static auto& spoof_t = reinterpret_cast<void*>(game::base_address + 0x2A95FFB);
 
+	const static auto ClampChar = reinterpret_cast<char(*)(const int i)>(game::base_address + 0x22A52B0);
+	const static auto sv_penetrationCount = *reinterpret_cast<game::dvar_t**>(game::base_address + 0x176F96A8);
+	const static auto bg_bulletPenetrationTreatVoidsAsSolid = *reinterpret_cast<game::dvar_t**>(game::base_address + 0x19C2BA30);
+	const static auto CG_ClientHasPerk = reinterpret_cast<bool(*)(LocalClientNum_t, ClientNum_t, unsigned int)>(game::base_address + 0x9425D0);
+	const static auto BG_GetWeaponDef = reinterpret_cast<WeaponDef*(*)(game::Weapon)>(game::base_address + 0x26E9B80);
+	const static auto BG_GetPenetrateType = reinterpret_cast<PenetrateType(*)(const game::Weapon)>(game::base_address + 0x26F0ED0);
+	const static auto BG_FixupHitInfo = reinterpret_cast<bool(*)(game::BulletPenetrationInfo*, int, int, int, int, float *, float, PenetrateType)>(game::base_address + 0xA1B30);
+	const static auto BG_GetSurfacePenetrationDepth = reinterpret_cast<float(*)(PenetrateType penetrateType, int surfaceType)>(game::base_address + 0x26D0480);
+	const static auto BG_AdvanceTrace = reinterpret_cast<bool(*)(game::BulletFireParams* bp, game::BulletTraceResults*, float)>(game::base_address + 0xA1020); 
+	const static auto BG_IsDualWield = reinterpret_cast<bool(*)(const Weapon)>(game::base_address + 0x26F3820);
+	const static auto BG_GetViewmodelWeaponIndex = reinterpret_cast<Weapon(*)(const game::playerState_s*)>(game::base_address + 0x26D04A0);
+	const static auto BG_GetWeaponDamageForRange = reinterpret_cast<int(*)(const Weapon, const Vec3*, const Vec3*)>(game::base_address + 0x26F27A0);
+	const static auto G_GetWeaponHitLocationMultiplier = reinterpret_cast<float(*)(std::uint16_t, Weapon)>(game::base_address + 0x19863C0); 
+	const static auto Trace_GetEntityHitId = reinterpret_cast<std::uint16_t(__fastcall*)(const trace_t*)>(game::base_address + 0x20E4AD0);
+	const static auto vectoangles = reinterpret_cast<void(*)(const Vec3*, Vec3*)>(base_address + 0x22AA710);
 	const static auto CG_WorldPosToScreenPos = reinterpret_cast<bool(__fastcall*)(LocalClientNum_t, const Vec3* worldPos, Vec2* outScreenPos)>(base_address + 0x573140);
 	const static auto Com_GetClientDObj = reinterpret_cast<void*(__fastcall*)(int, LocalClientNum_t)>(base_address + 0x214DBA0);
 	const static auto GScr_AllocString = reinterpret_cast<scr_string_t(__fastcall*)(const char*)>(base_address + 0x1A82520);
 	const static auto CG_DObjGetWorldTagPos = reinterpret_cast<bool(__fastcall*)(const cpose_t *, void*, scr_string_t, Vec3*)>(base_address + 0x1AAD50);
 	const static auto LobbyClientLaunch_IsInGame = *reinterpret_cast<bool(__fastcall*)()>(game::base_address + 0x1ECD6D0);
-	const static auto SendClientReliableData = reinterpret_cast<bool(__fastcall *)(const ControllerIndex_t, game::LobbyType, Msg_ClientReliableData *)>(game::base_address + 0x1ED5350);
+	const static auto SendClientReliableData = reinterpret_cast<bool(__fastcall *)(const ControllerIndex_t, int, Msg_ClientReliableData *)>(game::base_address + 0x1ED5350);
 	const static auto dwRegisterSecIDAndKey = reinterpret_cast<bool(*)(const bdSecurityID *, const bdSecurityKey *)>(base_address + 0x143D120);
 	const static auto dwCommonAddrToNetadr = reinterpret_cast<bool(*)(netadr_t *const, const void *const, const bdSecurityID *)>(base_address + 0x143B360);
 	const static auto LobbyMsg_SendInfoRequest = reinterpret_cast<bool(__fastcall*)(const ControllerIndex_t, const std::uint64_t*, int, const game::Msg_InfoRequest *)>(game::base_address + 0x1EE44C0);
@@ -131,6 +150,7 @@ namespace game
 	const static auto NET_CompareAdr = reinterpret_cast<bool(__fastcall*)(const netadr_t, const netadr_t)>(base_address + 0x21722D0);
 	const static auto LiveSteam_GetFriends = reinterpret_cast<ISteamFriends*(__fastcall*)(std::uintptr_t)>(base_address + 0x1DF99F0);
 	const static auto CL_GetLocalClientGlobals = *reinterpret_cast<clientActive_t*(*)(LocalClientNum_t)>(game::base_address + 0x70BD0);
+	const static auto LobbySession_GetSession_Internal = *reinterpret_cast<LobbySession*(*)(LobbyType)>(game::base_address + 0x1ECCAB0);
 	const static auto lobbymsg_prints = reinterpret_cast<game::dvar_t**>(game::base_address + 0x1574E840);
 	const static auto& window = *reinterpret_cast<HWND*>(base_address + 0x17E773D0);
 	const static auto& swap_chain = reinterpret_cast<IDXGISwapChain**>(base_address + 0xF4B7858);
@@ -144,7 +164,7 @@ namespace game
 	}
 	
 	inline LobbySession* LobbySession_GetSession(const LobbyType lobbyType)
-	{ 
+	{
 		return reinterpret_cast<LobbySession*>(base_address + 0x15676490 + sizeof LobbySession * lobbyType);
 	}
 

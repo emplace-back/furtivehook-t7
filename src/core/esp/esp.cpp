@@ -48,6 +48,13 @@ namespace esp
 		ImVec4 player_color[18];
 	}
 
+	void draw_health_bar(ImDrawList* draw_list, const Vec2& pos, const Vec2& dimensions, const ImVec4& color)
+	{
+		draw_list->AddRect({ 1.f + pos.x, 1.f + pos.y }, { 1.f + pos.x + dimensions.x, 1.f + pos.y + dimensions.y }, ImColor{ 0.f, 0.f, 0.f, 1.f });
+		draw_list->AddRect({ -1.f + pos.x, 1.f + pos.y }, { -1.f + pos.x + dimensions.x, 1.f + pos.y + dimensions.y }, ImColor{ 0.f, 0.f, 0.f, 1.f });
+		draw_list->AddRectFilled({ pos.x, pos.y }, { pos.x + dimensions.x, pos.y + dimensions.y }, ImColor{ color });
+	}
+
 	void draw_outlined_box(ImDrawList* draw_list, const Vec2& pos, const Vec2& scale, const Vec2& length, const ImVec4& color)
 	{
 		draw_list->AddRectFilled({ pos.x - 1.f, pos.y - 1.f }, { pos.x + length.x + 2.f, pos.y + 2.f }, ImColor(color));
@@ -59,10 +66,27 @@ namespace esp
 		draw_list->AddRectFilled({ pos.x + scale.x - length.x - 1.f, pos.y + scale.y - 2.f }, { pos.x + scale.x + 1.f, pos.y + scale.y + 1.f }, ImColor(color));
 		draw_list->AddRectFilled({ pos.x + scale.x - 2.f, pos.y + scale.y - length.y - 1.f }, { pos.x + scale.x + 1.f, pos.y + scale.y + 1.f }, ImColor(color));
 	}
-
-	void draw_line(ImDrawList* draw_list, const Vec2& xy, const Vec2& wh, const ImVec4& color)
+	
+	void draw_box(ImDrawList* draw_list, const Vec2& pos, const Vec2& scale, const Vec2& length, const bool outlined, const ImVec4& color)
 	{
-		draw_list->AddLine({ xy.x, xy.y }, { wh.x, wh.y }, ImColor(color), bone_thickness);
+		if (outlined)
+		{
+			draw_outlined_box(draw_list, { pos.x, pos.y }, scale, length, { 0.0f, 0.0f, 0.0f, 1.0f });
+		}
+		
+		draw_list->AddRectFilled({ pos.x, pos.y }, { pos.x + length.x + 1.0f, pos.y + 1.f }, ImColor(color));
+		draw_list->AddRectFilled({ pos.x, pos.y }, { pos.x + 1.f, pos.y + length.y + 1.f }, ImColor(color));
+		draw_list->AddRectFilled({ pos.x + scale.x - length.x, pos.y }, { pos.x + scale.x, pos.y + 1.f }, ImColor(color));
+		draw_list->AddRectFilled({ pos.x + scale.x - 1.f, pos.y }, { pos.x + scale.x, pos.y + length.y + 1.f }, ImColor(color));
+		draw_list->AddRectFilled({ pos.x, pos.y + scale.y - 1.f }, { pos.x + length.x + 1.f, pos.y + scale.y }, ImColor(color));
+		draw_list->AddRectFilled({ pos.x, pos.y + scale.y - length.y }, { pos.x + 1.f, pos.y + scale.y }, ImColor(color));
+		draw_list->AddRectFilled({ pos.x + scale.x - length.x, pos.y + scale.y - 1.f }, { pos.x + scale.x, pos.y + scale.y }, ImColor(color));
+		draw_list->AddRectFilled({ pos.x + scale.x - 1.f, pos.y + scale.y - length.y }, { pos.x + scale.x, pos.y + scale.y }, ImColor(color));
+	}
+
+	void draw_line(ImDrawList* draw_list, const Vec2& pos, const Vec2& dimensions, const ImVec4& color)
+	{
+		draw_list->AddLine({ pos.x, pos.y }, { dimensions.x, dimensions.y }, ImColor(color), bone_thickness);
 	}
 
 	Vec3 get_bone_tag_position(const game::centity_t* cent, const game::bone_tag t)
@@ -143,6 +167,8 @@ namespace esp
 				if (enemies_only && !game::is_enemy(i))
 					continue;
 
+				screen_positions::player_box[i].health = game::cg()->clients[i].health;
+
 				for (const auto& bone_tag : bone_tags)
 				{
 					if (const auto& bone_tag_position = get_bone_tag_position(cent, bone_tag); !bone_tag_position.empty())
@@ -176,7 +202,8 @@ namespace esp
 					screen_positions::player_bone_tags[i].color = color;
 				}
 
-				game::CL_GetClientName(0, i, screen_positions::player_name[i].name.data(), 40, true);
+				game::CL_GetClientName(0, i, screen_positions::player_name[i].name, sizeof screen_positions::player_name[i].name, true);
+				
 				screen_positions::size = i;
 			}
 		}
@@ -219,7 +246,7 @@ namespace esp
 			}
 		}
 	}
-
+	
 	void draw_player_box(size_t ent_num, ImDrawList* draw_list)
 	{
 		if (!player_box)
@@ -234,16 +261,13 @@ namespace esp
 			const auto scale = screen_positions::player_box[ent_num].scale;
 			const auto length = scale * 0.25f;
 
-			draw_outlined_box(draw_list, { x, y }, scale, length, { 0.0f, 0.0f, 0.0f, 1.0f });
+			draw_box(draw_list, { x, y }, scale, length, true, color);
 
-			draw_list->AddRectFilled({ x, y }, { x + length.x + 1.0f, y + 1.f }, ImColor(color));
-			draw_list->AddRectFilled({ x, y }, { x + 1.f, y + length.y + 1.f }, ImColor(color));
-			draw_list->AddRectFilled({ x + scale.x - length.x, y }, { x + scale.x, y + 1.f }, ImColor(color));
-			draw_list->AddRectFilled({ x + scale.x - 1.f, y }, { x + scale.x, y + length.y + 1.f }, ImColor(color));
-			draw_list->AddRectFilled({ x, y + scale.y - 1.f }, { x + length.x + 1.f, y + scale.y }, ImColor(color));
-			draw_list->AddRectFilled({ x, y + scale.y - length.y }, { x + 1.f, y + scale.y }, ImColor(color));
-			draw_list->AddRectFilled({ x + scale.x - length.x, y + scale.y - 1.f }, { x + scale.x, y + scale.y }, ImColor(color));
-			draw_list->AddRectFilled({ x + scale.x - 1.f, y + scale.y - length.y }, { x + scale.x, y + scale.y }, ImColor(color));
+			const auto health{ std::min(std::max(screen_positions::player_box[ent_num].health, 0), 100) };
+			const auto factor{ static_cast<float>(health) / 100.0f };
+			const auto& health_color{ ImColor::HSV((factor * 120.0f) / 360.0f, 1.f, 1.f) };
+
+			draw_health_bar(draw_list, { x - 7, y + (scale.y - scale.y * factor) }, { 3.f, scale.y * factor }, health_color.Value);
 		}
 	}
 
@@ -256,7 +280,7 @@ namespace esp
 		{
 			const auto& color = screen_positions::player_color[ent_num];
 
-			const auto text = screen_positions::player_name[ent_num].name.data();
+			const auto text = screen_positions::player_name[ent_num].name;
 			const auto text_size = ImGui::CalcTextSize(text);
 			const auto x = pos.x - text_size.x * 0.5f;
 			const auto y = pos.y - text_size.y;
@@ -269,7 +293,7 @@ namespace esp
 
 	void run()
 	{
-		if (enabled)
+		if (enabled && game::LobbyClientLaunch_IsInGame())
 		{
 			const auto draw_list = ImGui::GetWindowDrawList();
 

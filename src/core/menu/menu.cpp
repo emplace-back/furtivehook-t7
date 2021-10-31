@@ -96,7 +96,7 @@ namespace menu
 		if (initialized)
 		{
 			open = !open;
-			utils::hook::set<bool>(game::base_address + 0x17E7033C, !open);
+			utils::hook::set<bool>(game::base_address + 0x17E70335, !open);
 		}
 	}
 
@@ -328,7 +328,16 @@ namespace menu
 
 					ImGui::NextColumn();
 
-					ImGui::TextUnformatted("");
+					if (client_num != static_cast<std::uint32_t>(our_client_num))
+					{
+						ImGui::TextUnformatted("");
+						ImGui::SameLine(0, 10.0f);
+						ImGui::Checkbox(("##priority_client" + std::to_string(client_num)).data(), reinterpret_cast<bool*>(&aimbot::priority_target[client_num]));
+					}
+					else
+					{
+						ImGui::TextUnformatted("");
+					}
 
 					ImGui::NextColumn();
 
@@ -419,6 +428,24 @@ namespace menu
 				const auto width = ImGui::GetContentRegionAvail().x;
 				const auto spacing = ImGui::GetStyle().ItemInnerSpacing.x;
 
+				if (ImGui::BeginTabItem("Aimbot"))
+				{
+					ImGui::Checkbox("Enabled##aimbot_enabled", &aimbot::enabled);
+
+					ImGui::Separator();
+
+					ImGui::Checkbox("Silent mode", &aimbot::silent);
+
+					ImGui::SameLine(width - 100.0f, spacing);
+					ImGui::Checkbox("Asynchronous", &aimbot::asynchronous);
+
+					ImGui::Checkbox("Auto-fire", &aimbot::auto_fire);
+					ImGui::Checkbox("Legit", &aimbot::legit);
+					ImGui::Checkbox("Only bonescan priority targets", &aimbot::priority_bonescan);
+
+					ImGui::EndTabItem();
+				}
+				
 				if (ImGui::BeginTabItem("Visuals"))
 				{
 					ImGui::Checkbox("Enable##enable_visuals", &esp::enabled);
@@ -472,7 +499,7 @@ namespace menu
 
 					ImGui::Checkbox("Log out-of-band packets", &events::connectionless_packet::log_packets);
 					ImGui::Checkbox("Log netchan messages", &events::netchan::log_messages);
-					ImGui::Checkbox("Log instant messages", &events::instant_message::log_messages);
+					ImGui::Checkbox("Log instant messages", &events::instant_message::dispatch::log_messages);
 
 					if (ImGui::CollapsingHeader("Removals", ImGuiTreeNodeFlags_Leaf))
 					{

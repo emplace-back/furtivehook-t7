@@ -142,13 +142,32 @@ public:
 
 using LocalClientNum_t = std::uint32_t;
 using scr_string_t = std::uint32_t;
-using Weapon = std::uint32_t;
 using ControllerIndex_t = std::uint32_t;
 using ClientNum_t = std::uint32_t;
 
 namespace game
 {
 	typedef uint32_t dvarStrHash_t;
+	
+	struct $0892FF7CFA16307BC31F976BA8D88FE7
+	{
+		unsigned __int64 weaponIdx : 9;
+		unsigned __int64 attachment1 : 6;
+		unsigned __int64 attachment2 : 6;
+		unsigned __int64 attachment3 : 6;
+		unsigned __int64 attachment4 : 6;
+		unsigned __int64 attachment5 : 6;
+		unsigned __int64 attachment6 : 6;
+		unsigned __int64 attachment7 : 6;
+		unsigned __int64 attachment8 : 6;
+		unsigned __int64 padding : 7;
+	};
+	
+	union Weapon
+	{
+		$0892FF7CFA16307BC31F976BA8D88FE7 _anon_0;
+		uint64_t weaponData;
+	};
 	
 	enum team_t : __int32
 	{
@@ -198,6 +217,21 @@ namespace game
 		ERROR_SOFTRESTART = 0x400,
 		ERROR_SOFTRESTART_KEEPDW = 0x800,
 		ERROR_SOFTRESTART_SILENT = 0x1000,
+	};
+
+	enum TraceBrushType : __int32
+	{
+		TRACE_BRUSHTYPE_NONE = 0x0,
+		TRACE_BRUSHTYPE_BRUSH = 0x1,
+	};
+	
+	enum TraceHitType : __int32
+	{
+		TRACE_HITTYPE_NONE = 0x0,
+		TRACE_HITTYPE_ENTITY = 0x1,
+		TRACE_HITTYPE_DYNENT_MODEL = 0x2,
+		TRACE_HITTYPE_DYNENT_BRUSH = 0x3,
+		TRACE_HITTYPE_GLASS = 0x4,
 	};
 	
 	enum dvarType_t : __int32
@@ -784,6 +818,18 @@ namespace game
 		ClientNum_t clientNum;
 		int commandTime;
 		char pad[0xB56C];
+
+		// 0x11A8E0 - 0x11A8B0
+
+		Vec3 origin() const
+		{
+			return *reinterpret_cast<Vec3*>(reinterpret_cast<uintptr_t>(this) + 0x30);
+		}
+
+		Vec3 view_angles() const
+		{
+			return *reinterpret_cast<Vec3*>(reinterpret_cast<uintptr_t>(this) + 0x318);
+		}
 	};
 
 	struct trajectory_t
@@ -821,7 +867,7 @@ namespace game
 	{
 		cpose_t pose;
 		entityState_t nextState;
-		char pad2[0x490 + 0x18];
+		char pad2[0x4A8];
 		std::uint8_t alive;
 		char pad3[0x8];
 
@@ -838,7 +884,9 @@ namespace game
 		char name[32];
 		team_t team;
 		team_t oldteam; 
-		char pad[0xE9C];
+		char pad[0xC0];
+		int health;
+		char pad2[0xDD8];
 	};
 
 	struct cg_t
@@ -847,9 +895,11 @@ namespace game
 		playerState_s predictedPlayerState;
 		int lastPlayerStateOverride;
 		centity_t predictedPlayerEntity;
-		char pad2[0x1C1318];
+		char pad2[0x1B21B8];
+		Vec3 refdefViewAngles;
+		char pad3[0xF154];
 		clientInfo_t clients[18];
-		char pad3[0x4A240];
+		char pad4[0x4A240];
 
 		//inKillcam 0x2E77E8
 	};
@@ -868,7 +918,7 @@ namespace game
 		char upmove;
 		char pitchmove;
 		char yawmove;
-		char pad2[0x1E];
+		char pad2[0xE];
 	};
 
 	struct clientActive_t
@@ -877,12 +927,14 @@ namespace game
 		int serverId;
 		char pad2[0x160];
 		Vec3 cgameKickAngles;
-		char pad3[0x10010C];
+		char pad3[0xE4];
+		Vec3 viewangles;
+		char pad4[0x10001C];
 		usercmd_s cmds[128];
 		int cmdNumber;
-		char pad4[0x8993C];
+		char pad5[0x8993C];
 
-		usercmd_s* get_user_cmd(const int i)
+		usercmd_s* user_cmd(const int i)
 		{
 			return &cmds[i & 0x7F];
 		}
@@ -891,13 +943,13 @@ namespace game
 	struct Msg_ClientReliableData
 	{
 		uint32_t dataMask;
-		LobbyType lobbyType;
+		int lobbyType;
 		uint64_t xuidNewLeader;
 		uint64_t disconnectClientXuid;
-		LobbyDisconnectClient disconnectClient;
+		int disconnectClient;
 		int leaderActivity;
 		uint64_t platformSessionID;
-		LobbyType lobbyTypeMoveFrom;
+		int lobbyTypeMoveFrom;
 		int moveCount;
 		uint64_t moveXuids[18];
 		int team;
@@ -906,5 +958,87 @@ namespace game
 		int itemVote;
 		int characterSelection;
 		bool editComplete;
+	};
+
+	struct trace_t
+	{
+		Vec3 normal;
+		char _0xC[0x4];
+		float fraction;
+		int sflags;
+		char _0x18[0xC];
+		TraceHitType hitType;
+		std::uint16_t hitId;
+		char _0x2A[0xC];
+		std::uint16_t partGroup;
+		bool allSolid;
+		bool startSolid;
+		char _0x3A[0x16];
+		int hitPartition;
+	};
+
+	struct BulletTraceResults
+	{
+		trace_t trace;
+		Vec3 hitPos;
+		bool ignoreHitEnt;
+		char pad[0x3];
+		int depthSurfaceType;
+		char pad2[0x8];
+	};
+
+	struct BulletFireParams
+	{
+		int weaponEntIndex;
+		int ignoreEntIndex;
+		float damageMultiplier;
+		int methodOfDeath;
+		Vec3 origStart;
+		Vec3 start;
+		Vec3 end;
+		Vec3 dir;
+		Vec3 origDir;
+	};
+
+	struct BulletHitInfo
+	{
+		BulletFireParams bp;
+		char pad[0x4];
+		BulletTraceResults br;
+		BulletFireParams revBp;
+		char pad2[0x4];
+		BulletTraceResults revBr;
+		bool traceHit;
+		bool revTraceHit;
+		bool allSolid;
+		bool voidFilled;
+		int sflags;
+		int sflagsRv;
+		float damage;
+		char pad3[0x4];
+		float range;
+		char pad4[0x8];
+	}; 
+	
+	struct BulletPenetrationInfo
+	{
+		BulletHitInfo hits[5];
+		int count;
+		char pad[0xC];
+	};
+
+	enum PenetrateType
+	{
+		PENETRATE_TYPE_NONE = 0x0,
+		PENETRATE_TYPE_SMALL = 0x1,
+		PENETRATE_TYPE_MEDIUM = 0x2,
+		PENETRATE_TYPE_LARGE = 0x3,
+		PENETRATE_TYPE_COUNT = 0x4,
+	};
+
+	struct WeaponDef
+	{
+		char pad[0x10CD];
+		bool bBulletImpactExplode;
 	};
 }

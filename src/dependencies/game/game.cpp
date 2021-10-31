@@ -7,6 +7,7 @@ namespace game
 	std::array<scr_string_t, static_cast<std::uint32_t>(bone_tag::num_tags)> bone_tags; 
 	dvar_t* com_smoothframes_original = nullptr;
 	dvar_t* r_fxShadows_original = nullptr;
+	dvar_t* unknown_original = nullptr;
 
 	namespace oob
 	{
@@ -43,7 +44,7 @@ namespace game
 			game::MSG_WriteString(&msg, "LM");
 			game::MSG_WriteShort(&msg, 18532);
 			game::MSG_WriteByte(&msg, module);
-			game::MSG_WriteByte(&msg, -1);
+			game::MSG_WriteByte(&msg, session->type);
 			game::MSG_WriteData(&msg, lobby_msg->msg.data, lobby_msg->msg.cursize);
 
 			game::NET_OutOfBandData(game::NS_SERVER, to, msg.data, msg.cursize);
@@ -111,6 +112,7 @@ namespace game
 
 		com_smoothframes_original = *reinterpret_cast<dvar_t**>(base_address + 0x168EEAC0);
 		r_fxShadows_original = *reinterpret_cast<dvar_t**>(base_address + 0xAE96C40);
+		unknown_original = *reinterpret_cast<dvar_t**>(base_address + 0x53DD160);
 		
 		rendering::initialize();
 		scheduler::initialize();
@@ -123,13 +125,7 @@ namespace game
 		misc::initialize();
 		steam::initialize();
 
-		// 0x3F8
-
-		//sizeof game::cpose_t
-
-		PRINT_LOG("Initialized! 0x%llX 0x%llX", 
-			sizeof game::centity_t,
-			offsetof(game::centity_t, game::centity_t::nextState));
+		PRINT_LOG("Initialized!");
 	}
 
 	bool send_unhandled_netchan_message(const game::netadr_t& from, const game::LobbyMsg& lobby_msg, const std::uint64_t sender_id)
@@ -303,6 +299,7 @@ namespace game
 
 	void on_every_frame()
 	{
+		aimbot::run(&game::cg()->predictedPlayerState);
 		esp::visuals();
 	}
 
@@ -357,5 +354,29 @@ namespace game
 		origin.z += 55.0f;
 
 		return origin;
+	}
+
+	bool AimTarget_GetTagPos(const game::centity_t* cent, const scr_string_t& tag_name, Vec3* end)
+	{
+		if (const auto dobj = game::Com_GetClientDObj(cent->nextState.number, 0); dobj)
+		{
+			return CG_DObjGetWorldTagPos(&cent->pose, dobj, tag_name, end);
+		}
+
+		return false;
+	}
+
+	bool CG_GetPlayerViewOrigin(const game::playerState_s* ps, Vec3* view_origin)
+	{
+		const static auto CG_GetPlayerViewOrigin = reinterpret_cast<bool(__fastcall*)(LocalClientNum_t, const playerState_s*, Vec3*)>(base_address + 0x11EF4C0); 
+		return spoof_call::call(CG_GetPlayerViewOrigin, 0u, ps, view_origin);
+	}
+
+	void adjust_user_cmd_movement(usercmd_s* cmd_old, const float angle, const float old_angle)
+	{
+		const auto delta_view = DEG2RAD(angle - old_angle);
+
+		cmd_old->forwardmove = ClampChar(static_cast<int>(std::cosf(delta_view) * cmd_old->forwardmove - std::sinf(delta_view) * cmd_old->rightmove));
+		cmd_old->rightmove = ClampChar(static_cast<int>(std::sinf(delta_view) * cmd_old->forwardmove + std::cosf(delta_view) * cmd_old->rightmove));
 	}
 }
