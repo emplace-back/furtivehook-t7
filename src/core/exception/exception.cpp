@@ -20,7 +20,7 @@ namespace exception
 		}
 		
 		ex->ContextRecord->Dr0 = game::base_address + 0x134BDAD;
-		ex->ContextRecord->Dr1 = game::base_address + 0x1EF7068;
+		ex->ContextRecord->Dr1 = game::base_address + 0x1EF7094;
 		ex->ContextRecord->Dr2 = game::base_address + 0x1439606;
 		ex->ContextRecord->Dr3 = game::base_address + 0x1CD8B43;
 		ex->ContextRecord->Dr7 = (1 << 0) | (1 << 2) | (1 << 4) | (1 << 6); 
@@ -93,7 +93,7 @@ namespace exception
 
 			DWORD dwProtection = PAGE_EXECUTE | PAGE_GUARD;
 			VirtualProtect(reinterpret_cast<void*>(game::base_address + 0x9C2AF0), sizeof(BYTE), dwProtection, &dwProtection);
-		}); 
+		});
 		
 		hbp::register_exception(game::base_address + 0x1439606, [](const auto& ex)
 		{

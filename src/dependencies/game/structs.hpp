@@ -369,8 +369,8 @@ namespace game
 	
 	struct msg_t
 	{
-		bool overflowed;
-		bool readOnly;
+		int overflowed;
+		int readOnly;
 		char *data;
 		char *splitData;
 		int maxsize;
@@ -379,7 +379,7 @@ namespace game
 		int readcount;
 		int bit;
 		int lastEntityRef;
-		bool flush;
+		int flush;
 		netsrc_t targetLocalNetID;
 	};
 
@@ -493,6 +493,11 @@ namespace game
 		MESSAGE_TYPE_NONE = -1,
 		MESSAGE_TYPE_INFO_REQUEST = 0,
 		MESSAGE_TYPE_INFO_RESPONSE = 1,
+		MESSAGE_TYPE_LOBBY_STATE_PRIVATE = 2,
+		MESSAGE_TYPE_LOBBY_STATE_GAME = 3,
+		MESSAGE_TYPE_LOBBY_STATE_TRANSITION = 4,
+		MESSAGE_TYPE_LOBBY_HOST_HEARTBEAT = 7,
+		MESSAGE_TYPE_LOBBY_HOST_DISCONNECT = 8,
 		MESSAGE_TYPE_LOBBY_HOST_DISCONNECT_CLIENT = 9,
 		MESSAGE_TYPE_LOBBY_HOST_LEAVE_WITH_PARTY = 10,
 		MESSAGE_TYPE_LOBBY_CLIENT_HEARTBEAT = 11,
@@ -500,9 +505,18 @@ namespace game
 		MESSAGE_TYPE_LOBBY_CLIENT_RELIABLE_DATA = 13,
 		MESSAGE_TYPE_LOBBY_CLIENT_CONTENT = 14,
 		MESSAGE_TYPE_LOBBY_MODIFIED_STATS = 15,
+		MESSAGE_TYPE_JOIN_LOBBY = 16,
+		MESSAGE_TYPE_JOIN_RESPONSE = 17,
 		MESSAGE_TYPE_JOIN_AGREEMENT_REQUEST = 18,
+		MESSAGE_TYPE_JOIN_AGREEMENT_RESPONSE = 19,
+		MESSAGE_TYPE_JOIN_COMPLETE = 20,
+		MESSAGE_TYPE_JOIN_MEMBER_INFO = 21,
 		MESSAGE_TYPE_PEER_TO_PEER_CONNECTIVITY_TEST = 23,
+		MESSAGE_TYPE_PEER_TO_PEER_INFO = 24,
+		MESSAGE_TYPE_LOBBY_MIGRATE_ANNOUNCE_HOST = 26,
 		MESSAGE_TYPE_LOBBY_MIGRATE_START = 27,
+		MESSAGE_TYPE_INGAME_MIGRATE_TO = 28,
+		MESSAGE_TYPE_INGAME_MIGRATE_NEW_HOST = 29,
 		MESSAGE_TYPE_VOICE_PACKET = 30,
 		MESSAGE_TYPE_COUNT = 32, 
 	};
@@ -517,9 +531,9 @@ namespace game
 	struct LobbyMsg
 	{
 		msg_t msg;
-		MsgType msgType;
+		MsgType type;
+		char encodeFlags; 
 		PackageType packageType;
-		char encodeFlags;
 	};
 
 	enum IMType
@@ -819,8 +833,11 @@ namespace game
 		int commandTime;
 		char pad[0xB56C];
 
-		// 0x11A8E0 - 0x11A8B0
-
+		float weapon_pos_frac() const
+		{
+			return *reinterpret_cast<float*>(reinterpret_cast<uintptr_t>(this) + 0x2FC);
+		}
+		
 		Vec3 origin() const
 		{
 			return *reinterpret_cast<Vec3*>(reinterpret_cast<uintptr_t>(this) + 0x30);
@@ -901,7 +918,15 @@ namespace game
 		clientInfo_t clients[18];
 		char pad4[0x4A240];
 
-		//inKillcam 0x2E77E8
+		float aim_spread_scale() const
+		{
+			return *reinterpret_cast<float*>(reinterpret_cast<uintptr_t>(this) + 0x326AA0);
+		}
+
+		bool in_killcam() const
+		{
+			return *reinterpret_cast<bool*>(reinterpret_cast<uintptr_t>(this) + 0x2E77E8);
+		}
 	};
 
 	struct usercmd_s
@@ -943,7 +968,7 @@ namespace game
 	struct Msg_ClientReliableData
 	{
 		uint32_t dataMask;
-		int lobbyType;
+		LobbyType lobbyType;
 		uint64_t xuidNewLeader;
 		uint64_t disconnectClientXuid;
 		int disconnectClient;
@@ -1036,9 +1061,332 @@ namespace game
 		PENETRATE_TYPE_COUNT = 0x4,
 	};
 
+	enum weapClass_t : __int32
+	{
+		WEAPCLASS_RIFLE = 0x0,
+		WEAPCLASS_MG = 0x1,
+		WEAPCLASS_SMG = 0x2,
+		WEAPCLASS_SPREAD = 0x3,
+		WEAPCLASS_PISTOL = 0x4,
+		WEAPCLASS_GRENADE = 0x5,
+		WEAPCLASS_ROCKETLAUNCHER = 0x6,
+		WEAPCLASS_TURRET = 0x7,
+		WEAPCLASS_NON_PLAYER = 0x8,
+		WEAPCLASS_GAS = 0x9,
+		WEAPCLASS_ITEM = 0xA,
+		WEAPCLASS_MELEE = 0xB,
+		WEAPCLASS_KILLSTREAK_ALT_STORED_WEAPON = 0xC,
+		WEAPCLASS_PISTOL_SPREAD = 0xD,
+		WEAPCLASS_BALL = 0xE,
+		WEAPCLASS_NUM = 0xF,
+	};
+	
+	enum weapType_t : __int32
+	{
+		WEAPTYPE_BULLET = 0x0,
+		WEAPTYPE_GRENADE = 0x1,
+		WEAPTYPE_PROJECTILE = 0x2,
+		WEAPTYPE_BINOCULARS = 0x3,
+		WEAPTYPE_GAS = 0x4,
+		WEAPTYPE_BOMB = 0x5,
+		WEAPTYPE_MINE = 0x6,
+		WEAPTYPE_MELEE = 0x7,
+		WEAPTYPE_RIOTSHIELD = 0x8,
+		WEAPTYPE_NUM = 0x9,
+	};
+	
 	struct WeaponDef
 	{
 		char pad[0x10CD];
 		bool bBulletImpactExplode;
+
+		weapType_t weap_type() const
+		{
+			return *reinterpret_cast<weapType_t*>(reinterpret_cast<uintptr_t>(this) + 0x6C);
+		}
+		
+		weapClass_t weap_class() const
+		{
+			return *reinterpret_cast<weapClass_t*>(reinterpret_cast<uintptr_t>(this) + 0x70);
+		}
+		
+		float ads_spread() const
+		{
+			return *reinterpret_cast<float*>(reinterpret_cast<uintptr_t>(this) + 0x496);
+		}
+	};
+
+	enum JoinType : __int32
+	{
+		JOIN_TYPE_NORMAL = 0x0,
+		JOIN_TYPE_PLAYLIST = 0x1,
+		JOIN_TYPE_FRIEND = 0x2,
+		JOIN_TYPE_INVITE = 0x3,
+		JOIN_TYPE_PARTY = 0x4,
+		JOIN_TYPE_GROUPS = 0x5,
+		JOIN_TYPE_COUNT = 0x6,
+	};
+
+	struct JoinPartyMember
+	{
+		uint64_t xuid;
+		uint64_t lobbyID;
+		float skillRating;
+		float skillVariance;
+		uint32_t probationTimeRemaining[2];
+	};
+
+	struct Msg_JoinParty
+	{
+		LobbyType targetLobby;
+		LobbyType sourceLobby;
+		JoinType joinType;
+		uint64_t probedXuid;
+		int32_t memberCount;
+		JoinPartyMember members[18];
+		int32_t splitscreenClients;
+		int32_t playlistID;
+		int32_t playlistVersion[3];
+		int32_t ffotdVersion;
+		LobbyNetworkMode networkMode;
+		uint32_t netFieldChecksum;
+		int32_t protocolVersion;
+		int32_t changelist;
+		int32_t pingBand;
+		uint32_t dlcBits;
+		uint64_t joinNonce;
+		bool chunkStatus[3];
+	};
+
+	enum PartyPrivacy
+	{
+		PARTY_PRIVACY_OPEN = 0x0,
+		PARTY_PRIVACY_FRIENDS_ONLY = 0x1,
+		PARTY_PRIVACY_INVITE_ONLY = 0x2,
+		PARTY_PRIVACY_CLOSED = 0x3,
+		PARTY_PRIVACY_COUNT = 0x4,
+	};
+
+	struct MsgMutableClientInfo
+	{
+		MutableClientInfo mutableClientInfo;
+		char pad[0x400];
+	};
+
+	struct MsgClientLobbyInfo
+	{
+		uint64_t xuid;
+		uint8_t clientNum;
+		int8_t clientType;
+		char gamertag[32];
+		uint64_t lobbyID;
+		int32_t qport;
+		byte latencyBand;
+		MsgMutableClientInfo mutableClientInfoMsg;
+		int32_t score;
+		int32_t connectivityBits;
+		SerializedAdr serializedAdr;
+		netsrc_t localNetID;
+		uint32_t joinOrder;
+		uint32_t dlcBits;
+	};
+
+	struct MsgHostMigrateInfo
+	{
+		uint8_t indexBits;
+		int32_t lasthostTimeMS;
+		uint64_t migrateNominees[18];
+	};
+
+	struct PlatformSessionData
+	{
+		char sessionId[64];
+		char sessionInfo[64];
+	};
+
+	struct MsgPlatformSessionData
+	{
+		PlatformSessionData platformSessionData;
+	};
+
+	struct Msg_LobbyState
+	{
+		int stateNum;
+		LobbyNetworkMode lobbyNetworkMode;
+		LobbyMainMode lobbyMainMode;
+		PartyPrivacy partyPrivacy;
+		LobbyType lobbyType;
+		LobbyMode lobbyMode;
+		SessionStatus status;
+		int uiScreen;
+		int uiLeaderActivity;
+		char key[32];
+		uint64_t clientLeader;
+		uint64_t platformSessionID;
+		int maxClients;
+		bool isAdvertised;
+		int clientCount;
+		MsgClientLobbyInfo clientList[18];
+		MsgHostMigrateInfo migrateInfo;
+		MsgPlatformSessionData platformData;
+	};
+
+	enum eModes : __int32
+	{
+		MODE_ZOMBIES = 0x0,
+		MODE_MULTIPLAYER = 0x1,
+		MODE_CAMPAIGN = 0x2,
+		MODE_COUNT = 0x3,
+		MODE_INVALID = 0x3,
+		MODE_FIRST = 0x0,
+	};
+
+	enum eGameModes : __int32
+	{
+		MODE_GAME_MATCHMAKING_PLAYLIST = 0x0,
+		MODE_GAME_MATCHMAKING_MANUAL = 0x1,
+		MODE_GAME_DEFAULT = 0x2,
+		MODE_GAME_LEAGUE = 0x3,
+		MODE_GAME_FREERUN = 0x4,
+		MODE_GAME_THEATER = 0x5,
+		MODE_GAME_COUNT = 0x6,
+		MODE_GAME_INVALID = 0x6,
+	};
+
+	struct Msg_ClientContent
+	{
+		uint32_t dataMask;
+		LobbyType lobbyType;
+		char clientContentData[162816];
+		uint16_t compressedBufferSize;
+		uint64_t clientXUID;
+		eModes sessionMode;
+		eGameModes gameMode;
+	};
+
+	enum ClientContentType : __int32
+	{
+		CLIENT_CONTENT_TYPE_PAINTSHOP = 0x0,
+		CLIENT_CONTENT_TYPE_LOADOUT = 0x1,
+		MAX_CLIENT_CONTENT_TYPE = 0x2,
+	};
+
+	enum ClientContentDataMask
+	{
+		CLIENT_CONTENT_MASK_PAINTSHOP = 0x1,
+		CLIENT_CONTENT_MASK_LOADOUT = 0x2,
+	};
+
+	enum ClientContentFragmentDataType
+	{
+		CLIENT_CONTENT_FRAGMENT_DATA_NONE = 0x0,
+		CLIENT_CONTENT_FRAGMENT_DATA_PAINTSHOP = 0x1,
+		CLIENT_CONTENT_FRAGMENT_DATA_LOADOUT = 0x2,
+		CLIENT_CONTENT_FRAGMENT_DATA_DONE = 0x3,
+	};
+
+	enum StorageFileType
+	{
+		STORAGE_COMMON_SETTINGS = 0x0,
+		STORAGE_PROFILE_SHOUTCASTER = 0x1,
+		STORAGE_CP_SAVEGAME_ONLINE = 0x2,
+		STORAGE_CP_SAVEGAME_OFFLINE = 0x3,
+		STORAGE_CPNIGHTMARE_SAVEGAME_ONLINE = 0x4,
+		STORAGE_CPNIGHTMARE_SAVEGAME_OFFLINE = 0x5,
+		STORAGE_CP_STATS_ONLINE = 0x6,
+		STORAGE_CP_STATS_OFFLINE = 0x7,
+		STORAGE_CP_STATS_NIGHTMARE_ONLINE = 0x8,
+		STORAGE_CP_STATS_NIGHTMARE_OFFLINE = 0x9,
+		STORAGE_CP_LOADOUTS = 0xA,
+		STORAGE_CP_LOADOUTS_OFFLINE = 0xB,
+		STORAGE_MP_STATS_ONLINE = 0xC,
+		STORAGE_MP_STATS_OFFLINE = 0xD,
+		STORAGE_MP_LOADOUTS = 0xE,
+		STORAGE_MP_LOADOUTS_CUSTOM = 0xF,
+		STORAGE_MP_LOADOUTS_ARENA = 0x10,
+		STORAGE_MP_LOADOUTS_OFFLINE = 0x11,
+		STORAGE_MP_CLASS_SETS = 0x12,
+		STORAGE_ZM_STATS_ONLINE = 0x13,
+		STORAGE_ZM_STATS_OFFLINE = 0x14,
+		STORAGE_ZM_LOADOUTS = 0x15,
+		STORAGE_ZM_LOADOUTS_OFFLINE = 0x16,
+		STORAGE_FR_STATS_ONLINE = 0x17,
+		STORAGE_FR_STATS_OFFLINE = 0x18,
+		STORAGE_PAINTSHOP_DATA = 0x19,
+		STORAGE_GUNSMITH = 0x1A,
+		STORAGE_PAINTJOBS = 0x1B,
+		STORAGE_EMBLEMS = 0x1C,
+		STORAGE_DEFAULT_EMBLEMS = 0x1D,
+		STORAGE_EMBLEMS_LOOT = 0x1E,
+		STORAGE_CUSTOM_GAMES = 0x1F,
+		STORAGE_OFFICIAL_CUSTOM_GAMES = 0x20,
+		STORAGE_EXTERNAL_DATA = 0x21,
+		STORAGE_FILE_COUNT = 0x22,
+		STORAGE_FILE_FIRST = 0x0,
+		STORAGE_FILE_INVALID = 0xFFFFFFFF,
+	};
+
+	struct ClientContentTypeInfo
+	{
+		ClientContentType contentType;
+		ClientContentDataMask dataMask;
+		ClientContentFragmentDataType fragmentType;
+		unsigned int bufferStartOffset;
+		unsigned int bufferSize;
+		const char *debugString;
+		const dvar_t **gameStreamingEnabled;
+		const dvar_t **lobbyStreamingEnabled;
+		StorageFileType onlineStorageFileType;
+		StorageFileType offlineStorageFileType;
+	};
+
+	struct MsgFixedClientInfo
+	{
+		FixedClientInfo fixedClientInfo;
+		char pad2[0xA8];
+	};
+
+	struct Msg_JoinMemberInfo
+	{
+		MsgMutableClientInfo mutableClientInfoMsg;
+		MsgFixedClientInfo fixedClientInfoMsg;
+		uint64_t reservationKey;
+		int targetLobby;
+		SerializedAdr serializedAdr;
+	};
+
+	struct Msg_LobbyHostHeartbeat
+	{
+		int heartbeatNum;
+		int lobbyType;
+		MsgHostMigrateInfo migrateInfo;
+	};
+
+	struct Msg_JoinAgreementRequest
+	{
+		uint64_t hostXuid;
+		char hostName[32];
+		bdSecurityID secId;
+		bdSecurityKey secKey;
+		SerializedAdr serializedAdr;
+		int sourceLobbyType;
+		int destinationLobbyType;
+		LobbyParams destinationLobbyParams;
+		uint64_t reservationKey;
+		int agreementNonce;
+		int serverLoc;
+	};
+
+	struct Msg_PeerToPeerInfo
+	{
+		int lobbyType;
+		int connectivityBits;
+		uint64_t clientXuid;
+	};
+
+	struct Msg_LobbyMigrateStart
+	{
+		int lobbyType;
+		uint64_t migrateTo;
 	};
 }

@@ -22,8 +22,8 @@
     <Filter Include="core\events\instant_message">
       <UniqueIdentifier>{66F0724A-D2FD-A030-5BE4-9C1BC7F06CE7}</UniqueIdentifier>
     </Filter>
-    <Filter Include="core\events\netchan">
-      <UniqueIdentifier>{A2B10B28-0E13-E935-9780-2FE803E11FF5}</UniqueIdentifier>
+    <Filter Include="core\events\lobby_msg">
+      <UniqueIdentifier>{7F359D40-EBA1-583B-B495-F09820C17AA3}</UniqueIdentifier>
     </Filter>
     <Filter Include="core\exception">
       <UniqueIdentifier>{AC25D4F4-98F3-C7FA-8187-38216DF4A35F}</UniqueIdentifier>
@@ -36,9 +36,6 @@
     </Filter>
     <Filter Include="core\exploit">
       <UniqueIdentifier>{C29EA2BA-AE01-325F-5787-6A1543C9FDE1}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="core\friends">
-      <UniqueIdentifier>{A8601BF9-94C3-AA9D-3D49-E353298B7620}</UniqueIdentifier>
     </Filter>
     <Filter Include="core\input">
       <UniqueIdentifier>{ED821051-D93A-529E-4242-2BFA2E19ED8E}</UniqueIdentifier>
@@ -54,6 +51,9 @@
     </Filter>
     <Filter Include="core\misc">
       <UniqueIdentifier>{E9B35FA5-551E-141C-9E5C-C5C10A06F270}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core\nospread">
+      <UniqueIdentifier>{193EC4AF-85FE-3FE6-4E39-8963BAB884C2}</UniqueIdentifier>
     </Filter>
     <Filter Include="core\rendering">
       <UniqueIdentifier>{3B63E6A1-2731-DAA7-10C5-4ACEFC31B60C}</UniqueIdentifier>
@@ -106,6 +106,9 @@
     <Filter Include="utils\spoof_call">
       <UniqueIdentifier>{47ED541E-33E6-7370-5C18-59F54870537C}</UniqueIdentifier>
     </Filter>
+    <Filter Include="core\friends">
+      <UniqueIdentifier>{A8601BF9-94C3-AA9D-3D49-E353298B7620}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\core\aimbot\aimbot.hpp">
@@ -129,8 +132,8 @@
     <ClInclude Include="..\src\core\events\instant_message\instant_message.hpp">
       <Filter>core\events\instant_message</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\core\events\netchan\netchan.hpp">
-      <Filter>core\events\netchan</Filter>
+    <ClInclude Include="..\src\core\events\lobby_msg\lobby_msg.hpp">
+      <Filter>core\events\lobby_msg</Filter>
     </ClInclude>
     <ClInclude Include="..\src\core\exception\dvar\dvar.hpp">
       <Filter>core\exception\dvar</Filter>
@@ -161,6 +164,9 @@
     </ClInclude>
     <ClInclude Include="..\src\core\misc\misc.hpp">
       <Filter>core\misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\core\nospread\nospread.hpp">
+      <Filter>core\nospread</Filter>
     </ClInclude>
     <ClInclude Include="..\src\core\rendering\dx.hpp">
       <Filter>core\rendering</Filter>
@@ -464,8 +470,8 @@
     <ClCompile Include="..\src\core\events\instant_message\instant_message.cpp">
       <Filter>core\events\instant_message</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\core\events\netchan\netchan.cpp">
-      <Filter>core\events\netchan</Filter>
+    <ClCompile Include="..\src\core\events\lobby_msg\lobby_msg.cpp">
+      <Filter>core\events\lobby_msg</Filter>
     </ClCompile>
     <ClCompile Include="..\src\core\exception\dvar\dvar.cpp">
       <Filter>core\exception\dvar</Filter>
@@ -499,6 +505,9 @@
     </ClCompile>
     <ClCompile Include="..\src\core\misc\misc.cpp">
       <Filter>core\misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\core\nospread\nospread.cpp">
+      <Filter>core\nospread</Filter>
     </ClCompile>
     <ClCompile Include="..\src\core\rendering\dx.cpp">
       <Filter>core\rendering</Filter>

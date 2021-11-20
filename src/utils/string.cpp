@@ -13,17 +13,13 @@ namespace utils::string
 
 	std::string adr_to_string(const game::netadr_t* address)
 	{
-		game::XNADDR xnaddr{};
-		
-		if (!game::dwNetadrToCommonAddr(*address, &xnaddr, sizeof game::XNADDR, nullptr))
-		{
-			return "";
-		}
+		game::XNADDR xn;
+		game::dwNetadrToCommonAddr(*address, &xn, sizeof xn, nullptr);
 
 		if (address->type == game::NA_LOOPBACK)
-			return utils::string::va("%u.%u.%u.%u", xnaddr.ip[0], xnaddr.ip[1], xnaddr.ip[2], xnaddr.ip[3]);
+			return utils::string::va("%u.%u.%u.%u", xn.ip[0], xn.ip[1], xn.ip[2], xn.ip[3]);
 
-		return utils::string::va("%u.%u.%u.%u:%u", xnaddr.ip[0], xnaddr.ip[1], xnaddr.ip[2], xnaddr.ip[3], address->port);
+		return utils::string::va("%u.%u.%u.%u:%u", xn.ip[0], xn.ip[1], xn.ip[2], xn.ip[3], address->port);
 	}
 	
 	std::string join(const std::vector<std::string>& args, const std::size_t index)

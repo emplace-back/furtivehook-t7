@@ -4,7 +4,6 @@
 namespace misc
 {
 	bool no_recoil = true; 
-	game::TLSData* sys_get_value = nullptr;
 	
 	void initialize()
 	{
@@ -13,8 +12,6 @@ namespace misc
 
 		scheduler::loop([]()
 		{
-			sys_get_value = game::Sys_GetTLS(); 
-				
 			const auto lobby_session = game::LobbySession_GetSession(game::LOBBY_TYPE_GAME);
 			const auto party_session = game::LobbySession_GetSession(game::LOBBY_TYPE_PRIVATE);
 

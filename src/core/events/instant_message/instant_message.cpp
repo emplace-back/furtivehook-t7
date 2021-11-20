@@ -120,9 +120,11 @@ namespace events::instant_message
 					if (!msg.overflowed)
 					{
 						game::LobbyMsg lobby_msg{};
-						game::LobbyMsgRW_PrepReadData(&lobby_msg, data, size);
+						
+						if (!game::LobbyMsgRW_PrepReadData(&lobby_msg, data, size))
+							return false;
 
-						if (lobby_msg.msgType == game::MESSAGE_TYPE_INFO_RESPONSE)
+						if (lobby_msg.type == game::MESSAGE_TYPE_INFO_RESPONSE)
 						{
 							game::Msg_InfoResponse response{};
 

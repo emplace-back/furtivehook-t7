@@ -129,13 +129,19 @@ namespace menu
 				}
 			}
 		}; 
-		
-		const auto session = game::session;
-		const auto our_client_num = static_cast<std::uint32_t>(game::Party_FindMemberByXUID(game::LiveUser_GetXuid(0)));
-		const auto in_game = game::LobbyClientLaunch_IsInGame() && game::cg()->clients[game::cg()->predictedPlayerState.clientNum].infoValid;
 
 		if (ImGui::BeginTabItem("Player List"))
 		{
+			const auto session = game::session;
+
+			if (session == nullptr)
+			{
+				return;
+			}
+			
+			const auto our_client_num = static_cast<std::uint32_t>(game::Party_FindMemberByXUID(game::LiveUser_GetXuid(0)));
+			const auto in_game = game::in_game();
+			
 			ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, 0.0f);
 			ImGui::BeginColumns("Players", 3, ImGuiColumnsFlags_NoResize);
 
@@ -164,23 +170,23 @@ namespace menu
 
 			for (const auto& client_num : indices)
 			{
-				const auto target_client = session->clients[client_num];
-				const auto client = game::cg()->clients[client_num];
+				const auto target_client = &session->clients[client_num];
+				const auto client = &game::cg()->clients[client_num];
 
-				if (target_client.activeClient)
+				if (target_client->activeClient)
 				{
 					ImGui::AlignTextToFramePadding();
 					ImGui::TextUnformatted(std::to_string(client_num).data());
 
 					ImGui::NextColumn();
 
-					const auto player_xuid = target_client.activeClient->fixedClientInfo.xuid;
-					const auto player_name = target_client.activeClient->fixedClientInfo.gamertag;
+					const auto player_xuid = target_client->activeClient->fixedClientInfo.xuid;
+					const auto player_name = target_client->activeClient->fixedClientInfo.gamertag;
 
 					if (in_game)
 					{
 						ImGui::PushStyleColor(ImGuiCol_Text, client_num == our_client_num ? ImColor(0, 255, 127, 250).Value
-							: (client.team == game::TEAM_FREE || client.team != game::cg()->clients[our_client_num].team)
+							: (client->team == game::TEAM_FREE || client->team != game::cg()->clients[our_client_num].team)
 							? esp::enemy_color : esp::friendly_color);
 					}
 					else
@@ -201,7 +207,7 @@ namespace menu
 						ImGui::TextColored(ImColor(200, 200, 200, 250).Value, "(%s)", steam_name.data());
 					}
 
-					const auto netadr = target_client.activeClient->sessionInfo[session->type].netAdr;
+					const auto netadr = target_client->activeClient->sessionInfo[session->type].netAdr;
 					const auto is_bot = netadr.type == game::NA_BOT;
 
 					if (is_bot)
@@ -281,14 +287,14 @@ namespace menu
 
 						if (ImGui::BeginMenu("Exploits##" + std::to_string(client_num), can_connect_to_player && !is_bot))
 						{
-							if (ImGui::MenuItem("Immobilize"))
-							{
-								exploit::send_request_stats_packet(netadr);
-							}
-
 							if (ImGui::MenuItem("Show migration screen"))
 							{
 								exploit::send_mstart_packet(netadr);
+							}
+
+							if (ImGui::MenuItem("Immobilize"))
+							{
+								exploit::send_request_stats_packet(netadr);
 							}
 
 							if (ImGui::MenuItem("Remove"))
@@ -328,7 +334,7 @@ namespace menu
 
 					ImGui::NextColumn();
 
-					if (client_num != static_cast<std::uint32_t>(our_client_num))
+					if (client_num != our_client_num)
 					{
 						ImGui::TextUnformatted("");
 						ImGui::SameLine(0, 10.0f);
@@ -498,12 +504,13 @@ namespace menu
 					}
 
 					ImGui::Checkbox("Log out-of-band packets", &events::connectionless_packet::log_packets);
-					ImGui::Checkbox("Log netchan messages", &events::netchan::log_messages);
 					ImGui::Checkbox("Log instant messages", &events::instant_message::dispatch::log_messages);
+					ImGui::Checkbox("Log lobby messages", &events::lobby_msg::log_messages);
 
 					if (ImGui::CollapsingHeader("Removals", ImGuiTreeNodeFlags_Leaf))
 					{
 						ImGui::Checkbox("Remove kick angles", &misc::no_recoil);
+						ImGui::Checkbox("Remove spread", &nospread::enabled);
 					}
 
 					ImGui::EndTabItem();

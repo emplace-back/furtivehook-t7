@@ -71,6 +71,7 @@ using json = nlohmann::json;
 #include "core/esp/esp.hpp"
 #include "core/menu/menu.hpp"
 #include "core/events/events.hpp"
+#include "core/nospread/nospread.hpp"
 #include "core/events/instant_message/instant_message.hpp"
 #include "core/friends/friends.hpp"
 #include "core/scheduler/scheduler.hpp"
@@ -87,6 +88,6 @@ using json = nlohmann::json;
 #include "core/exception/exception.hpp"
 #include "core/logger/logger.hpp"
 #include "core/events/connectionless_packet/connectionless_packet.hpp"
-#include "core/events/netchan/netchan.hpp"
+#include "core/events/lobby_msg/lobby_msg.hpp"
 
 #include "steam/steam.hpp"

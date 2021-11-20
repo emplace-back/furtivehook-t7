@@ -119,7 +119,7 @@ namespace game
 		exception::initialize();
 		events::connectionless_packet::initialize();
 		events::instant_message::initialize();
-		events::netchan::initialize();
+		events::lobby_msg::initialize();
 		security::initialize();
 		security::iat::initialize();
 		misc::initialize();
@@ -135,8 +135,8 @@ namespace game
 			const auto target_client = session->clients[client_num].activeClient;
 
 			PRINT_LOG("Ignoring netchan message [%i] '%s' from '%s' (%llu) %s",
-				lobby_msg.msgType,
-				LobbyTypes_GetMsgTypeName(lobby_msg.msgType),
+				lobby_msg.type,
+				LobbyTypes_GetMsgTypeName(lobby_msg.type),
 				target_client->fixedClientInfo.gamertag,
 				sender_id,
 				utils::string::adr_to_string(&from).data());
@@ -144,8 +144,8 @@ namespace game
 		else
 		{
 			PRINT_LOG("Ignoring netchan message [%i] '%s' from (%llu) %s",
-				lobby_msg.msgType,
-				LobbyTypes_GetMsgTypeName(lobby_msg.msgType),
+				lobby_msg.type,
+				LobbyTypes_GetMsgTypeName(lobby_msg.type),
 				sender_id,
 				utils::string::adr_to_string(&from).data());
 		}
@@ -190,27 +190,6 @@ namespace game
 		
 		return utils::string::va("Received OOB '%s' from %s",
 			command::args.join().data(),
-			utils::string::adr_to_string(&from).data());
-	}
-
-	std::string get_netchan_message(const game::netadr_t& from, const game::LobbyMsg& lobby_msg, const std::uint64_t sender_id)
-	{
-		if (const auto client_num = game::find_target_from_addr(from); client_num >= 0)
-		{
-			const auto target_client = session->clients[client_num].activeClient;
-
-			return utils::string::va("Received netchan message [%i] '%s' from '%s' (%llu) %s",
-				lobby_msg.msgType,
-				LobbyTypes_GetMsgTypeName(lobby_msg.msgType),
-				target_client->fixedClientInfo.gamertag,
-				sender_id,
-				utils::string::adr_to_string(&from).data());
-		}
-		
-		return utils::string::va("Received netchan message [%i] '%s' from (%llu) %s",
-			lobby_msg.msgType,
-			LobbyTypes_GetMsgTypeName(lobby_msg.msgType),
-			sender_id,
 			utils::string::adr_to_string(&from).data());
 	}
 
@@ -378,5 +357,78 @@ namespace game
 
 		cmd_old->forwardmove = ClampChar(static_cast<int>(std::cosf(delta_view) * cmd_old->forwardmove - std::sinf(delta_view) * cmd_old->rightmove));
 		cmd_old->rightmove = ClampChar(static_cast<int>(std::sinf(delta_view) * cmd_old->forwardmove + std::cosf(delta_view) * cmd_old->rightmove));
+	}
+
+	float get_weapon_damage_range(const Weapon& weapon)
+	{
+		if (const auto weap_def = BG_GetWeaponDef(weapon); weap_def->weap_class() == WEAPCLASS_SPREAD || weap_def->weap_class() == WEAPCLASS_PISTOL_SPREAD)
+		{
+			return BG_GetMinDamageRangeScaled(weapon) * BG_GetMultishotBaseMinDamageRangeScaled(weapon);
+		}
+
+		return sv_bullet_range->current.value;
+	}
+
+	bool CG_BulletTrace(game::BulletTraceResults* br, game::BulletFireParams* bp, const int attacker_entity_num, int lastSurfaceType)
+	{
+		const static auto CG_BulletTrace = reinterpret_cast<bool(__fastcall*)(LocalClientNum_t, game::BulletFireParams *, game::BulletTraceResults*, const game::Weapon, int, int)>(game::base_address + 0x1168BA0);
+		return CG_BulletTrace(0, bp, br, {}, attacker_entity_num, lastSurfaceType);
+	}
+
+	bool is_valid_lobby_type(LobbyMsg* msg)
+	{
+		if (auto lobby_type{ 0 }; game::LobbyMsgRW_PackageInt(msg, "lobbytype", &lobby_type))
+		{
+			if (lobby_type < game::LOBBY_TYPE_PRIVATE || lobby_type >= game::LOBBY_TYPE_TRANSITION)
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	bool is_valid_lobby_type(const int lobby_type)
+	{
+		if (lobby_type < game::LOBBY_TYPE_PRIVATE || lobby_type >= game::LOBBY_TYPE_TRANSITION)
+		{
+			return false;
+		}
+
+		return true;
+	}
+	
+	bool MSG_JoinMemberInfo(Msg_JoinMemberInfo* thisptr, game::LobbyMsg* msg)
+	{
+		return game::LobbyMsgRW_PackageGlob(msg, "serializedadr", &thisptr->serializedAdr, sizeof thisptr->serializedAdr)
+			&& game::LobbyMsgRW_PackageUInt64(msg, "reservationkey", &thisptr->reservationKey)
+			&& game::LobbyMsgRW_PackageInt(msg, "lobbytype", &thisptr->targetLobby);
+	}
+	
+	bool MSG_LobbyHostHeartbeat(Msg_LobbyHostHeartbeat* thisptr, LobbyMsg* msg)
+	{
+		return LobbyMsgRW_PackageInt(msg, "heartbeatnum", &thisptr->heartbeatNum)
+			&& LobbyMsgRW_PackageInt(msg, "lobbytype", &thisptr->lobbyType)
+			&& LobbyMsgRW_PackageInt(msg, "lasthosttimems", &thisptr->migrateInfo.lasthostTimeMS);
+	}
+
+	connstate_t CL_GetLocalClientConnectionState(/*LocalClientNum_t localClientNum*/) {
+		return *reinterpret_cast<connstate_t*>(base_address + 0x53D9BC8);
+	}
+
+	bool in_game()
+	{
+		if (game::cg() == nullptr)
+			return false;
+
+		return game::LobbyClientLaunch_IsInGame() && cg()->clients[cg()->predictedPlayerState.clientNum].infoValid;
+	}
+
+	bool is_valid_target(const int client_num)
+	{
+		if (client_num >= 0 && client_num < 18)
+			return session->clients[client_num].activeClient;
+
+		return false;
 	}
 }

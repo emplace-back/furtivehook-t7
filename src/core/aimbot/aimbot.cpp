@@ -114,9 +114,7 @@ namespace aimbot
 
 				if (target[i].vulnerable && !ignore_target[i])
 				{
-					auto magnitude = cent->pose.origin.distance(ps->origin()); 
-					
-					aim_targets.emplace_back(priority_client, cent, target[i].damage, std::floorf(magnitude));
+					aim_targets.emplace_back(priority_client, cent, target[i].damage, std::floorf(cent->pose.origin.distance(ps->origin())));
 				}
 			}
 		}

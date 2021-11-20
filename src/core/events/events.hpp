@@ -4,5 +4,4 @@
 namespace events
 {
 	void cg_predict_playerstate(); 
-	extern bool rapid_fire;
 }

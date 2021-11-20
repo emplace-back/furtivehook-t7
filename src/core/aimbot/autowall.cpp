@@ -5,39 +5,57 @@ namespace autowall
 {
 	bool enabled = true;
 	
-	bool CG_BulletTrace(game::BulletTraceResults* br, game::BulletFireParams* bp, const int attacker_entity_num, int lastSurfaceType)
+	bool can_hit_entity(const game::Weapon& weapon)
 	{
-		const static auto CG_BulletTrace = reinterpret_cast<bool(__fastcall*)(LocalClientNum_t, game::BulletFireParams *, game::BulletTraceResults*, const game::Weapon, int, int)>(game::base_address + 0x1168BA0);
-		return CG_BulletTrace(0, bp, br, {}, attacker_entity_num, lastSurfaceType);
+		return game::BG_GetWeaponDef(weapon)->weap_type() == game::WEAPTYPE_BULLET;
+	}
+
+	bool trace_hit(const game::trace_t& trace)
+	{
+		if (const auto victim = game::Trace_GetEntityHitId(&trace); victim < 18)
+		{
+			return aimbot::ignore_target[victim];
+		}
+
+		return false;
 	}
 	
-	bool treat_as_solid(const game::BulletTraceResults& br, const game::BulletTraceResults& rev_br)
+	bool hit_bad_entity(const game::BulletTraceResults& br)
 	{
-		return br.trace.sflags & 4096 && rev_br.trace.sflags & 4096 && game::bg_bulletPenetrationTreatVoidsAsSolid->current.integer
-			|| rev_br.trace.sflags & 4096 && game::bg_bulletPenetrationTreatVoidsAsSolid->current.integer & 2
-			|| br.trace.sflags & 4096 && game::bg_bulletPenetrationTreatVoidsAsSolid->current.integer & 4;
+		return trace_hit(br.trace);
 	}
 	
-	float get_bullet_damage(const game::Weapon weapon, const game::BulletTraceResults& br, const game::BulletFireParams& bt)
+	float get_bullet_damage(const game::Weapon& weapon, const game::BulletTraceResults& br, const game::BulletFireParams& bt)
 	{
-		const auto multiplier = game::G_GetWeaponHitLocationMultiplier(br.trace.partGroup, weapon);
+		//const auto multiplier = game::G_GetWeaponHitLocationMultiplier(br.trace.partGroup, weapon);
 		const auto range_damage = static_cast<float>(game::BG_GetWeaponDamageForRange(weapon, &bt.origStart, &br.hitPos));
-		return std::fmax(multiplier * range_damage, 1.0f) * bt.damageMultiplier;
+		return range_damage * bt.damageMultiplier;
+	}
+
+	float get_bullet_depth(game::BulletHitInfo* info, const game::BulletTraceResults& br, const game::BulletTraceResults& rev_br, const game::BulletFireParams& rev_bp)
+	{
+		const auto depth = game::BG_GetDepth(info, &br, &rev_bp, &rev_br);
+		return std::fmax(depth, 1.0f);
 	}
 
 	float get_bullet_depth(const game::BulletTraceResults& br, const game::BulletTraceResults& rev_br, const game::BulletFireParams& rev_bp, const Vec3& hit_pos, const bool all_solid)
 	{
-		auto depth{ all_solid ? rev_bp.end.distance(rev_bp.start) : hit_pos.distance(rev_br.hitPos) };
-
-		if (treat_as_solid(br, rev_br))
-			depth = hit_pos.distance(br.hitPos);
-
-		return std::fmax(depth, 1.0f);
+		game::BulletHitInfo info{};
+		info.allSolid = all_solid;
+		info.br.hitPos = hit_pos;
+		
+		return get_bullet_depth(&info, br, rev_br, rev_bp);
 	}
 	
 	float get_penetration_damage(const Vec3& start, const Vec3& target, game::playerState_s* ps, const size_t trace_entity_num)
 	{
 		const auto weapon = game::BG_GetViewmodelWeaponIndex(ps);
+		
+		if (!can_hit_entity(weapon))
+			return 0.0f; 
+		
+		if (target.distance(start) >= game::get_weapon_damage_range(weapon))
+			return 0.0f; 
 		
 		game::BulletFireParams bp;
 		bp.weaponEntIndex = 1022;
@@ -50,7 +68,10 @@ namespace autowall
 
 		game::BulletTraceResults br{};
 		
-		if (!CG_BulletTrace(&br, &bp, ps->clientNum, 0))
+		if (!game::CG_BulletTrace(&br, &bp, ps->clientNum, 0))
+			return 0.0f;
+
+		if (hit_bad_entity(br))
 			return 0.0f;
 
 		if (trace_entity_num == game::Trace_GetEntityHitId(&br.trace))
@@ -74,36 +95,42 @@ namespace autowall
 			if (max_depth <= 0.0f)
 				return 0.0f;
 
-			const auto lastHitPos = br.hitPos;
+			if (hit_bad_entity(br))
+				return 0.0f;
+
+			const auto last_hit_pos = br.hitPos;
 
 			if (!game::BG_AdvanceTrace(&bp, &br, 0.259f))
 				return 0.0f;
 
-			const auto traceHitB = CG_BulletTrace(&br, &bp, ps->clientNum, br.depthSurfaceType);
+			const auto traceHitB = game::CG_BulletTrace(&br, &bp, ps->clientNum, br.depthSurfaceType);
 
-			game::BulletFireParams revBp;
-			revBp.weaponEntIndex = bp.weaponEntIndex;
-			revBp.ignoreEntIndex = bp.ignoreEntIndex;
-			revBp.damageMultiplier = bp.damageMultiplier;
-			revBp.origStart = bp.origStart;
-			revBp.dir = -bp.dir;
-			revBp.start = bp.end;
-			revBp.end = lastHitPos + revBp.dir * 0.01f;
+			if (hit_bad_entity(br))
+				return 0.0f;
 
-			auto revBr = br;
-			revBr.trace.normal = -revBr.trace.normal;
+			game::BulletFireParams rev_bp;
+			rev_bp.weaponEntIndex = bp.weaponEntIndex;
+			rev_bp.ignoreEntIndex = bp.ignoreEntIndex;
+			rev_bp.damageMultiplier = bp.damageMultiplier;
+			rev_bp.origStart = bp.origStart;
+			rev_bp.dir = -bp.dir;
+			rev_bp.start = bp.end;
+			rev_bp.end = last_hit_pos + rev_bp.dir * 0.01f;
+
+			auto rev_br = br;
+			rev_br.trace.normal = -rev_br.trace.normal;
 
 			if (traceHitB)
-				game::BG_AdvanceTrace(&revBp, &revBr, 0.01f);
+				game::BG_AdvanceTrace(&rev_bp, &rev_br, 0.01f);
 
-			const auto revTraceHit = CG_BulletTrace(&revBr, &revBp, ps->clientNum, revBr.depthSurfaceType);
-			const auto allSolid = revTraceHit && revBr.trace.allSolid || br.trace.startSolid && revBr.trace.startSolid;
+			const auto rev_trace_hit = game::CG_BulletTrace(&rev_br, &rev_bp, ps->clientNum, rev_br.depthSurfaceType);
+			const auto all_solid = rev_trace_hit && rev_br.trace.allSolid || br.trace.startSolid && rev_br.trace.startSolid;
 			
-			if (revTraceHit || allSolid)
+			if (rev_trace_hit || all_solid)
 			{
-				if (revTraceHit)
+				if (rev_trace_hit)
 				{
-					auto new_depth = game::BG_GetSurfacePenetrationDepth(penetrate_type, revBr.depthSurfaceType);
+					auto new_depth = game::BG_GetSurfacePenetrationDepth(penetrate_type, rev_br.depthSurfaceType);
 
 					if (has_fmj)
 						new_depth *= perk_bulletPenetrationMultiplier;
@@ -114,27 +141,30 @@ namespace autowall
 						return 0.0f;
 				}
 
-				const auto depth = get_bullet_depth(br, revBr, revBp, lastHitPos, allSolid);
+				const auto depth = get_bullet_depth(br, rev_br, rev_bp, last_hit_pos, all_solid);
 				
 				bp.damageMultiplier -= depth / max_depth;
 
 				if (bp.damageMultiplier <= 0.0f)
 					return 0.0f;
 
-				if (!allSolid)
+				if (!all_solid)
 				{
-					if (game::Trace_GetEntityHitId(&br.trace) == trace_entity_num)
+					if (!hit_bad_entity(br) && game::Trace_GetEntityHitId(&br.trace) == trace_entity_num)
 						return get_bullet_damage(weapon, br, bp);
 				}
 			}
 
 			if (!traceHitB)
 			{
+				if (hit_bad_entity(br))
+					return 0.0f; 
+				
 				return get_bullet_damage(weapon, br, bp);
 			}
 		}
 
-		if (game::Trace_GetEntityHitId(&br.trace) == trace_entity_num)
+		if (!hit_bad_entity(br) && game::Trace_GetEntityHitId(&br.trace) == trace_entity_num)
 			return get_bullet_damage(weapon, br, bp);
 
 		return 0.0f;

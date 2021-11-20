@@ -114,7 +114,7 @@
     <ClInclude Include="..\src\core\events\connectionless_packet\connectionless_packet.hpp" />
     <ClInclude Include="..\src\core\events\events.hpp" />
     <ClInclude Include="..\src\core\events\instant_message\instant_message.hpp" />
-    <ClInclude Include="..\src\core\events\netchan\netchan.hpp" />
+    <ClInclude Include="..\src\core\events\lobby_msg\lobby_msg.hpp" />
     <ClInclude Include="..\src\core\exception\dvar\dvar.hpp" />
     <ClInclude Include="..\src\core\exception\exception.hpp" />
     <ClInclude Include="..\src\core\exception\hbp\hbp.hpp" />
@@ -125,6 +125,7 @@
     <ClInclude Include="..\src\core\logger\logger.hpp" />
     <ClInclude Include="..\src\core\menu\menu.hpp" />
     <ClInclude Include="..\src\core\misc\misc.hpp" />
+    <ClInclude Include="..\src\core\nospread\nospread.hpp" />
     <ClInclude Include="..\src\core\rendering\dx.hpp" />
     <ClInclude Include="..\src\core\rendering\rendering.hpp" />
     <ClInclude Include="..\src\core\scheduler\scheduler.hpp" />
@@ -227,7 +228,7 @@
     <ClCompile Include="..\src\core\events\connectionless_packet\connectionless_packet.cpp" />
     <ClCompile Include="..\src\core\events\events.cpp" />
     <ClCompile Include="..\src\core\events\instant_message\instant_message.cpp" />
-    <ClCompile Include="..\src\core\events\netchan\netchan.cpp" />
+    <ClCompile Include="..\src\core\events\lobby_msg\lobby_msg.cpp" />
     <ClCompile Include="..\src\core\exception\dvar\dvar.cpp" />
     <ClCompile Include="..\src\core\exception\exception.cpp" />
     <ClCompile Include="..\src\core\exception\hbp\hbp.cpp" />
@@ -239,6 +240,7 @@
     <ClCompile Include="..\src\core\main.cpp" />
     <ClCompile Include="..\src\core\menu\menu.cpp" />
     <ClCompile Include="..\src\core\misc\misc.cpp" />
+    <ClCompile Include="..\src\core\nospread\nospread.cpp" />
     <ClCompile Include="..\src\core\rendering\dx.cpp" />
     <ClCompile Include="..\src\core\rendering\rendering.cpp" />
     <ClCompile Include="..\src\core\scheduler\scheduler.cpp" />
