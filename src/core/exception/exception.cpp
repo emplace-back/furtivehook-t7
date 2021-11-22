@@ -3,6 +3,12 @@
 
 namespace exception
 {
+	void page_guard_address(const std::uintptr_t address)
+	{
+		DWORD old_protect{ PAGE_EXECUTE | PAGE_GUARD };
+		VirtualProtect(reinterpret_cast<void*>(address), sizeof std::uint8_t, old_protect, &old_protect);
+	}
+	
 	bool is_harmless_error(const std::uint32_t code)
 	{
 		return code == STATUS_INTEGER_OVERFLOW
@@ -83,25 +89,24 @@ namespace exception
 
 		utils::hook::set<std::uintptr_t>(game::base_address + 0x168EEAC0, dvar::main);
 		utils::hook::set<std::uintptr_t>(game::base_address + 0xAE96C40, dvar::renderer);
-		utils::hook::set<std::uintptr_t>(game::base_address + 0x53DD160, dvar::predict_ps);
+		utils::hook::set<std::uintptr_t>(game::base_address + 0x53DD170, dvar::predict_ps);
 
 		exception::dvar::register_exception(exception::dvar::predict_ps, [](auto& ex)
 		{
-			ex->ContextRecord->Rcx = reinterpret_cast<std::uintptr_t>(game::unknown_original);
-			ex->ContextRecord->Rbx = reinterpret_cast<std::uintptr_t>(game::unknown_original);
-			ex->ContextRecord->Rip = game::base_address + 0x22BC95E;
+			ex->ContextRecord->Rcx = reinterpret_cast<std::uintptr_t>(game::m_mouseAcceleration_original);
+			ex->ContextRecord->Rbx = reinterpret_cast<std::uintptr_t>(game::m_mouseAcceleration_original);
+			ex->ContextRecord->Rip = game::base_address + 0x22BD0AF;
 
-			DWORD dwProtection = PAGE_EXECUTE | PAGE_GUARD;
-			VirtualProtect(reinterpret_cast<void*>(game::base_address + 0x9C2AF0), sizeof(BYTE), dwProtection, &dwProtection);
+			page_guard_address(game::base_address + 0x9C2AF0);
 		});
 		
 		hbp::register_exception(game::base_address + 0x1439606, [](const auto& ex)
 		{
 			ex->ContextRecord->Rsp -= 0x60;
 
-			const auto sender_id = ex->ContextRecord->Rcx;
-			const auto message = reinterpret_cast<const char*>(ex->ContextRecord->R8);
-			const auto message_size = ex->ContextRecord->R9;
+			const auto sender_id{ ex->ContextRecord->Rcx };
+			const auto message{ reinterpret_cast<const char*>(ex->ContextRecord->R8) };
+			const auto message_size{ ex->ContextRecord->R9 };
 
 			if (events::instant_message::dispatch::handle_message(sender_id, message, message_size))
 			{

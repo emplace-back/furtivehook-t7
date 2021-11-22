@@ -7,7 +7,7 @@ namespace game
 	std::array<scr_string_t, static_cast<std::uint32_t>(bone_tag::num_tags)> bone_tags; 
 	dvar_t* com_smoothframes_original = nullptr;
 	dvar_t* r_fxShadows_original = nullptr;
-	dvar_t* unknown_original = nullptr;
+	dvar_t* m_mouseAcceleration_original = nullptr;
 
 	namespace oob
 	{
@@ -112,7 +112,7 @@ namespace game
 
 		com_smoothframes_original = *reinterpret_cast<dvar_t**>(base_address + 0x168EEAC0);
 		r_fxShadows_original = *reinterpret_cast<dvar_t**>(base_address + 0xAE96C40);
-		unknown_original = *reinterpret_cast<dvar_t**>(base_address + 0x53DD160);
+		m_mouseAcceleration_original = *reinterpret_cast<dvar_t**>(base_address + 0x53DD170);
 		
 		rendering::initialize();
 		scheduler::initialize();

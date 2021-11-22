@@ -5,9 +5,6 @@ namespace events
 {
 	void cg_predict_playerstate()
 	{
-		if (!game::LobbyClientLaunch_IsInGame())
-			return;
-	
 		auto cmd_cur = game::cl()->user_cmd(game::cl()->cmdNumber);
 		auto cmd_old = game::cl()->user_cmd(game::cl()->cmdNumber - 1);
 		auto cmd_new = game::cl()->user_cmd(++game::cl()->cmdNumber);
@@ -17,12 +14,12 @@ namespace events
 		cmd_old->serverTime += 1;
 
 		static std::uint32_t angle_backup[3];
-		VECTOR_COPY(angle_backup, cmd_old->angles);
-		VECTOR_COPY(cmd_cur->angles, angle_backup);
+		VECTOR_COPY(cmd_old->angles, angle_backup);
+		VECTOR_COPY(angle_backup, cmd_cur->angles);
 
 		static std::uint32_t angle_backup_2[3];
-		VECTOR_COPY(angle_backup_2, cmd_cur->angles);
-		VECTOR_COPY(cmd_new->angles, angle_backup_2);
+		VECTOR_COPY(cmd_cur->angles, angle_backup_2);
+		VECTOR_COPY(angle_backup_2, cmd_new->angles);
 
 		const auto weapon = game::BG_GetViewmodelWeaponIndex(&game::cg()->predictedPlayerState); 
 		const auto is_akimbo_gun = game::BG_IsDualWield(weapon);
@@ -61,7 +58,7 @@ namespace events
 
 			if (aimbot::aim_target && aimbot::silent)
 			{
-				//adjust_user_cmd_movement(cmd_old, SHORT2ANGLE(cmd_old->angles[1]), old_angle);
+				adjust_user_cmd_movement(cmd_old, SHORT2ANGLE(cmd_old->angles[1]), old_angle);
 			}
 		}
 	}

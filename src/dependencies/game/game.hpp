@@ -83,7 +83,7 @@ namespace game
 	extern LobbySession* session;
 	extern dvar_t* com_smoothframes_original;
 	extern dvar_t* r_fxShadows_original;
-	extern dvar_t* unknown_original;
+	extern dvar_t* m_mouseAcceleration_original;
 
 	const static auto base_address = reinterpret_cast<std::uintptr_t>(GetModuleHandleA(nullptr)) + 0x1000;
 	const static auto& spoof_t = reinterpret_cast<void*>(game::base_address + 0x2A95FFB);

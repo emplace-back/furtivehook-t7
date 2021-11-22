@@ -9,7 +9,7 @@
 #define DEG2RAD(a) ((a)*((float)M_PI/180.0f))
 #define RAD2DEG(a) ((a)*(180.0f/(float)M_PI))
 #define GET_SIGN(a) ((a) ? ((*(int*)&(a) >> 31) | 1) : 0)
-#define VECTOR_COPY(a,b) ((b)[0]=(a)[0],(b)[1]=(a)[1],(b)[2]=(a)[2])
+#define VECTOR_COPY(b, a) ((b)[0]=(a)[0],(b)[1]=(a)[1],(b)[2]=(a)[2])
 
 class Vec2 {
 public:
@@ -786,7 +786,7 @@ namespace game
 	{
 		std::uint32_t nonce;
 		int uiScreen;
-		char natType;
+		std::uint8_t natType;
 		InfoResponseLobby lobby[2];
 	};
 

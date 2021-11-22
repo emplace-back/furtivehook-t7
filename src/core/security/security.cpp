@@ -214,12 +214,34 @@ namespace security
 			return false;
 		});
 		
-		events::instant_message::dispatch::on_message('f', [=](const auto& sender_id, const auto&)
+		events::instant_message::dispatch::on_message('f', [=](const auto& sender_id, auto& msg)
 		{
-			PRINT_LOG("Ignoring friend instant message from (%llu)", sender_id);
+			game::JoinSessionMessage message{}; 
+				
+			if (msg.cursize - msg.readcount != sizeof message)
+			{
+				PRINT_MESSAGE("Popup attempt caught from (%llu)", sender_id);
+				return true;
+			}
+				
+			game::MSG_ReadData(&msg, &message, sizeof message);
+
+			if (message.mType == game::JOIN_REQUEST)
+			{
+				PRINT_MESSAGE("Crash attempt caught from (%llu)", sender_id);
+				return true;
+			}
+
+			PRINT_MESSAGE("Popup attempt caught from (%llu)", sender_id);
 			return true;
 		});
 
+		events::instant_message::dispatch::on_message('m', [=](const auto& sender_id, const auto&)
+		{
+			PRINT_LOG("Ignoring 'm' instant message from (%llu)", sender_id);
+			return true;
+		}); 
+		
 		events::instant_message::dispatch::on_message('e', [=](const auto& sender_id, const auto&)
 		{
 			PRINT_LOG("Ignoring remote command instant message from (%llu)", sender_id);

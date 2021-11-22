@@ -25,6 +25,7 @@ namespace events::instant_message
 	}
 
 	void send_popup(const std::uint64_t target_steam_id);
-	void send_crash(const std::uint64_t target_steam_id);
+	void send_info_response_overflow(const std::uint64_t target_steam_id);
+	void send_friend_message_crash(const std::uint64_t target_steam_id);
 	void initialize();
 }

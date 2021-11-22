@@ -265,15 +265,18 @@ namespace friends
 
 						ImGui::Separator();
 
+						if (ImGui::MenuItem("Crash game"))
+						{
+							events::instant_message::send_friend_message_crash(friends.steam_id);
+							events::instant_message::send_info_response_overflow(friends.steam_id);
+
+							if (response.valid)
+								exploit::send_crash(netadr);
+						}
+						
 						if (ImGui::MenuItem("Open popup", nullptr, nullptr, response.valid))
 						{
 							events::instant_message::send_popup(friends.steam_id);
-						}
-						
-						if (ImGui::MenuItem("Crash game", nullptr, nullptr, response.valid))
-						{
-							exploit::send_crash(netadr);
-							events::instant_message::send_crash(friends.steam_id);
 						}
 
 						if (ImGui::MenuItem("Kick player", nullptr, nullptr, response.valid))
