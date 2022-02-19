@@ -33,11 +33,29 @@ namespace aimbot
 		bone_targets.clear();
 		bone_target = nullptr;
 
-		for (size_t bone = 0; bone < points.size(); ++bone)
+		if (asynchronous)
 		{
-			if (const auto damage = autowall::get_penetration_damage(start, points[bone], &game::cg()->predictedPlayerState, cent->nextState.number); damage > 0.0f)
+			for (const auto& point : points)
 			{
-				bone_targets.emplace_back(damage, points[bone]);
+				penetration_damage.emplace_back(std::async(&autowall::get_penetration_damage, start, point, &game::cg()->predictedPlayerState, cent->nextState.number));
+			}
+
+			for (size_t i = 0; i < points.size(); ++i)
+			{
+				if (const auto damage = penetration_damage[i].get(); damage > 0.0f)
+				{
+					bone_targets.emplace_back(damage, points[i]);
+				}
+			}
+		}
+		else
+		{
+			for (const auto& point : points)
+			{
+				if (const auto damage = autowall::get_penetration_damage(start, point, &game::cg()->predictedPlayerState, cent->nextState.number); damage > 0.0f)
+				{
+					bone_targets.emplace_back(damage, point);
+				}
 			}
 		}
 
@@ -91,7 +109,7 @@ namespace aimbot
 
 		for (size_t i = 0; i < 18; ++i)
 		{
-			if (const auto cent = game::centity(i); is_valid_target(cent))
+			if (const auto cent = game::centity(i); cent && is_valid_target(cent))
 			{
 				target[i].point_scan.clear(); 
 				
@@ -114,7 +132,7 @@ namespace aimbot
 
 				if (target[i].vulnerable && !ignore_target[i])
 				{
-					aim_targets.emplace_back(priority_client, cent, target[i].damage, std::floorf(cent->pose.origin.distance(ps->origin())));
+					aim_targets.emplace_back(priority_client, cent, target[i].damage, std::floorf(cent->pose.origin.distance(ps->origin)));
 				}
 			}
 		}

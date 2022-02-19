@@ -76,6 +76,7 @@ namespace utils::string
 	std::string adr_to_string(const game::XNADDR * address);
 	std::string join(const std::vector<std::string>& args, const std::size_t index = 1);
 	std::string dump_hex(const std::string & data, const std::string & separator = " ");
+	std::string format(const va_list ap, const char * message);
 	std::string va(const char* fmt, ...);
 	std::vector<std::string> split(const std::string & text, const char delimiter);
 	std::string replace_all(std::string str, const std::string& search, const std::string& replace);

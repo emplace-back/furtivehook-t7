@@ -3,134 +3,109 @@
 
 namespace exception
 {
-	void page_guard_address(const std::uintptr_t address)
+	namespace
 	{
-		DWORD old_protect{ PAGE_EXECUTE | PAGE_GUARD };
-		VirtualProtect(reinterpret_cast<void*>(address), sizeof std::uint8_t, old_protect, &old_protect);
-	}
-	
-	bool is_harmless_error(const std::uint32_t code)
-	{
-		return code == STATUS_INTEGER_OVERFLOW
-			|| code == STATUS_FLOAT_OVERFLOW;
-	}
-	
-	LONG __stdcall exception_filter(const LPEXCEPTION_POINTERS ex)
-	{
-		const auto addr = ex->ExceptionRecord->ExceptionAddress;
-		const auto code = ex->ExceptionRecord->ExceptionCode;
-
-		if (is_harmless_error(code))
+		using callback = std::function<void(CONTEXT&)>; 
+		std::unordered_map<std::uintptr_t, callback>& get_callbacks()
 		{
-			return EXCEPTION_CONTINUE_EXECUTION;
+			static std::unordered_map<std::uintptr_t, callback> callbacks{};
+			return callbacks;
+		}
+
+		bool handle_exception(const LPEXCEPTION_POINTERS ex)
+		{
+			const auto& callbacks = get_callbacks();
+			const auto handler = callbacks.find(ex->ContextRecord->Rip);
+
+			if (handler == callbacks.end())
+			{
+				return false;
+			}
+
+			handler->second(*ex->ContextRecord);
+			return true;
+		}
+
+		void register_hook(const std::uintptr_t address, const callback& callback)
+		{
+			get_callbacks()[address] = callback;
 		}
 		
-		ex->ContextRecord->Dr0 = game::base_address + 0x134BDAD;
-		ex->ContextRecord->Dr1 = game::base_address + 0x1EF7094;
-		ex->ContextRecord->Dr2 = game::base_address + 0x1439606;
-		ex->ContextRecord->Dr3 = game::base_address + 0x1CD8B43;
-		ex->ContextRecord->Dr7 = (1 << 0) | (1 << 2) | (1 << 4) | (1 << 6); 
-
-		if (ex->ContextRecord->Rip == game::base_address + 0x9C2AF0)
+		thread_local struct
 		{
-			events::cg_predict_playerstate();
+			DWORD code = 0;
+			PVOID address = nullptr;
+		} exception_data;
+
+		void reset_state()
+		{
+			auto error{ "Termination due to a stack overflow."s };
+			if (exception_data.code != EXCEPTION_STACK_OVERFLOW)
+			{
+				error = utils::string::va("Exception: 0x%08X at offset 0x%llX", exception_data.code, DWORD64(exception_data.address) - game::base_address);
+			}
+
+			PRINT_LOG("%s", error.data());
+			game::Com_Error(nullptr, 0, game::ERROR_DROP, error.data());
+		}
+
+		size_t get_reset_state_stub()
+		{
+			const auto stub = utils::hook::assemble([](auto& a)
+			{
+				a.sub(rsp, 0x10);
+				a.or_(rsp, 0x8);
+				a.jmp(reset_state);
+			});
+
+			return reinterpret_cast<size_t>(stub);
+		}
+
+		LONG __stdcall exception_filter(const LPEXCEPTION_POINTERS ex)
+		{
+			if (const auto code{ ex->ExceptionRecord->ExceptionCode };
+				code != STATUS_INTEGER_OVERFLOW
+				&& code != STATUS_FLOAT_OVERFLOW
+				&& !handle_exception(ex)
+				&& !dvars::handle_exception(ex)
+				&& !hwbp::handle_exception(ex)
+				&& !pageguard::handle_exception(ex))
+			{
+				utils::exception::minidump::write_minidump(ex);
+
+				exception_data.code = ex->ExceptionRecord->ExceptionCode;
+				exception_data.address = ex->ExceptionRecord->ExceptionAddress;
+				ex->ContextRecord->Rip = get_reset_state_stub();
+			}
+
 			return EXCEPTION_CONTINUE_EXECUTION;
 		}
-		
-		if (ex->ContextRecord->Rip == game::base_address + 0x2522A12)
+
+		LPTOP_LEVEL_EXCEPTION_FILTER __stdcall set_unhandled_exception_filter(LPTOP_LEVEL_EXCEPTION_FILTER)
 		{
-			PRINT_LOG("[DDL_CreateContext] Exploit attempt caught!");
-			ex->ContextRecord->Rip = game::base_address + 0x2522ABD;
-			return EXCEPTION_CONTINUE_EXECUTION;
+			return &exception_filter;
 		}
-
-		if (ex->ContextRecord->Rip == game::base_address + 0x2522B4A)
-		{
-			PRINT_LOG("[DDL_ResetContext] Exploit attempt caught!");
-			ex->ContextRecord->Rip = game::base_address + 0x2522B85;
-			return EXCEPTION_CONTINUE_EXECUTION;
-		}
-
-		const auto index = static_cast<dvar::exception_index>(ex->ContextRecord->Rcx);
-
-		if (const auto exception_func = dvar::exceptions.find(index); exception_func != dvar::exceptions.end())
-		{
-			exception_func->second(ex);
-			return EXCEPTION_CONTINUE_EXECUTION;
-		}
-		
-		if (const auto exception_func = hbp::exceptions.find(ex->ContextRecord->Rip); exception_func != hbp::exceptions.end())
-		{
-			return exception_func->second(ex);
-		}
-
-		auto error = "Termination due to a stack overflow."s;
-		if (code != EXCEPTION_STACK_OVERFLOW)
-		{
-			error = utils::string::va("Exception: 0x%08X at offset 0x%llX", code, reinterpret_cast<std::uintptr_t>(addr) - game::base_address);
-		}
-
-		const auto filename = utils::exception::minidump::generate_minidump_filename();
-		utils::io::write_minidump(ex, filename, error);
-		game::Com_Error(nullptr, 0, game::ERROR_DROP, error.data());
-		
-		return EXCEPTION_CONTINUE_EXECUTION;
-	}
-
-	LPTOP_LEVEL_EXCEPTION_FILTER __stdcall set_unhandled_exception_filter(LPTOP_LEVEL_EXCEPTION_FILTER)
-	{
-		return &exception_filter;
 	}
 
 	void initialize()
 	{
 		SetUnhandledExceptionFilter(exception_filter);
-		utils::hook::jump(&SetUnhandledExceptionFilter, &set_unhandled_exception_filter);
+		utils::hook::jump(&SetUnhandledExceptionFilter, &set_unhandled_exception_filter, true);
 
-		utils::hook::set<std::uintptr_t>(game::base_address + 0x168EEAC0, dvar::main);
-		utils::hook::set<std::uintptr_t>(game::base_address + 0xAE96C40, dvar::renderer);
-		utils::hook::set<std::uintptr_t>(game::base_address + 0x53DD170, dvar::predict_ps);
+		dvars::initialize();
+		hwbp::initialize();
+		pageguard::initialize();
 
-		exception::dvar::register_exception(exception::dvar::predict_ps, [](auto& ex)
+		exception::register_hook(game::base_address + 0x20E1C6F, [](auto& ctx)
 		{
-			ex->ContextRecord->Rcx = reinterpret_cast<std::uintptr_t>(game::m_mouseAcceleration_original);
-			ex->ContextRecord->Rbx = reinterpret_cast<std::uintptr_t>(game::m_mouseAcceleration_original);
-			ex->ContextRecord->Rip = game::base_address + 0x22BD0AF;
+			ctx.Rcx = reinterpret_cast<std::uintptr_t>(misc::trace_thread_info);
+			ctx.Rip += sizeof(uint32_t);
+		});	
 
-			page_guard_address(game::base_address + 0x9C2AF0);
-		});
-		
-		hbp::register_exception(game::base_address + 0x1439606, [](const auto& ex)
+		exception::register_hook(game::base_address + 0x20E112D, [](auto& ctx)
 		{
-			ex->ContextRecord->Rsp -= 0x60;
-
-			const auto sender_id{ ex->ContextRecord->Rcx };
-			const auto message{ reinterpret_cast<const char*>(ex->ContextRecord->R8) };
-			const auto message_size{ ex->ContextRecord->R9 };
-
-			if (events::instant_message::dispatch::handle_message(sender_id, message, message_size))
-			{
-				ex->ContextRecord->Rip = game::base_address + 0x1439716;
-				return EXCEPTION_CONTINUE_EXECUTION;
-			}
-
-			ex->ContextRecord->Rip += 4;
-			return EXCEPTION_CONTINUE_EXECUTION;
-		});
-
-		hbp::register_exception(game::base_address + 0x1CD8B43, [](const auto& ex)
-		{
-			ex->ContextRecord->R8 = ex->ContextRecord->Rbx;
-			ex->ContextRecord->Rip += 3;
-
-			if (const auto& string = reinterpret_cast<char*>(ex->ContextRecord->Rsi); *string)
-			{
-				static auto replaced = ""s;
-				replaced = std::regex_replace(std::string(string), std::regex("\\^[^0-9]"), "");
-				utils::hook::write_string(string, replaced.data());
-			}
-			
-			return EXCEPTION_CONTINUE_EXECUTION;
+			ctx.R9 = reinterpret_cast<std::uintptr_t>(misc::trace_thread_info);
+			ctx.Rip += sizeof(uint32_t);
 		});
 	}
 }

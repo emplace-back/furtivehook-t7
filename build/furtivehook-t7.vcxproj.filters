@@ -28,14 +28,20 @@
     <Filter Include="core\exception">
       <UniqueIdentifier>{AC25D4F4-98F3-C7FA-8187-38216DF4A35F}</UniqueIdentifier>
     </Filter>
-    <Filter Include="core\exception\dvar">
-      <UniqueIdentifier>{A8E9F5FC-144B-D30A-9DB8-19BD09190ACA}</UniqueIdentifier>
+    <Filter Include="core\exception\dvars">
+      <UniqueIdentifier>{1B1FB39B-07AE-3C65-B0CC-50609C3A4D0B}</UniqueIdentifier>
     </Filter>
-    <Filter Include="core\exception\hbp">
-      <UniqueIdentifier>{F5A8A2E8-E18C-633E-4AED-5D9136F04DC0}</UniqueIdentifier>
+    <Filter Include="core\exception\hwbp">
+      <UniqueIdentifier>{8C1FF8FC-F880-D50A-81EE-1BBDED4E0CCA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core\exception\pageguard">
+      <UniqueIdentifier>{8B147533-7739-C4B3-A084-A9438C08C3D1}</UniqueIdentifier>
     </Filter>
     <Filter Include="core\exploit">
       <UniqueIdentifier>{C29EA2BA-AE01-325F-5787-6A1543C9FDE1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core\friends">
+      <UniqueIdentifier>{A8601BF9-94C3-AA9D-3D49-E353298B7620}</UniqueIdentifier>
     </Filter>
     <Filter Include="core\input">
       <UniqueIdentifier>{ED821051-D93A-529E-4242-2BFA2E19ED8E}</UniqueIdentifier>
@@ -66,6 +72,9 @@
     </Filter>
     <Filter Include="core\security\iat">
       <UniqueIdentifier>{E20E317C-4E25-2F12-979C-BA3303F2FF99}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core\session">
+      <UniqueIdentifier>{C1F439C4-AD57-C968-56DD-011F421F95EB}</UniqueIdentifier>
     </Filter>
     <Filter Include="dependencies">
       <UniqueIdentifier>{8CAD9F58-7810-2FFD-2196-67B30DD8FA7F}</UniqueIdentifier>
@@ -106,9 +115,6 @@
     <Filter Include="utils\spoof_call">
       <UniqueIdentifier>{47ED541E-33E6-7370-5C18-59F54870537C}</UniqueIdentifier>
     </Filter>
-    <Filter Include="core\friends">
-      <UniqueIdentifier>{A8601BF9-94C3-AA9D-3D49-E353298B7620}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\core\aimbot\aimbot.hpp">
@@ -135,14 +141,17 @@
     <ClInclude Include="..\src\core\events\lobby_msg\lobby_msg.hpp">
       <Filter>core\events\lobby_msg</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\core\exception\dvar\dvar.hpp">
-      <Filter>core\exception\dvar</Filter>
+    <ClInclude Include="..\src\core\exception\dvars\dvars.hpp">
+      <Filter>core\exception\dvars</Filter>
     </ClInclude>
     <ClInclude Include="..\src\core\exception\exception.hpp">
       <Filter>core\exception</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\core\exception\hbp\hbp.hpp">
-      <Filter>core\exception\hbp</Filter>
+    <ClInclude Include="..\src\core\exception\hwbp\hwbp.hpp">
+      <Filter>core\exception\hwbp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\core\exception\pageguard\pageguard.hpp">
+      <Filter>core\exception\pageguard</Filter>
     </ClInclude>
     <ClInclude Include="..\src\core\exploit\exploit.hpp">
       <Filter>core\exploit</Filter>
@@ -182,6 +191,9 @@
     </ClInclude>
     <ClInclude Include="..\src\core\security\security.hpp">
       <Filter>core\security</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\core\session\session.hpp">
+      <Filter>core\session</Filter>
     </ClInclude>
     <ClInclude Include="..\src\dependencies\game\game.hpp">
       <Filter>dependencies\game</Filter>
@@ -444,6 +456,12 @@
     <ClInclude Include="..\src\utils\string.hpp">
       <Filter>utils</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\utils\thread.hpp">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\utils\toast.hpp">
+      <Filter>utils</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\utils\utils.hpp">
       <Filter>utils</Filter>
     </ClInclude>
@@ -473,14 +491,17 @@
     <ClCompile Include="..\src\core\events\lobby_msg\lobby_msg.cpp">
       <Filter>core\events\lobby_msg</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\core\exception\dvar\dvar.cpp">
-      <Filter>core\exception\dvar</Filter>
+    <ClCompile Include="..\src\core\exception\dvars\dvars.cpp">
+      <Filter>core\exception\dvars</Filter>
     </ClCompile>
     <ClCompile Include="..\src\core\exception\exception.cpp">
       <Filter>core\exception</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\core\exception\hbp\hbp.cpp">
-      <Filter>core\exception\hbp</Filter>
+    <ClCompile Include="..\src\core\exception\hwbp\hwbp.cpp">
+      <Filter>core\exception\hwbp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\core\exception\pageguard\pageguard.cpp">
+      <Filter>core\exception\pageguard</Filter>
     </ClCompile>
     <ClCompile Include="..\src\core\exploit\exploit.cpp">
       <Filter>core\exploit</Filter>
@@ -523,6 +544,9 @@
     </ClCompile>
     <ClCompile Include="..\src\core\security\security.cpp">
       <Filter>core\security</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\core\session\session.cpp">
+      <Filter>core\session</Filter>
     </ClCompile>
     <ClCompile Include="..\src\dependencies\game\game.cpp">
       <Filter>dependencies\game</Filter>
@@ -693,6 +717,12 @@
       <Filter>utils</Filter>
     </ClCompile>
     <ClCompile Include="..\src\utils\string.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\utils\thread.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\utils\toast.cpp">
       <Filter>utils</Filter>
     </ClCompile>
     <ClCompile Include="..\src\utils\utils.cpp">

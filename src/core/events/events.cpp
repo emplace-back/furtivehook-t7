@@ -58,8 +58,15 @@ namespace events
 
 			if (aimbot::aim_target && aimbot::silent)
 			{
-				adjust_user_cmd_movement(cmd_old, SHORT2ANGLE(cmd_old->angles[1]), old_angle);
+				game::adjust_user_cmd_movement(cmd_old, SHORT2ANGLE(cmd_old->angles[1]), old_angle);
 			}
 		}
+	}
+	
+	void initialize()
+	{
+		connectionless_packet::initialize(); 
+		instant_message::initialize();
+		lobby_msg::initialize();
 	}
 }

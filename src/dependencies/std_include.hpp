@@ -31,6 +31,7 @@
 #include <cctype>
 #include <csetjmp>
 #include <sstream>
+#include <TlHelp32.h>
 #include <utils/json/nlohmann/json.hpp>
 #include <utils/asmjit/core/jitruntime.h>
 #include <utils/asmjit/x86/x86assembler.h>
@@ -61,6 +62,8 @@ using json = nlohmann::json;
 #include "utils/string.hpp"
 #include "utils/concurrency.hpp"
 #include "utils/nt.hpp"
+#include "utils/toast.hpp"
+#include "utils/thread.hpp"
 #include "utils/exception/minidump.hpp"
 #include "utils/spoof_call/spoof_call.hpp"
 
@@ -78,13 +81,15 @@ using json = nlohmann::json;
 #include "core/loader/loader.hpp"
 #include "core/security/iat/iat.hpp"
 #include "core/security/security.hpp"
+#include "core/session/session.hpp"
 #include "core/command/command.hpp"
 #include "core/exploit/exploit.hpp"
 #include "core/aimbot/aimbot.hpp"
 #include "core/aimbot/autowall.hpp"
 #include "core/rendering/rendering.hpp"
-#include "core/exception/hbp/hbp.hpp"
-#include "core/exception/dvar/dvar.hpp"
+#include "core/exception/pageguard/pageguard.hpp"
+#include "core/exception/hwbp/hwbp.hpp"
+#include "core/exception/dvars/dvars.hpp"
 #include "core/exception/exception.hpp"
 #include "core/logger/logger.hpp"
 #include "core/events/connectionless_packet/connectionless_packet.hpp"

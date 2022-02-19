@@ -1739,8 +1739,8 @@ ImFont* ImFontAtlas::AddFont(const ImFontConfig* font_cfg)
 // Default font TTF is compressed with stb_compress then base85 encoded (see misc/fonts/binary_to_compressed_c.cpp for encoder)
 static unsigned int stb_decompress_length(const unsigned char *input);
 static unsigned int stb_decompress(unsigned char *output, const unsigned char *input, unsigned int length);
-static const char*  GetDefaultCompressedFontDataTTFBase85();
-static const char*  GetSecondaryFont();
+static const char*  get_glacial_indifference();
+static const char*  get_glacial_indifference_bold();
 static unsigned int Decode85Byte(char c) { return c >= '\\' ? c - 36 : c - 35; }
 static void         Decode85(const unsigned char* src, unsigned char* dst)
 {
@@ -1753,16 +1753,16 @@ static void         Decode85(const unsigned char* src, unsigned char* dst)
     }
 }
 
-std::string ImFontAtlas::GetSecondaryFonts()
+std::string ImFontAtlas::GetSecondaryFont()
 {
-    const char* ttf_compressed_base85 = GetSecondaryFont();
-    return ttf_compressed_base85;
+    const char* font = get_glacial_indifference_bold();
+    return font;
 }
 
 std::string ImFontAtlas::GetPrimaryFont()
 {
-    const char* ttf_compressed_base85 = GetDefaultCompressedFontDataTTFBase85();
-    return ttf_compressed_base85;
+	const char* font = get_glacial_indifference();
+    return font;
 }
 
 // Load embedded ProggyClean.ttf at size 13, disable oversampling
@@ -1783,7 +1783,7 @@ ImFont* ImFontAtlas::AddFontDefault(const ImFontConfig* font_cfg_template)
 
     font_cfg.EllipsisChar = static_cast<ImWchar>(0x0085);
 
-    const auto ttf_compressed_base85 = GetDefaultCompressedFontDataTTFBase85();
+    const auto ttf_compressed_base85 = get_glacial_indifference();
     const auto glyph_ranges = font_cfg.GlyphRanges != NULL ? font_cfg.GlyphRanges : GetGlyphRangesDefault();
     const auto font = AddFontFromMemoryCompressedBase85TTF(ttf_compressed_base85, font_cfg.SizePixels, &font_cfg, glyph_ranges);
 
@@ -3513,7 +3513,7 @@ static unsigned int stb_decompress(unsigned char *output, const unsigned char *i
     }
 }
 
-static const char* GetDefaultCompressedFontDataTTFBase85()
+static const char* get_glacial_indifference()
 {
     static const char glacial_indifference_base_85[42825 + 1] =
     {
@@ -3827,7 +3827,7 @@ static const char* GetDefaultCompressedFontDataTTFBase85()
     return glacial_indifference_base_85;
 }
 
-static const char* GetSecondaryFont()
+static const char* get_glacial_indifference_bold()
 {
     static const char glacial_indifference_bold_base_85[27295 + 1] =
     {

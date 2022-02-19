@@ -14,30 +14,13 @@ namespace utils::io
 
 		if (stream.is_open())
 		{
-			auto line = ""s;
-			line.append(data);
-
-			if (append)
-				line.append("\n");
-
-			stream.write(line.data(), line.size());
+			stream.write(data.data(), data.size());
 			stream.close();
 
 			return true;
 		}
 
 		return false;
-	}
-	
-	void write_minidump(const LPEXCEPTION_POINTERS ex, const std::string& filename, const std::string& error)
-	{
-		const auto data = exception::minidump::create_minidump(ex);
-		write_file(filename, data);
-
-		if (!error.empty())
-		{
-			PRINT_LOG("%s", error.data());
-		}
 	}
 	
 	bool create_directory(const std::string& directory)
@@ -60,25 +43,36 @@ namespace utils::io
 		return std::ifstream(file).good();
 	}
 
-	std::string get_json_file(const std::string& name)
+	std::string read_file(const std::string& file)
 	{
-		const utils::nt::library self;
-		return self.get_folder() + "\\furtivehook\\json\\" + name;
+		std::string data;
+		read_file(file, &data);
+		return data;
 	}
 
-	std::ifstream read_json_file(const std::string& name)
+	bool read_file(const std::string& file, std::string* data)
 	{
-		if (const auto file = get_json_file(name); file_exists(file))
+		if (!data) return false;
+		data->clear();
+
+		if (file_exists(file))
 		{
-			return std::ifstream(file);
+			std::ifstream stream(file, std::ios::binary);
+			if (!stream.is_open()) return false;
+
+			stream.seekg(0, std::ios::end);
+			const std::streamsize size = stream.tellg();
+			stream.seekg(0, std::ios::beg);
+
+			if (size > -1)
+			{
+				data->resize(static_cast<uint32_t>(size));
+				stream.read(const_cast<char*>(data->data()), size);
+				stream.close();
+				return true;
+			}
 		}
 
-		return {};
-	}
-
-	json parse_json_file(const std::string& name)
-	{
-		auto json_file = read_json_file(name);
-		return json::parse(json_file);
+		return false;
 	}
 }

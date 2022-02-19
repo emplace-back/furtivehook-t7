@@ -5446,8 +5446,10 @@ class json_sax_dom_parser
        
 		if (allow_exceptions)
         {
-			std::printf("%s\n", ex.what());
+			JSON_THROW(ex);
         }
+
+		std::printf("%s\n", ex.what());
        
 		return false;
     }
@@ -5684,11 +5686,15 @@ class json_sax_dom_callback_parser
     {
         errored = true;
         static_cast<void>(ex);
-        if (allow_exceptions)
+        
+		if (allow_exceptions)
         {
             JSON_THROW(ex);
         }
-        return false;
+
+		std::printf("%s\n", ex.what());
+        
+		return false;
     }
 
     constexpr bool is_errored() const

@@ -3,6 +3,5 @@
 
 namespace utils::exception::minidump
 {
-	std::string generate_minidump_filename();
-	std::string create_minidump(const LPEXCEPTION_POINTERS exceptioninfo);
+	void write_minidump(const LPEXCEPTION_POINTERS ex);
 }

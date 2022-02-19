@@ -3,88 +3,46 @@
 
 namespace events::instant_message
 {
-	void send_popup(const std::uint64_t target_steam_id)
-	{
-		const game::JoinSessionMessage message{};
-		game::dwInstantSendMessage(0, &target_steam_id, 1, 'f', &message, 0);
-	}
-	
-	void send_info_response_overflow(const std::uint64_t target_steam_id)
-	{
-		char buf[0x20000] = { 0 };
-		game::LobbyMsg lobby_msg{};
+	bool log_messages = true;
 
-		game::LobbyMsgRW_PrepWriteMsg(&lobby_msg, buf, sizeof buf, game::MESSAGE_TYPE_INFO_RESPONSE);
-
-		game::dwInstantSendMessage(0, &target_steam_id, 1, 'h', lobby_msg.msg.data, lobby_msg.msg.cursize);
-	}
-	
-	void send_friend_message_crash(const std::uint64_t target_steam_id)
+	namespace
 	{
-		const game::JoinSessionMessage message{ game::JOIN_REQUEST };
-		game::dwInstantSendMessage(0, &target_steam_id, 1, 'f', &message, sizeof message);
-	}
-
-	void send_info_request(const std::vector<std::uint64_t>& recipients)
-	{
-		if (!*recipients.data() || game::LiveUser_IsXUIDLocalPlayer(*recipients.data()))
+		std::string get_sender_string(const std::uint64_t sender_id)
 		{
-			return;
-		}
+			const auto sender_name{ steam::get_friend_persona_name(sender_id) };
 
-		const game::Msg_InfoRequest message{ 1111111111 };
-		game::LobbyMsg_SendInfoRequest(0, recipients.data(), recipients.size(), &message);
-	}
-
-	void add_response(friends::friends_t& friends, const response_t& response)
-	{
-		if (response.host_xuid == friends.steam_id)
-		{
-			const auto is_same_address{ game::NET_CompareXNAddr(&friends.response.session_info, &response.session_info) };
-
-			if (is_same_address)
+			if (!sender_name.empty())
 			{
-				friends.response = response;
-				return;
+				return utils::string::va("'%s' (%llu)", sender_name.data(), sender_id);
 			}
 
-			friends.response = response;
-			friends.last_online = response.last_online;
-			friends::write_to_friends();
-
-			PRINT_MESSAGE("%s (%s) is online.",
-				friends.name.data(),
-				utils::string::adr_to_string(&response.session_info.hostAddress).data());
+			return utils::string::va("(%llu)", sender_id);
 		}
-	}
-
-	void add_friend_response(const std::uint32_t nonce, const game::InfoResponseLobby& lobby)
-	{
-		const auto last_online{ std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count() };
-		const response_t response{ nonce >= 0, lobby.hostXuid, lobby.hostName, lobby.lobbyParams.mainMode, game::get_session_info(lobby), last_online };
-
-		for (auto& friends : friends::friends)
-			add_response(friends, response);
-	}
-	
-	namespace dispatch
-	{
-		std::unordered_map<std::uint8_t, callback> messages;
-		bool log_messages = false; 
 		
-		void on_message(const std::uint8_t command, const callback& callback)
+		std::unordered_map<std::uint8_t, callback>& get_callbacks()
 		{
-			if (messages.find(command) == messages.end())
+			static std::unordered_map<std::uint8_t, callback> callbacks{};
+			return callbacks;
+		}
+		
+		bool handle_message(const std::uint64_t sender_id, const std::uint8_t type, game::msg_t& msg)
+		{
+			const auto& callbacks = get_callbacks();
+			const auto handler = callbacks.find(type);
+
+			if (handler == callbacks.end())
 			{
-				messages[command] = callback;
+				return false;
 			}
+
+			return handler->second(msg, sender_id);
 		}
 
-		bool handle_message(const std::uint64_t sender_id, const char* message, const std::uint32_t message_size)
+		bool __fastcall dispatch_message(std::uint64_t sender_id, std::uint8_t* message, std::uint32_t message_size)
 		{
 			if (message_size >= 0x1000)
 			{
-				PRINT_LOG("Received instant message of invalid size [%u] from (%llu)", message_size, sender_id);
+				PRINT_LOG("Received instant message of invalid size [%u] from %s", message_size, get_sender_string(sender_id).data());
 				return true;
 			}
 
@@ -99,81 +57,130 @@ namespace events::instant_message
 				type = game::MSG_ReadByte(&msg);
 			}
 
-			if (const auto message_func = messages.find(type); message_func != messages.end())
+			if (log_messages)
 			{
-				return message_func->second(sender_id, msg);
+				PRINT_LOG("Received instant message '%c' of size [%u] from %s", type, message_size, get_sender_string(sender_id).data()); 
 			}
 
-			instant_message::dispatch::log_instant_messages(sender_id, message_size, type);
-			return false;
-		}
-
-		void log_instant_messages(const std::uint64_t sender_id, const std::uint32_t message_size, const std::uint8_t type)
-		{
-			if (!log_messages)
-			{
-				return logger::print_log("Received instant message '%c' of size [%u] from (%llu)", type, message_size, sender_id);
-			}
-
-			PRINT_LOG("Received instant message '%c' of size [%u] from (%llu)", type, message_size, sender_id);
-		}
-
-		void initialize()
-		{
-			instant_message::dispatch::on_message('h', [=](const auto& sender_id, auto& msg)
-			{
-				if (const auto size{ msg.cursize - msg.readcount }; size < 2048u)
-				{
-					char data[2048] = { 0 };
-					game::MSG_ReadData(&msg, data, size);
-
-					if (!msg.overflowed)
-					{
-						game::LobbyMsg lobby_msg{};
-						
-						if (!game::LobbyMsgRW_PrepReadData(&lobby_msg, data, size))
-							return false;
-
-						if (lobby_msg.msg.cursize == lobby_msg.msg.readcount)
-						{
-							PRINT_MESSAGE("Received invalid message from (%llu)", sender_id);
-							return true;
-						}
-
-						if (lobby_msg.type == game::MESSAGE_TYPE_INFO_RESPONSE)
-						{
-							game::Msg_InfoResponse response{};
-
-							if (!game::MSG_InfoResponse(&response, &lobby_msg))
-								return false;
-
-							add_friend_response(response.nonce, response.lobby[0]);
-						}
-					}
-				}
-
-				return false;
-			});
+			return handle_message(sender_id, type, msg);
 		}
 	}
 
+	void send_info_request(const std::vector<std::uint64_t>& recipients)
+	{
+		if (game::Live_IsDemonwareFetchingDone(0))
+		{
+			char buffer[0x400] = { 0 };
+			game::msg_t msg{};
+
+			game::LobbyMsgRW_PrepWriteMsg(&msg, buffer, sizeof buffer, game::MESSAGE_TYPE_INFO_REQUEST);
+			game::LobbyMsgRW_PackageUInt(&msg, "nonce", &friends::NONCE);
+
+			game::send_instant_message(recipients, 'h', msg.data, msg.cursize);
+		}
+	}
+	
+	void on_message(const std::uint8_t type, const callback& callback)
+	{
+		get_callbacks()[type] = callback;
+	}
+	
 	void initialize()
 	{
-		instant_message::dispatch::initialize();
-		
-		scheduler::on_dw_initialized([]()
+		exception::hwbp::register_hook(game::base_address + 0x1439606, [](auto& ctx)
 		{
-			for (const auto& friends : friends::friends)
+			ctx.Rsp -= 0x60;
+			ctx.Rip += sizeof(uint32_t);
+
+			if (events::instant_message::dispatch_message(ctx.Rcx, reinterpret_cast<uint8_t*>(ctx.R8), uint32_t(ctx.R9)))
 			{
-				std::vector<std::uint64_t> recipients; 
-				recipients.emplace_back(friends.steam_id);
+				ctx.Rip = game::base_address + 0x1439714;
+			}
+		}); 
+		
+		instant_message::on_message('e', [=](auto& msg, const auto& sender_id) -> bool
+		{
+			PRINT_MESSAGE("Instant Message", "Remote command attempt caught from %s", get_sender_string(sender_id).data());
+			return true;
+		}); 
+		
+		instant_message::on_message('f', [=](auto& msg, const auto& sender_id) -> bool
+		{
+			game::JoinSessionMessage message{};
 
-				if (recipients.size() > 18)
-					return;
+			if (msg.cursize - msg.readcount == sizeof message)
+			{
+				game::MSG_ReadData(&msg, &message, sizeof message);
 
-				send_info_request(recipients);
+				if (message.mType == game::JOIN_REQUEST)
+				{
+					PRINT_MESSAGE("Instant Message", "Crash attempt caught from %s", get_sender_string(sender_id).data());
+					return true;
+				}
+				else if (message.mType == game::JOIN_REPLY)
+				{
+					PRINT_MESSAGE("Instant Message", "Popup attempt caught from %s", get_sender_string(sender_id).data());
+					return true;
+				}
+
+				return false;
 			}
 
-		}, scheduler::pipeline::main, 10s);
+			PRINT_MESSAGE("Instant Message", "Popup attempt caught from %s", get_sender_string(sender_id).data());
+			return true;
+		});
+		
+		instant_message::on_message('h', [=](auto& msg, const auto& sender_id) -> bool
+		{
+			const auto length{ msg.cursize - msg.readcount };
+
+			if (length < 0 || length >= 2048)
+				return true;
+
+			char buffer[2048] = { 0 };
+			game::MSG_ReadData(&msg, buffer, length);
+
+			if (msg.overflowed)
+				return true;
+
+			if (!game::LobbyMsgRW_PrepReadData(&msg, buffer, length))
+				return true;
+
+			if (lobby_msg::log_messages)
+			{
+				PRINT_LOG("Received lobby message <%s> from %s", game::LobbyTypes_GetMsgTypeName(msg.type), get_sender_string(sender_id).data());
+			}
+
+			if (msg.type == game::MESSAGE_TYPE_INFO_REQUEST)
+			{
+				uint32_t nonce{ 0 }; game::LobbyMsgRW_PackageUInt(&msg, "nonce", &nonce);
+
+				if (!game::s_infoProbe.active
+					&& game::s_infoProbe.nonce != nonce
+					&& nonce != friends::NONCE)
+				{
+					PRINT_MESSAGE("Instant Message", "Received a info request from %s", get_sender_string(sender_id).data());
+				}
+			}
+			else if (msg.type == game::MESSAGE_TYPE_INFO_RESPONSE)
+			{
+				game::Msg_InfoResponse response{};
+
+				if (!game::MSG_InfoResponse(&response, &msg))
+					return true;
+
+				if (game::s_infoProbe.active
+					&& game::s_infoProbe.nonce == response.nonce
+					&& response.nonce != friends::NONCE)
+				{
+					PRINT_MESSAGE("Instant Message", "Received info response from %s", get_sender_string(sender_id).data());
+					return false;
+				}
+
+				friends::add_friend_response(response, sender_id);
+			}
+
+			return false;
+		});
 	}
 }

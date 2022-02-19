@@ -10,6 +10,8 @@ namespace rendering
 		menu::initialize(thisptr);
 		dx::on_every_frame();
 
+		scheduler::execute(scheduler::pipeline::backend);
+
 		return present_hook.invoke<HRESULT>(thisptr, syncInterval, flags);
 	}
 	

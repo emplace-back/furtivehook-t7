@@ -28,7 +28,7 @@ workspace "furtivehook-t7"
     buildoptions {
         "/Zm200",
         "/utf-8",
-        "/std:c++latest",
+        "/std:c++latest"
     }
 
     flags {

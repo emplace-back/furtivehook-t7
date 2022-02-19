@@ -6,20 +6,17 @@ namespace utils::string
 	std::string adr_to_string(const game::XNADDR* address)
 	{
 		static auto adr = ""s;
-		adr = utils::string::va("%u.%u.%u.%u:%u", address->ip[0], address->ip[1], address->ip[2], address->ip[3], address->port);
+		adr = utils::string::va("%u.%u.%u.%u", address->ip[0], address->ip[1], address->ip[2], address->ip[3]);
 
 		return adr;
 	}
 
 	std::string adr_to_string(const game::netadr_t* address)
 	{
-		game::XNADDR xn;
+		game::XNADDR xn{};
 		game::dwNetadrToCommonAddr(*address, &xn, sizeof xn, nullptr);
 
-		if (address->type == game::NA_LOOPBACK)
-			return utils::string::va("%u.%u.%u.%u", xn.ip[0], xn.ip[1], xn.ip[2], xn.ip[3]);
-
-		return utils::string::va("%u.%u.%u.%u:%u", xn.ip[0], xn.ip[1], xn.ip[2], xn.ip[3], address->port);
+		return adr_to_string(&xn);
 	}
 	
 	std::string join(const std::vector<std::string>& args, const std::size_t index)
@@ -54,6 +51,16 @@ namespace utils::string
 		}
 
 		return result;
+	}
+	
+	std::string format(const va_list ap, const char* message)
+	{
+		static thread_local char buffer[0x1000];
+
+		const auto count = vsnprintf_s(buffer, sizeof(buffer), _TRUNCATE, message, ap);
+
+		if (count < 0) return {};
+		return { buffer, static_cast<size_t>(count) };
 	}
 	
 	std::string va(const char* fmt, ...)
@@ -156,7 +163,7 @@ namespace utils::string
 		std::mt19937 engine(device());
 		std::uniform_int_distribution<std::uint32_t> dist(0, random_characters.size() - 1);
 
-		for (auto i = 0u; i != length; ++i)
+		for (size_t i = 0; i < length; ++i)
 		{
 			const auto random_index = dist(engine);
 			result += random_characters[random_index];

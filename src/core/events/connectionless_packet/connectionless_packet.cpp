@@ -3,96 +3,130 @@
 
 namespace events::connectionless_packet
 {
-	std::unordered_map<std::string, callback> commands;
-	bool log_packets = false;
+	bool log_commands = true;
+
+	namespace
+	{
+		std::string get_sender_string(const game::netadr_t& from)
+		{
+			if (const auto client_num = game::find_target_from_addr(from); client_num >= 0)
+			{
+				const auto target_client = game::session->clients[client_num].activeClient;
+
+				return utils::string::va("'%s' (%llu) %s",
+					target_client->fixedClientInfo.gamertag,
+					target_client->fixedClientInfo.xuid,
+					utils::string::adr_to_string(&from).data());
+			}
+
+			return utils::string::va("%s", utils::string::adr_to_string(&from).data());
+		}
+
+		std::unordered_map<std::string, callback>& get_callbacks()
+		{
+			static std::unordered_map<std::string, callback> callbacks{};
+			return callbacks;
+		}
+
+		bool handle_command(const command::args& args, const game::netadr_t& from, game::msg_t& msg)
+		{
+			const auto cmd_string = utils::string::to_lower(args[0]);
+			const auto& callbacks = get_callbacks();
+			const auto handler = callbacks.find(cmd_string);
+
+			if (handler == callbacks.end())
+			{
+				return false;
+			}
+
+			const auto msg_backup = msg;
+			const auto cb = handler->second(args, from, msg);
+
+			if (msg.readcount != msg_backup.readcount)
+				msg = msg_backup;
+
+			return cb;
+		}
+
+		bool __fastcall callback_cl_dispatch_connectionless_packet(const game::netadr_t& from, game::msg_t& msg)
+		{
+			if (const command::args args{}; args.size() > 0)
+			{
+				if (log_commands)
+				{
+					PRINT_LOG("Received OOB '%s' from %s", args.join(0).data(), get_sender_string(from).data());
+				}
+
+				return handle_command(args, from, msg);
+			}
+
+			return false;
+		}
+
+		size_t cl_dispatch_connectionless_packet_stub()
+		{
+			const auto stub = utils::hook::assemble([](auto& a)
+			{
+				const auto return_original = a.newLabel();
+
+				a.mov(rdx, r12);
+
+				a.pushad64();
+				a.mov(rdx, r12); // msg
+				a.mov(rcx, r15); // netadr
+				a.call_aligned(connectionless_packet::callback_cl_dispatch_connectionless_packet);
+				a.test(al, al);
+				a.jz(return_original);
+				a.popad64();
+
+				a.jmp(game::base_address + 0x134C43F);
+
+				a.bind(return_original);
+				a.popad64();
+				a.jmp(game::base_address + 0x134BDB0);
+			});
+
+			return reinterpret_cast<size_t>(stub);
+		}
+	}
 
 	void on_command(const std::string& command, const callback& callback)
 	{
-		if (commands.find(command) == commands.end())
-		{
-			commands[utils::string::to_lower(command)] = callback;
-		}
-	}
-
-	bool handle_command(const std::string& command, game::netadr_t* from, game::msg_t& msg)
-	{
-		const auto cmd_string{ utils::string::to_lower(command) };
-
-		if (const auto command_func{ commands.find(cmd_string) }; command_func != commands.end())
-		{
-			const command::args_ args{};
-
-			if (args.size() > 0)
-			{
-				const auto msg_backup{ msg };
-				const auto cb{ command_func->second(args, *from, msg) };
-
-				if(msg.readcount != msg_backup.readcount)
-					msg = msg_backup;
-
-				return cb;
-			}
-		}
-
-		return false;
-	}
-
-	void log_dispatch_connectionless_packet_commands(game::netadr_t* from)
-	{
-		if (!log_packets)
-		{
-			return logger::print_log("%s", game::get_oob_command(*from).data());
-		}
-
-		PRINT_LOG("%s", game::get_oob_command(*from).data());
-	}
-
-	bool __fastcall callback_cl_dispatch_connectionless_packet(const char* command, game::netadr_t* from, game::msg_t* msg)
-	{
-		if (connectionless_packet::handle_command(command, from, *msg))
-		{
-			return true;
-		}
-
-		connectionless_packet::log_dispatch_connectionless_packet_commands(from);
-		return false;
-	}
-	
-	size_t cl_dispatch_connectionless_packet()
-	{
-		const static auto stub = utils::hook::assemble([](auto& a)
-		{
-			const auto return_original = a.newLabel();
-			
-			a.pushad64();
-
-			a.mov(r8, r12); // msg
-			a.mov(rdx, r15); // netadr
-			a.mov(rcx, rdi); // command
-
-			a.call_aligned(connectionless_packet::callback_cl_dispatch_connectionless_packet);
-
-			a.test(al, al);
-			a.jz(return_original);
-
-			a.popad64();
-			a.jmp(game::base_address + 0x134BE00);
-
-			a.bind(return_original);
-			a.popad64();
-			a.jmp(game::base_address + 0x134BDB0);
-		});
-
-		return reinterpret_cast<size_t>(stub);
+		get_callbacks()[utils::string::to_lower(command)] = callback;
 	}
 
 	void initialize()
 	{
-		exception::hbp::register_exception(game::base_address + 0x134BDAD, [](const auto& ex)
+		exception::hwbp::register_hook(game::base_address + 0x134BDAD, events::connectionless_packet::cl_dispatch_connectionless_packet_stub);
+		
+		connectionless_packet::on_command("relay", [](const auto&, const auto& from, const auto&) -> bool
 		{
-			ex->ContextRecord->Rdx = ex->ContextRecord->R12;
-			ex->ContextRecord->Rip = connectionless_packet::cl_dispatch_connectionless_packet();
-			return EXCEPTION_CONTINUE_EXECUTION;
+			PRINT_MESSAGE("Connectionless Packet", "Crash attempt caught! from %s", get_sender_string(from).data());
+			return true;
+		});
+
+		connectionless_packet::on_command("vt", [](const auto&, const auto& from, const auto&) -> bool
+		{
+			PRINT_MESSAGE("Connectionless Packet", "Crash attempt caught! from %s", get_sender_string(from).data());
+			return true;
+		});
+
+		connectionless_packet::on_command("requeststats", [](const auto&, const auto& from, const auto&) -> bool
+		{
+			PRINT_MESSAGE("Connectionless Packet", "Black screen attempt caught! from %s", get_sender_string(from).data());
+			return true;
+		});
+
+		connectionless_packet::on_command("mstart", [](const auto&, const auto& from, const auto&) -> bool
+		{
+			PRINT_MESSAGE("Connectionless Packet", "Migration screen attempt caught! from %s", get_sender_string(from).data());
+			return true;
+		});
+
+		connectionless_packet::on_command("connectResponseMigration", [](const auto&, const auto& from, const auto&) -> bool
+		{
+			PRINT_MESSAGE("Connectionless Packet", "Kick attempt caught! from %s", get_sender_string(from).data());
+			return true;
 		});
 	}
 }

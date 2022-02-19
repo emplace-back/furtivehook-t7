@@ -5,54 +5,12 @@ namespace game
 	std::unordered_map<std::string, bool> handlers;
 	LobbySession* session = nullptr;
 	std::array<scr_string_t, static_cast<std::uint32_t>(bone_tag::num_tags)> bone_tags; 
-	dvar_t* com_smoothframes_original = nullptr;
-	dvar_t* r_fxShadows_original = nullptr;
-	dvar_t* m_mouseAcceleration_original = nullptr;
 
 	namespace oob
 	{
-		void send_connection_test(const netadr_t& to, const Msg_ConnectionTest& message)
-		{
-			char data[0x20000] = { 0 };
-			LobbyMsg lobby_msg;
-
-			LobbyMsgRW_PrepWriteMsg(&lobby_msg, data, sizeof data, MESSAGE_TYPE_PEER_TO_PEER_CONNECTIVITY_TEST);
-			LobbyMsgRW_PackageInt(&lobby_msg, "lobbytype", &message.lobbyType);
-			LobbyMsgRW_PackageInt(&lobby_msg, "index", &message.clientIndex);
-
-			oob::send_lobby_msg(to, &lobby_msg, LOBBY_MODULE_PEER_TO_PEER);
-		}
-
-		void send_connection_test(const netadr_t& to, const size_t client_num)
-		{
-			if (const auto our_client_num = Party_FindMemberByXUID(LiveUser_GetXuid(0)); our_client_num >= 0)
-			{
-				PRINT_LOG("Sending connectivity test to '%s' (0x%X)",
-					utils::string::adr_to_string(&to).data(),
-					(1 << our_client_num) & session->clients[client_num].voiceInfo.connectivityBits);
-
-				send_connection_test(to, { session->type, our_client_num });
-			}
-		}
-		
-		void send_lobby_msg(const game::netadr_t& to, const LobbyMsg* lobby_msg, const LobbyModule module)
-		{
-			char data[0x20000] = { 0 };
-			game::msg_t msg;
-
-			game::MSG_Init(&msg, data, sizeof data);
-			game::MSG_WriteString(&msg, "LM");
-			game::MSG_WriteShort(&msg, 18532);
-			game::MSG_WriteByte(&msg, module);
-			game::MSG_WriteByte(&msg, session->type);
-			game::MSG_WriteData(&msg, lobby_msg->msg.data, lobby_msg->msg.cursize);
-
-			game::NET_OutOfBandData(game::NS_SERVER, to, msg.data, msg.cursize);
-		}
-		
 		bool send(const game::netadr_t& target, const std::string& data, const game::netsrc_t& sock)
 		{
-			return NET_OutOfBandPrint(sock, target, data.data());
+			return NET_OutOfBandData(sock, target, data.data(), data.size());
 		}
 
 		bool register_remote_addr(const game::XSESSION_INFO* info, netadr_t* addr)
@@ -65,6 +23,48 @@ namespace game
 			}
 			
 			return true;
+		}
+
+		bool register_remote_addr(const InfoResponseLobby& lobby, netadr_t* addr)
+		{
+			const auto session_info{ get_session_info(lobby) };
+			return register_remote_addr(&session_info, addr);
+		}
+
+		std::string build_lobby_msg(const game::LobbyModule module)
+		{
+			auto data{ "LM"s };
+			data.push_back(0);
+			const auto header{ 0x4864ui16 };
+			data.append(reinterpret_cast<const char*>(&header), sizeof header);
+			data.push_back(static_cast<std::uint8_t>(module));
+			data.push_back(-1);
+
+			return data;
+		}
+		
+		void send_lobby_msg(const game::netadr_t& to, const msg_t& msg, const LobbyModule module)
+		{
+			auto data{ oob::build_lobby_msg(module) };
+			data.append(reinterpret_cast<const char*>(msg.data), msg.cursize);
+			send(to, data);
+		}
+
+		void initialize()
+		{
+			handlers["print"];
+			handlers["echo"];
+			handlers["statusResponse"];
+			handlers["rcon"];
+			handlers["RA"];
+
+			for (const auto& handler : game::handlers)
+			{
+				events::connectionless_packet::on_command(handler.first, [=](const auto& args, const auto& target, const auto&)
+				{
+					return true;
+				});
+			}
 		}
 	}
 	
@@ -98,187 +98,44 @@ namespace game
 		bone_tags[static_cast<std::uint32_t>(bone_tag::ball_left)] = GScr_AllocString("j_ball_le");
 		bone_tags[static_cast<std::uint32_t>(bone_tag::ball_right)] = GScr_AllocString("j_ball_ri");
 		bone_tags[static_cast<std::uint32_t>(bone_tag::mainroot)] = GScr_AllocString("j_mainroot"); 
-		
-		handlers["mstart"];
-		handlers["vt"];
-		handlers["relay"];
-		handlers["requeststats"];
-		handlers["print"];
-		handlers["echo"]; 
-		handlers["statusResponse"];
-		handlers["connectResponseMigration"];
-		handlers["rcon"];
-		handlers["RA"];
 
-		com_smoothframes_original = *reinterpret_cast<dvar_t**>(base_address + 0x168EEAC0);
-		r_fxShadows_original = *reinterpret_cast<dvar_t**>(base_address + 0xAE96C40);
-		m_mouseAcceleration_original = *reinterpret_cast<dvar_t**>(base_address + 0x53DD170);
-		
+		oob::initialize();
 		rendering::initialize();
-		scheduler::initialize();
 		exception::initialize();
-		events::connectionless_packet::initialize();
-		events::instant_message::initialize();
-		events::lobby_msg::initialize();
+		events::initialize();
 		security::initialize();
-		security::iat::initialize();
 		misc::initialize();
+		command::initialize();
 		steam::initialize();
+		friends::initialize();
 
 		PRINT_LOG("Initialized!");
 	}
 
-	bool send_unhandled_netchan_message(const game::netadr_t& from, const game::LobbyMsg& lobby_msg, const std::uint64_t sender_id)
+	bool in_game()
 	{
-		if (const auto client_num = find_target_from_addr(from); client_num >= 0)
-		{
-			const auto target_client = session->clients[client_num].activeClient;
-
-			PRINT_LOG("Ignoring netchan message [%i] '%s' from '%s' (%llu) %s",
-				lobby_msg.type,
-				LobbyTypes_GetMsgTypeName(lobby_msg.type),
-				target_client->fixedClientInfo.gamertag,
-				sender_id,
-				utils::string::adr_to_string(&from).data());
-		}
-		else
-		{
-			PRINT_LOG("Ignoring netchan message [%i] '%s' from (%llu) %s",
-				lobby_msg.type,
-				LobbyTypes_GetMsgTypeName(lobby_msg.type),
-				sender_id,
-				utils::string::adr_to_string(&from).data());
-		}
-
-		return true;
-	}
-	
-	bool send_unhandled_message(const netadr_t& from, const std::string& command)
-	{
-		if (const auto client_num = find_target_from_addr(from); client_num >= 0)
-		{
-			const auto target_client = session->clients[client_num].activeClient;
-
-			PRINT_LOG("Ignoring OOB '%s' from '%s' (%llu) %s",
-				command.data(),
-				target_client->fixedClientInfo.gamertag,
-				target_client->fixedClientInfo.xuid,
-				utils::string::adr_to_string(&from).data());
-		}
-		else
-		{
-			PRINT_LOG("Ignoring OOB '%s' from %s",
-				command.data(),
-				utils::string::adr_to_string(&from).data());
-		}
-
-		return true;
-	}
-
-	std::string get_oob_command(const game::netadr_t& from)
-	{
-		if (const auto client_num = game::find_target_from_addr(from); client_num >= 0)
-		{
-			const auto target_client = session->clients[client_num].activeClient;
-
-			return utils::string::va("Received OOB '%s' from '%s' (%llu) %s",
-				command::args.join().data(),
-				target_client->fixedClientInfo.gamertag,
-				target_client->fixedClientInfo.xuid,
-				utils::string::adr_to_string(&from).data());
-		}
-		
-		return utils::string::va("Received OOB '%s' from %s",
-			command::args.join().data(),
-			utils::string::adr_to_string(&from).data());
-	}
-
-	void bold_game_message(const char* msg, ...)
-	{
-		char buffer[2048];
-
-		va_list ap;
-		va_start(ap, msg);
-
-		vsnprintf_s(buffer, sizeof(buffer), _TRUNCATE, msg, ap);
-
-		va_end(ap);
-
-		CG_BoldGameMessageCenter(0, buffer, 0);
-	}
-
-	game::netadr_t LobbySession_GetNetAddr(const game::SessionClient *sessionClient)
-	{
-		if (sessionClient && sessionClient->activeClient)
-		{
-			const auto session_info = &sessionClient->activeClient->sessionInfo[session->type];
-
-			if (session_info->inSession)
-			{
-				return session_info->netAdr;
-			}
-		}
-
-		return {};
-	}
-
-	bool NET_CompareXNAddr(const XNADDR *a, const XNADDR *b)
-	{
-		return std::memcmp(a, b, sizeof XNADDR) == 0;
-	}
-	
-	bool NET_CompareXNAddr(const XSESSION_INFO *a, const XSESSION_INFO *b)
-	{
-		return NET_CompareXNAddr(&a->hostAddress, &b->hostAddress);
-	}
-	
-	int find_target_from_addr(const netadr_t& from)
-	{
-		for (auto i = 0u; i != 18u; ++i)
-		{
-			const auto netadr = LobbySession_GetNetAddr(&session->clients[i]);
-			
-			if (game::NET_CompareAdr(from, netadr))
-				return i;
-		}
-
-		return -1;
-	}
-
-	int Party_FindMemberByXUID(const std::uint64_t player)
-	{
-		if (session == nullptr)
+		if (cg() == nullptr)
 			return false;
 
-		return game::LobbySession_GetClientNumByXuid(session->type, player);
+		return LobbyClientLaunch_IsInGame() && cg()->clients[cg()->predictedPlayerState.clientNum].infoValid;
 	}
 
-	bool can_connect_to_player(const size_t client_num, const size_t target_xuid)
+	bool is_valid_target(const int client_num)
 	{
-		if (game::LiveUser_GetXuid(0) == target_xuid)
-			return true;
-		
-		if (const auto our_client_num = game::Party_FindMemberByXUID(game::LiveUser_GetXuid(0)); our_client_num >= 0)
-		{
-			return (1 << our_client_num) & session->clients[client_num].voiceInfo.connectivityBits;
-		}
+		if (client_num >= 0 && client_num < 18)
+			return session->clients[client_num].activeClient;
 
 		return false;
 	}
 
-	game::XSESSION_INFO get_session_info(const game::InfoResponseLobby& lobby)
-	{
-		game::XSESSION_INFO sess_info{};
-		sess_info.sessionID = lobby.secId;
-		sess_info.keyExchangeKey = lobby.secKey;
-		sess_info.hostAddress = lobby.serializedAdr.xnaddr;
-
-		return sess_info;
-	}
-
 	void on_every_frame()
 	{
-		aimbot::run(&game::cg()->predictedPlayerState);
+		if (!game::in_game())
+		{
+			return;
+		}
+		
+		aimbot::run(&cg()->predictedPlayerState);
 		esp::visuals();
 	}
 
@@ -291,12 +148,55 @@ namespace game
 
 		return cg()->clients[client_num].team != cg()->clients[cg()->predictedPlayerState.clientNum].team;
 	}
+	
+	int find_target_from_addr(const netadr_t& from)
+	{
+		for (size_t i = 0; i < 18; ++i)
+		{
+			if (const auto client = &session->clients[i]; client && client->activeClient)
+			{
+				const auto session_info = client->activeClient->sessionInfo[session->type];
+				if (game::NET_CompareAdr(from, session_info.netAdr))
+					return i;
+			}
+		}
+
+		return -1;
+	}
+
+	bool can_connect_to_player(const size_t client_num, const size_t target_xuid)
+	{
+		if (game::LiveUser_IsXUIDLocalPlayer(target_xuid))
+			return true;
+
+		const auto our_client_num = game::LobbySession_GetClientNumByXuid(game::LiveUser_GetXuid(0));
+		if (our_client_num < 0)
+			return false;
+
+		return (1 << our_client_num) & session->clients[client_num].voiceInfo.connectivityBits;
+	}
+
+	game::XSESSION_INFO get_session_info(const game::InfoResponseLobby& lobby)
+	{
+		game::XSESSION_INFO sess_info{};
+		sess_info.sessionID = lobby.secId;
+		sess_info.keyExchangeKey = lobby.secKey;
+		sess_info.hostAddress = lobby.serializedAdr.xnaddr;
+
+		return sess_info;
+	}
+
+	bool CG_WorldPosToScreenPos(const Vec3* pos, Vec2* out)
+	{
+		const static auto CG_WorldPosToScreenPos = reinterpret_cast<bool(*)(LocalClientNum_t, const Vec3* worldPos, Vec2* outScreenPos)>(base_address + 0x573140); 
+		return spoof_call::call(CG_WorldPosToScreenPos, 0u, pos, out);
+	}
 
 	Vec2 get_screen_pos(const Vec3& world_pos)
 	{
 		Vec2 out{};
 
-		if (const auto screen_pos = spoof_call::call(game::CG_WorldPosToScreenPos, 0u, &world_pos, &out); screen_pos)
+		if (const auto screen_pos = CG_WorldPosToScreenPos(&world_pos, &out); screen_pos)
 		{
 			return out;
 		}
@@ -347,8 +247,8 @@ namespace game
 
 	bool CG_GetPlayerViewOrigin(const game::playerState_s* ps, Vec3* view_origin)
 	{
-		const static auto CG_GetPlayerViewOrigin = reinterpret_cast<bool(__fastcall*)(LocalClientNum_t, const playerState_s*, Vec3*)>(base_address + 0x11EF4C0); 
-		return spoof_call::call(CG_GetPlayerViewOrigin, 0u, ps, view_origin);
+		const static auto CG_GetPlayerViewOrigin = reinterpret_cast<bool(*)(LocalClientNum_t, const playerState_s*, Vec3*, uint32_t)>(base_address + 0x11EF4C0); 
+		return spoof_call::call(CG_GetPlayerViewOrigin, 0u, ps, view_origin, 0u);
 	}
 
 	void adjust_user_cmd_movement(usercmd_s* cmd_old, const float angle, const float old_angle)
@@ -361,7 +261,9 @@ namespace game
 
 	float get_weapon_damage_range(const Weapon& weapon)
 	{
-		if (const auto weap_def = BG_GetWeaponDef(weapon); weap_def->weap_class() == WEAPCLASS_SPREAD || weap_def->weap_class() == WEAPCLASS_PISTOL_SPREAD)
+		const auto weap_def = BG_GetWeaponDef(weapon); 
+		
+		if (weap_def->weapClass == WEAPCLASS_SPREAD || weap_def->weapClass == WEAPCLASS_PISTOL_SPREAD)
 		{
 			return BG_GetMinDamageRangeScaled(weapon) * BG_GetMultishotBaseMinDamageRangeScaled(weapon);
 		}
@@ -371,64 +273,113 @@ namespace game
 
 	bool CG_BulletTrace(game::BulletTraceResults* br, game::BulletFireParams* bp, const int attacker_entity_num, int lastSurfaceType)
 	{
-		const static auto CG_BulletTrace = reinterpret_cast<bool(__fastcall*)(LocalClientNum_t, game::BulletFireParams *, game::BulletTraceResults*, const game::Weapon, int, int)>(game::base_address + 0x1168BA0);
+		const static auto CG_BulletTrace = reinterpret_cast<bool(*)(LocalClientNum_t, game::BulletFireParams *, game::BulletTraceResults*, const game::Weapon, int, int)>(game::base_address + 0x1168BA0);
 		return CG_BulletTrace(0, bp, br, {}, attacker_entity_num, lastSurfaceType);
 	}
 
-	bool is_valid_lobby_type(LobbyMsg* msg)
+	void send_instant_message(const std::vector<std::uint64_t>& recipients, std::uint8_t type, const void* message, const std::uint32_t message_size)
 	{
-		if (auto lobby_type{ 0 }; game::LobbyMsgRW_PackageInt(msg, "lobbytype", &lobby_type))
+		return dwInstantSendMessage(0, recipients.data(), recipients.size(), type, message, message_size);
+	}
+
+	bool send_netchan_message(const netadr_t& netadr, const std::uint64_t xuid, const std::string& data)
+	{
+		const auto channel = LobbyNetChan_GetLobbyChannel(session->type, LOBBY_CHANNEL_UNRELIABLE);
+		return Netchan_SendMessage(0, channel, NETCHAN_UNRELIABLE, data.data(), data.size(), xuid, netadr, nullptr);
+	}
+
+	SessionClient* LobbySession_GetClientByXuid(const std::uint64_t xuid)
+	{
+		for (size_t i = 0; i < 18; ++i)
 		{
-			if (lobby_type < game::LOBBY_TYPE_PRIVATE || lobby_type >= game::LOBBY_TYPE_TRANSITION)
-			{
-				return false;
-			}
+			const auto client = &session->clients[i];
+
+			if (client->xuid == xuid)
+				return client;
 		}
 
-		return true;
+		return nullptr;
+	}
+
+	int LobbySession_GetClientNumByXuid(const std::uint64_t xuid)
+	{
+		for (size_t i = 0; i < 18; ++i)
+		{
+			const auto client = &session->clients[i];
+
+			if (client->xuid == xuid)
+				return i;
+		}
+
+		return -1;
 	}
 
 	bool is_valid_lobby_type(const int lobby_type)
 	{
-		if (lobby_type < game::LOBBY_TYPE_PRIVATE || lobby_type >= game::LOBBY_TYPE_TRANSITION)
-		{
-			return false;
-		}
-
-		return true;
+		return lobby_type >= LOBBY_TYPE_PRIVATE && lobby_type < LOBBY_TYPE_TRANSITION;
 	}
-	
-	bool MSG_JoinMemberInfo(Msg_JoinMemberInfo* thisptr, game::LobbyMsg* msg)
+
+	bool MSG_JoinMemberInfo(Msg_JoinMemberInfo* thisptr, game::msg_t* msg)
 	{
 		return game::LobbyMsgRW_PackageGlob(msg, "serializedadr", &thisptr->serializedAdr, sizeof thisptr->serializedAdr)
 			&& game::LobbyMsgRW_PackageUInt64(msg, "reservationkey", &thisptr->reservationKey)
 			&& game::LobbyMsgRW_PackageInt(msg, "lobbytype", &thisptr->targetLobby);
 	}
 	
-	bool MSG_LobbyHostHeartbeat(Msg_LobbyHostHeartbeat* thisptr, LobbyMsg* msg)
+	void enum_assets(const XAssetType type, const std::function<void(XAssetHeader)>& callback, const bool includeOverride)
 	{
-		return LobbyMsgRW_PackageInt(msg, "heartbeatnum", &thisptr->heartbeatNum)
-			&& LobbyMsgRW_PackageInt(msg, "lobbytype", &thisptr->lobbyType)
-			&& LobbyMsgRW_PackageInt(msg, "lasthosttimems", &thisptr->migrateInfo.lasthostTimeMS);
+		DB_EnumXAssets(type, static_cast<void(*)(XAssetHeader, void*)>([](XAssetHeader header, void* data)
+		{
+			const auto& cb = *static_cast<const std::function<void(XAssetHeader)>*>(data);
+			cb(header);
+		}), &callback, includeOverride);
 	}
 
-	connstate_t CL_GetLocalClientConnectionState(/*LocalClientNum_t localClientNum*/) {
-		return *reinterpret_cast<connstate_t*>(base_address + 0x53D9BC8);
+	Material* get_material(const char* material_ptr, const int length)
+	{
+		if (length < 0 || length > 255)
+			return nullptr;
+
+		if (std::strlen(material_ptr) >= length)
+			return Material_RegisterHandle(material_ptr, 7, true, -1);
+
+		return nullptr;
 	}
 
-	bool in_game()
+	bool is_invalid_material_pointer(const char* string)
 	{
-		if (game::cg() == nullptr)
+		const auto material = get_material(string + 4, string[3]);
+		if (material && material->techniqueSet && material->techniqueSet->name == "2d_blend#da7372ff"s)
+		{
 			return false;
+		}
 
-		return game::LobbyClientLaunch_IsInGame() && cg()->clients[cg()->predictedPlayerState.clientNum].infoValid;
+		return true;
 	}
 
-	bool is_valid_target(const int client_num)
+	char CL_DeathMessageIconDimension(const float icon_width)
 	{
-		if (client_num >= 0 && client_num < 18)
-			return session->clients[client_num].activeClient;
+		float v1; // ST00_4
+		signed int v2; // eax
 
-		return false;
+		v2 = (icon_width * 32.0f) + 9.313225746154785e-10;
+
+		if (v2 >= 127)
+			return 143;
+
+		if (v2 <= 16)
+			v2 = 16;
+
+		return v2 + 16;
+	}
+
+	std::string CL_AddMessageIcon(const std::string& name, const Vec2& dimensions, const bool flip_icon)
+	{
+		auto string{ "^H"s };
+		string += CL_DeathMessageIconDimension(dimensions.x);
+		string += CL_DeathMessageIconDimension(dimensions.y);
+		string += name.length();
+		string += name;
+		return string;
 	}
 }

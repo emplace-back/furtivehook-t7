@@ -3,5 +3,6 @@
 
 namespace events
 {
-	void cg_predict_playerstate(); 
+	void cg_predict_playerstate();
+	void initialize();
 }

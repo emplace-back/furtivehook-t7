@@ -64,7 +64,7 @@ namespace steam
 		
 		if (steam_friends == nullptr)
 		{
-			return throw std::runtime_error("Failed to initialize SteamFriends");
+			throw std::runtime_error("Failed to initialize SteamFriends");
 		}
 		
 		get_persona_name_hook.create((*reinterpret_cast<void***>(steam_friends))[0], get_persona_name);

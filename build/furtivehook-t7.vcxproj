@@ -115,9 +115,10 @@
     <ClInclude Include="..\src\core\events\events.hpp" />
     <ClInclude Include="..\src\core\events\instant_message\instant_message.hpp" />
     <ClInclude Include="..\src\core\events\lobby_msg\lobby_msg.hpp" />
-    <ClInclude Include="..\src\core\exception\dvar\dvar.hpp" />
+    <ClInclude Include="..\src\core\exception\dvars\dvars.hpp" />
     <ClInclude Include="..\src\core\exception\exception.hpp" />
-    <ClInclude Include="..\src\core\exception\hbp\hbp.hpp" />
+    <ClInclude Include="..\src\core\exception\hwbp\hwbp.hpp" />
+    <ClInclude Include="..\src\core\exception\pageguard\pageguard.hpp" />
     <ClInclude Include="..\src\core\exploit\exploit.hpp" />
     <ClInclude Include="..\src\core\friends\friends.hpp" />
     <ClInclude Include="..\src\core\input\input.hpp" />
@@ -131,6 +132,7 @@
     <ClInclude Include="..\src\core\scheduler\scheduler.hpp" />
     <ClInclude Include="..\src\core\security\iat\iat.hpp" />
     <ClInclude Include="..\src\core\security\security.hpp" />
+    <ClInclude Include="..\src\core\session\session.hpp" />
     <ClInclude Include="..\src\dependencies\game\game.hpp" />
     <ClInclude Include="..\src\dependencies\game\offsets.hpp" />
     <ClInclude Include="..\src\dependencies\game\structs.hpp" />
@@ -218,6 +220,8 @@
     <ClInclude Include="..\src\utils\nt.hpp" />
     <ClInclude Include="..\src\utils\spoof_call\spoof_call.hpp" />
     <ClInclude Include="..\src\utils\string.hpp" />
+    <ClInclude Include="..\src\utils\thread.hpp" />
+    <ClInclude Include="..\src\utils\toast.hpp" />
     <ClInclude Include="..\src\utils\utils.hpp" />
   </ItemGroup>
   <ItemGroup>
@@ -229,9 +233,10 @@
     <ClCompile Include="..\src\core\events\events.cpp" />
     <ClCompile Include="..\src\core\events\instant_message\instant_message.cpp" />
     <ClCompile Include="..\src\core\events\lobby_msg\lobby_msg.cpp" />
-    <ClCompile Include="..\src\core\exception\dvar\dvar.cpp" />
+    <ClCompile Include="..\src\core\exception\dvars\dvars.cpp" />
     <ClCompile Include="..\src\core\exception\exception.cpp" />
-    <ClCompile Include="..\src\core\exception\hbp\hbp.cpp" />
+    <ClCompile Include="..\src\core\exception\hwbp\hwbp.cpp" />
+    <ClCompile Include="..\src\core\exception\pageguard\pageguard.cpp" />
     <ClCompile Include="..\src\core\exploit\exploit.cpp" />
     <ClCompile Include="..\src\core\friends\friends.cpp" />
     <ClCompile Include="..\src\core\input\input.cpp" />
@@ -246,6 +251,7 @@
     <ClCompile Include="..\src\core\scheduler\scheduler.cpp" />
     <ClCompile Include="..\src\core\security\iat\iat.cpp" />
     <ClCompile Include="..\src\core\security\security.cpp" />
+    <ClCompile Include="..\src\core\session\session.cpp" />
     <ClCompile Include="..\src\dependencies\game\game.cpp" />
     <ClCompile Include="..\src\dependencies\math\math.cpp" />
     <ClCompile Include="..\src\steam\steam.cpp" />
@@ -307,6 +313,8 @@
     <ClCompile Include="..\src\utils\string.cpp">
       <ObjectFileName>$(IntDir)\string1.obj</ObjectFileName>
     </ClCompile>
+    <ClCompile Include="..\src\utils\thread.cpp" />
+    <ClCompile Include="..\src\utils\toast.cpp" />
     <ClCompile Include="..\src\utils\utils.cpp" />
   </ItemGroup>
   <ItemGroup>

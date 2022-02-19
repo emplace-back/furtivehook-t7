@@ -3,47 +3,35 @@
 
 namespace logger
 {
-	void add_to_console(const char* msg, ...)
+	std::string get_log_timestamp()
 	{
-		char buffer[2048];
+		tm ltime{};
+		char timestamp[MAX_PATH] = { 0 };
+		const auto time = _time64(nullptr);
 
-		va_list ap;
-		va_start(ap, msg);
+		_localtime64_s(&ltime, &time);
+		std::strftime(timestamp, sizeof(timestamp) - 1, "%F %X", &ltime);
 
-		vsnprintf_s(buffer, sizeof(buffer), _TRUNCATE, msg, ap);
-
-		va_end(ap);
-
-		menu::console_items.emplace_back(buffer);
+		return timestamp;
+	}
+	
+	std::string get_log_message(const std::string& message)
+	{
+		auto log_message{ "[" + get_log_timestamp() + "]" };
+		log_message.push_back(' ');
+		log_message.append(message);
+		log_message.push_back('\n');
+		return log_message;
 	}
 	
 	void print_log(const char* msg, ...)
 	{
-		char buffer[2048];
-
 		va_list ap;
 		va_start(ap, msg);
-
-		vsnprintf_s(buffer, sizeof(buffer), _TRUNCATE, msg, ap);
-
+		const auto result = utils::string::format(ap, msg);
 		va_end(ap);
 
 		const static auto filename = utils::generate_log_filename("furtivehook\\logs\\");
-		utils::io::write_file(filename, buffer, true);
-	}
-
-	void print_sv_log(const char* msg, ...)
-	{
-		char buffer[2048];
-
-		va_list ap;
-		va_start(ap, msg);
-
-		vsnprintf_s(buffer, sizeof(buffer), _TRUNCATE, msg, ap);
-
-		va_end(ap);
-
-		const static auto filename = utils::generate_log_filename("furtivehook\\logs\\server\\");
-		utils::io::write_file(filename, buffer, true);
+		utils::io::write_file(filename, get_log_message(result), true);
 	}
 }

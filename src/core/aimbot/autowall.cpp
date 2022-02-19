@@ -7,7 +7,10 @@ namespace autowall
 	
 	bool can_hit_entity(const game::Weapon& weapon)
 	{
-		return game::BG_GetWeaponDef(weapon)->weap_type() == game::WEAPTYPE_BULLET;
+		if (!weapon.weaponData)
+			return false;
+		
+		return game::BG_GetWeaponDef(weapon)->weapType == game::WEAPTYPE_BULLET;
 	}
 
 	bool trace_hit(const game::trace_t& trace)
@@ -25,17 +28,22 @@ namespace autowall
 		return trace_hit(br.trace);
 	}
 	
+	float get_weapon_hit_location_multiplier(const game::Weapon& weapon, const uint16_t hit_location)
+	{
+		if (hit_location >= game::HITLOC_NUM)
+			return 1.0f;
+		
+		if (!weapon.weaponData)
+			return game::g_fHitLocDamageMult[hit_location];
+
+		return game::BG_GetWeaponHitLocationMultiplier(weapon, hit_location);
+	}
+	
 	float get_bullet_damage(const game::Weapon& weapon, const game::BulletTraceResults& br, const game::BulletFireParams& bt)
 	{
-		//const auto multiplier = game::G_GetWeaponHitLocationMultiplier(br.trace.partGroup, weapon);
+		const auto multiplier = game::G_GetWeaponHitLocationMultiplier(br.trace.partGroup, weapon);
 		const auto range_damage = static_cast<float>(game::BG_GetWeaponDamageForRange(weapon, &bt.origStart, &br.hitPos));
-		return range_damage * bt.damageMultiplier;
-	}
-
-	float get_bullet_depth(game::BulletHitInfo* info, const game::BulletTraceResults& br, const game::BulletTraceResults& rev_br, const game::BulletFireParams& rev_bp)
-	{
-		const auto depth = game::BG_GetDepth(info, &br, &rev_bp, &rev_br);
-		return std::fmax(depth, 1.0f);
+		return std::fmax(multiplier * range_damage, 1.0f) * bt.damageMultiplier;
 	}
 
 	float get_bullet_depth(const game::BulletTraceResults& br, const game::BulletTraceResults& rev_br, const game::BulletFireParams& rev_bp, const Vec3& hit_pos, const bool all_solid)
@@ -44,7 +52,7 @@ namespace autowall
 		info.allSolid = all_solid;
 		info.br.hitPos = hit_pos;
 		
-		return get_bullet_depth(&info, br, rev_br, rev_bp);
+		return game::BG_GetDepth(&info, &br, &rev_bp, &rev_br);
 	}
 	
 	float get_penetration_damage(const Vec3& start, const Vec3& target, game::playerState_s* ps, const size_t trace_entity_num)
@@ -85,14 +93,20 @@ namespace autowall
 		constexpr auto perk_bulletPenetrationMultiplier = 2.0f;
 		const auto has_fmj = game::CG_ClientHasPerk(0, ps->clientNum, 9);
 
-		for (size_t i = 0; i != game::sv_penetrationCount->current.integer; ++i)
+		for (size_t i = 0; i < game::sv_penetrationCount->current.integer; ++i)
 		{
 			auto max_depth = game::BG_GetSurfacePenetrationDepth(penetrate_type, br.depthSurfaceType);
 
 			if (has_fmj)
 				max_depth *= perk_bulletPenetrationMultiplier;
 
+			if (br.trace.sflags & 4)
+				max_depth = 100.0f;
+
 			if (max_depth <= 0.0f)
+				return 0.0f;
+
+			if (br.trace.sflags & 0x100)
 				return 0.0f;
 
 			if (hit_bad_entity(br))
@@ -115,7 +129,8 @@ namespace autowall
 			rev_bp.origStart = bp.origStart;
 			rev_bp.dir = -bp.dir;
 			rev_bp.start = bp.end;
-			rev_bp.end = last_hit_pos + rev_bp.dir * 0.01f;
+			//rev_bp.end = last_hit_pos + rev_bp.dir * 0.01f;
+			rev_bp.end = rev_bp.dir * 0.01f + last_hit_pos;
 
 			auto rev_br = br;
 			rev_br.trace.normal = -rev_br.trace.normal;
@@ -125,6 +140,7 @@ namespace autowall
 
 			const auto rev_trace_hit = game::CG_BulletTrace(&rev_br, &rev_bp, ps->clientNum, rev_br.depthSurfaceType);
 			const auto all_solid = rev_trace_hit && rev_br.trace.allSolid || br.trace.startSolid && rev_br.trace.startSolid;
+			auto depth = 0.0f;
 			
 			if (rev_trace_hit || all_solid)
 			{
@@ -139,9 +155,12 @@ namespace autowall
 
 					if (max_depth <= 0.0f)
 						return 0.0f;
+
+					if (rev_br.trace.sflags & 0x100)
+						return 0.0f;
 				}
 
-				const auto depth = get_bullet_depth(br, rev_br, rev_bp, last_hit_pos, all_solid);
+				depth = get_bullet_depth(br, rev_br, rev_bp, last_hit_pos, all_solid);
 				
 				bp.damageMultiplier -= depth / max_depth;
 
@@ -161,6 +180,14 @@ namespace autowall
 					return 0.0f; 
 				
 				return get_bullet_damage(weapon, br, bp);
+			}
+
+			if (!rev_trace_hit && !all_solid)
+			{
+				if (game::bg_bulletPenetrationTreatVoidsAsSolid->current.integer & 8)
+				{
+					depth = get_bullet_depth(br, br, bp, last_hit_pos, all_solid);
+				}
 			}
 		}
 

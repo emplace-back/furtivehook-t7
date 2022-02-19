@@ -45,7 +45,7 @@ namespace input
 		return is_key_down(key, msg, wparam) && !(lparam >> 0x1E);
 	}
 
-	long __stdcall wndproc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
+	long __stdcall wnd_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 	{
 		auto should_ignore = menu::is_open() && !ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam);
 
@@ -82,6 +82,6 @@ namespace input
 
 	void initialize(HWND hwnd)
 	{
-		wndproc_ = WNDPROC(SetWindowLongPtr(hwnd, GWLP_WNDPROC, LONG_PTR(wndproc)));
+		wndproc_ = WNDPROC(SetWindowLongPtr(hwnd, GWLP_WNDPROC, LONG_PTR(wnd_proc)));
 	}
 }

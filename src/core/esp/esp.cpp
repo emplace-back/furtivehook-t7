@@ -145,7 +145,7 @@ namespace esp
 	Vec2 get_screen_pos(const Vec3& world_pos)
 	{
 		Vec2 screen_pos{};
-		spoof_call::call(game::CG_WorldPosToScreenPos, 0u, &world_pos, &screen_pos);
+		game::CG_WorldPosToScreenPos(&world_pos, &screen_pos);
 		
 		return screen_pos;
 	}
@@ -155,14 +155,14 @@ namespace esp
 		if (!enabled)
 			return;
 		
-		for (auto i = 0u; i < 18u; ++i)
+		for (size_t i = 0; i < 18; ++i)
 		{
 			screen_positions::player_box[i].pos.clear();
 			screen_positions::player_name[i].pos.clear();
 			screen_positions::player_bone_tags[i].pos->clear();
 			screen_positions::player_color[i] = {};
 
-			if (const auto cent = game::centity(i); is_valid_target(cent))
+			if (const auto cent = game::centity(i); cent && is_valid_target(cent))
 			{
 				if (enemies_only && !game::is_enemy(i))
 					continue;
@@ -297,7 +297,7 @@ namespace esp
 		{
 			const auto draw_list = ImGui::GetWindowDrawList();
 
-			for (auto i = 0u; i <= screen_positions::size; ++i)
+			for (size_t i = 0; i <= screen_positions::size; ++i)
 			{
 				draw_player_box(i, draw_list);
 				draw_player_name(i, draw_list);

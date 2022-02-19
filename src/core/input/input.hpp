@@ -13,5 +13,5 @@ struct hotkey_t
 namespace input
 {
 	void initialize(HWND hwnd);
-	void on_key(UINT key, void(*cbb)(), bool block = false);
+	void on_key(UINT key, void(*cb)(), bool block = false);
 }

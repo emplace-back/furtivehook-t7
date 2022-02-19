@@ -1180,6 +1180,22 @@ void ImGuiIO::ClearInputCharacters()
     InputQueueCharacters.resize(0);
 }
 
+void ImGuiIO::AddFocusEvent(bool focused)
+{
+	if (focused)
+		return;
+
+	// Clear buttons state when focus is lost
+	// (this is useful so e.g. releasing Alt after focus loss on Alt-Tab doesn't trigger the Alt menu toggle)
+	memset(KeysDown, 0, sizeof(KeysDown));
+	for (int n = 0; n < IM_ARRAYSIZE(KeysDownDuration); n++)
+		KeysDownDuration[n] = KeysDownDurationPrev[n] = -1.0f;
+	KeyCtrl = KeyShift = KeyAlt = KeySuper = false;
+	KeyMods = KeyModsPrev = ImGuiKeyModFlags_None;
+	for (int n = 0; n < IM_ARRAYSIZE(NavInputsDownDuration); n++)
+		NavInputsDownDuration[n] = NavInputsDownDurationPrev[n] = -1.0f;
+}
+
 //-----------------------------------------------------------------------------
 // [SECTION] MISC HELPERS/UTILITIES (Geometry functions)
 //-----------------------------------------------------------------------------
@@ -5486,21 +5502,21 @@ void ImGui::UpdateWindowParentAndRootLinks(ImGuiWindow* window, ImGuiWindowFlags
 //   You can use the "##" or "###" markers to use the same label with different id, or same id with different label. See documentation at the top of this file.
 // - Return false when window is collapsed, so you can early out in your code. You always need to call ImGui::End() even if false is returned.
 // - Passing 'bool* p_open' displays a Close button on the upper-right corner of the window, the pointed value will be set to false when the button is pressed.
-bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
+bool ImGui::Begin(const std::string& name, bool* p_open, ImGuiWindowFlags flags)
 {
     ImGuiContext& g = *GImGui;
     const ImGuiStyle& style = g.Style;
-    IM_ASSERT(name != NULL && name[0] != '\0');     // Window name required
+    IM_ASSERT(!name.empty());     // Window name required
     IM_ASSERT(g.WithinFrameScope);                  // Forgot to call ImGui::NewFrame()
     IM_ASSERT(g.FrameCountEnded != g.FrameCount);   // Called ImGui::Render() or ImGui::EndFrame() and haven't called ImGui::NewFrame() again yet
 
     // Find or create
-    ImGuiWindow* window = FindWindowByName(name);
+    ImGuiWindow* window = FindWindowByName(name.data());
     const bool window_just_created = (window == NULL);
     if (window_just_created)
     {
         ImVec2 size_on_first_use = (g.NextWindowData.Flags & ImGuiNextWindowDataFlags_HasSize) ? g.NextWindowData.SizeVal : ImVec2(0.0f, 0.0f); // Any condition flag will do since we are creating a new window here.
-        window = CreateNewWindow(name, size_on_first_use, flags);
+        window = CreateNewWindow(name.data(), size_on_first_use, flags);
     }
 
     // Automatically disable manual moving/resizing when NoInputs is set
@@ -5625,10 +5641,10 @@ bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
         bool window_title_visible_elsewhere = false;
         if (g.NavWindowingList != NULL && (window->Flags & ImGuiWindowFlags_NoNavFocus) == 0)   // Window titles visible when using CTRL+TAB
             window_title_visible_elsewhere = true;
-        if (window_title_visible_elsewhere && !window_just_created && strcmp(name, window->Name) != 0)
+        if (window_title_visible_elsewhere && !window_just_created && strcmp(name.data(), window->Name) != 0)
         {
             size_t buf_len = (size_t)window->NameBufLen;
-            window->Name = ImStrdupcpy(window->Name, &buf_len, name);
+            window->Name = ImStrdupcpy(window->Name, &buf_len, name.data());
             window->NameBufLen = (int)buf_len;
         }
 
@@ -6027,7 +6043,7 @@ bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
 
         // Title bar
         if (!(flags & ImGuiWindowFlags_NoTitleBar))
-            RenderWindowTitleBarContents(window, title_bar_rect, name, p_open);
+            RenderWindowTitleBarContents(window, title_bar_rect, name.data(), p_open);
 
         // Pressing CTRL+C while holding on a window copy its content to the clipboard
         // This works but 1. doesn't handle multiple Begin/End pairs, 2. recursing into another Begin/End pair - so we need to work that out and add better logging scope.
