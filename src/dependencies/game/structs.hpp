@@ -534,14 +534,17 @@ namespace game
 		MESSAGE_TYPE_JOIN_AGREEMENT_RESPONSE = 19,
 		MESSAGE_TYPE_JOIN_COMPLETE = 20,
 		MESSAGE_TYPE_JOIN_MEMBER_INFO = 21,
+		MESSAGE_TYPE_SERVERLIST_INFO = 22,
 		MESSAGE_TYPE_PEER_TO_PEER_CONNECTIVITY_TEST = 23,
 		MESSAGE_TYPE_PEER_TO_PEER_INFO = 24,
+		MESSAGE_TYPE_LOBBY_MIGRATE_TEST = 25,
 		MESSAGE_TYPE_LOBBY_MIGRATE_ANNOUNCE_HOST = 26,
 		MESSAGE_TYPE_LOBBY_MIGRATE_START = 27,
 		MESSAGE_TYPE_INGAME_MIGRATE_TO = 28,
 		MESSAGE_TYPE_INGAME_MIGRATE_NEW_HOST = 29,
 		MESSAGE_TYPE_VOICE_PACKET = 30,
-		MESSAGE_TYPE_COUNT = 32,
+		MESSAGE_TYPE_DEMO_STATE = 32,
+		MESSAGE_TYPE_COUNT = 33,
 	};
 
 	enum PackageType
@@ -1112,7 +1115,8 @@ namespace game
 
 	struct cg_t
 	{
-		char pad[0x11A8B0];
+		int clientNum;
+		char pad[0x11A8AC];
 		playerState_s predictedPlayerState;
 		int lastPlayerStateOverride;
 		centity_t predictedPlayerEntity;
@@ -1144,6 +1148,26 @@ namespace game
 		char pitchmove;
 		char yawmove;
 		char pad2[0xE];
+
+		Vec3 get_angles() const
+		{
+			Vec3 result{};
+
+			for (size_t i = 0; i < std::size(angles); ++i)
+			{
+				result[i] = SHORT2ANGLE(angles[i]);
+			}
+
+			return result;
+		}
+
+		void set_angles(const Vec3& value)
+		{
+			for (size_t i = 0; i < std::size(angles); ++i)
+			{
+				angles[i] = ANGLE2SHORT(value[i]);
+			}
+		}
 	};
 
 	struct clientActive_t
@@ -1168,7 +1192,7 @@ namespace game
 	struct Msg_ClientReliableData
 	{
 		uint32_t dataMask;
-		LobbyType lobbyType;
+		int lobbyType;
 		uint64_t xuidNewLeader;
 		uint64_t disconnectClientXuid;
 		int disconnectClient;
@@ -1276,7 +1300,7 @@ namespace game
 
 	struct Msg_LobbyClientHeartbeat
 	{
-		game::LobbyType lobbyType;
+		int lobbyType;
 		MsgMutableClientInfo mutableClientInfoMsg;
 		MsgClientMigrateInfo migrateInfo;
 	};
@@ -1303,8 +1327,8 @@ namespace game
 
 	struct Msg_JoinParty
 	{
-		LobbyType targetLobby;
-		LobbyType sourceLobby;
+		int targetLobby;
+		int sourceLobby;
 		JoinType joinType;
 		uint64_t probedXuid;
 		int32_t memberCount;
@@ -1394,13 +1418,6 @@ namespace game
 		MsgClientLobbyInfo clientList[18];
 		MsgHostMigrateInfo migrateInfo;
 		MsgPlatformSessionData platformData;
-	};
-
-	struct LobbySearch
-	{
-		SearchState state;
-		int errorCode;
-		int numResults;
 	};
 
 	struct bdMatchMakingInfo
@@ -1632,5 +1649,70 @@ namespace game
 		const char *autoCompleteDir;
 		const char *autoCompleteExt;
 		void(*function)();
+	};
+
+	struct Msg_ModifiedStats
+	{
+		int statsSize;
+		byte statsBuffer[65536];
+	};
+
+	struct Msg_VoicePacket
+	{
+		int32_t lobbyType;
+		uint8_t talkerIndex;
+		int32_t relayBits;
+		uint16_t sizeofVoiceData;
+		uint8_t numPacketsInData;
+		uint8_t voiceData[1198];
+	};
+
+	struct Msg_JoinAgreementRequest
+	{
+		uint64_t hostXuid;
+		char hostName[32];
+		bdSecurityID secId;
+		bdSecurityKey secKey;
+		SerializedAdr serializedAdr;
+		int sourceLobbyType;
+		int destinationLobbyType;
+		LobbyParams destinationLobbyParams;
+		uint64_t reservationKey;
+		int agreementNonce;
+		int serverLoc;
+	};
+
+	struct Msg_LobbyHostHeartbeat
+	{
+		int heartbeatNum;
+		int lobbyType;
+		MsgHostMigrateInfo migrateInfo;
+	};
+
+	struct SessionSearchThrottleData
+	{
+		int returnTimeMs;
+	};
+
+	struct SessionSearchPayloadData
+	{
+		bool(*abortCheckfunc)(void);
+		SessionSearchThrottleData *throttleData;
+	};
+
+	struct MatchMakingQuery
+	{
+		char pad[0xBC];
+	};
+
+	struct LobbySearch
+	{
+		int state;
+		int errorCode;
+		int numResults;
+		char pad[0x4];
+		MatchMakingQuery info;
+		SessionSearchPayloadData results;
+		SessionSearchThrottleData throttle;
 	};
 }

@@ -4,7 +4,7 @@
 namespace friends
 {
 	std::vector<friend_info> friends; 
-	uint32_t NONCE{ 1111111111u };
+	uint32_t NONCE{ 0x696969 };
 
 	namespace 
 	{
@@ -28,9 +28,9 @@ namespace friends
 				recipients.emplace_back(friends.steam_id);
 			}
 
-			utils::for_each_batch<std::uint64_t>(recipients, 18, [](const auto& steam_ids)
+			utils::for_each_batch<std::uint64_t>(recipients, 18, [](const auto& ids)
 			{
-				events::instant_message::send_info_request(steam_ids);
+				events::instant_message::send_info_request(ids);
 			});
 		}
 
@@ -121,7 +121,7 @@ namespace friends
 	{
 		for (auto& friends : friends::friends)
 		{
-			if (friends.steam_id == sender_id)
+			if (friends.steam_id == sender_id || friends.steam_id == info_response.lobby[0].hostXuid)
 			{
 				add_friend_response(info_response, friends);
 			}

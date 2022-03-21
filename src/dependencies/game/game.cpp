@@ -8,12 +8,19 @@ namespace game
 
 	namespace oob
 	{
-		bool send(const game::netadr_t& target, const std::string& data, const game::netsrc_t& sock)
+		bool send(const netadr_t& target, const std::string& data)
 		{
-			return NET_OutOfBandData(sock, target, data.data(), data.size());
+			return NET_OutOfBandData(NS_SERVER, target, data.data(), data.size());
 		}
 
-		bool register_remote_addr(const game::XSESSION_INFO* info, netadr_t* addr)
+		bool send_lobby_msg(const netadr_t& to, const msg_t& msg, const LobbyModule module)
+		{
+			auto data{ "LM\n" + events::lobby_msg::build_lobby_msg(module) };
+			data.append(reinterpret_cast<const char*>(msg.data), msg.cursize);
+			return oob::send(to, data);
+		}
+
+		bool register_remote_addr(const XSESSION_INFO* info, netadr_t* addr)
 		{
 			dwRegisterSecIDAndKey(&info->sessionID, &info->keyExchangeKey);
 			
@@ -29,42 +36,6 @@ namespace game
 		{
 			const auto session_info{ get_session_info(lobby) };
 			return register_remote_addr(&session_info, addr);
-		}
-
-		std::string build_lobby_msg(const game::LobbyModule module)
-		{
-			auto data{ "LM"s };
-			data.push_back(0);
-			const auto header{ 0x4864ui16 };
-			data.append(reinterpret_cast<const char*>(&header), sizeof header);
-			data.push_back(static_cast<std::uint8_t>(module));
-			data.push_back(-1);
-
-			return data;
-		}
-		
-		void send_lobby_msg(const game::netadr_t& to, const msg_t& msg, const LobbyModule module)
-		{
-			auto data{ oob::build_lobby_msg(module) };
-			data.append(reinterpret_cast<const char*>(msg.data), msg.cursize);
-			send(to, data);
-		}
-
-		void initialize()
-		{
-			handlers["print"];
-			handlers["echo"];
-			handlers["statusResponse"];
-			handlers["rcon"];
-			handlers["RA"];
-
-			for (const auto& handler : game::handlers)
-			{
-				events::connectionless_packet::on_command(handler.first, [=](const auto& args, const auto& target, const auto&)
-				{
-					return true;
-				});
-			}
 		}
 	}
 	
@@ -99,7 +70,6 @@ namespace game
 		bone_tags[static_cast<std::uint32_t>(bone_tag::ball_right)] = GScr_AllocString("j_ball_ri");
 		bone_tags[static_cast<std::uint32_t>(bone_tag::mainroot)] = GScr_AllocString("j_mainroot"); 
 
-		oob::initialize();
 		rendering::initialize();
 		exception::initialize();
 		events::initialize();
@@ -117,7 +87,7 @@ namespace game
 		if (cg() == nullptr)
 			return false;
 
-		return LobbyClientLaunch_IsInGame() && cg()->clients[cg()->predictedPlayerState.clientNum].infoValid;
+		return LobbyClientLaunch_IsInGame() && cg()->clients[cg()->clientNum].infoValid;
 	}
 
 	bool is_valid_target(const int client_num)
@@ -130,7 +100,7 @@ namespace game
 
 	void on_every_frame()
 	{
-		if (!game::in_game())
+		if (!in_game())
 		{
 			return;
 		}
@@ -146,7 +116,7 @@ namespace game
 			return true;
 		}
 
-		return cg()->clients[client_num].team != cg()->clients[cg()->predictedPlayerState.clientNum].team;
+		return cg()->clients[client_num].team != cg()->clients[cg()->clientNum].team;
 	}
 	
 	int find_target_from_addr(const netadr_t& from)
@@ -156,7 +126,7 @@ namespace game
 			if (const auto client = &session->clients[i]; client && client->activeClient)
 			{
 				const auto session_info = client->activeClient->sessionInfo[session->type];
-				if (game::NET_CompareAdr(from, session_info.netAdr))
+				if (NET_CompareAdr(from, session_info.netAdr))
 					return i;
 			}
 		}
@@ -166,19 +136,21 @@ namespace game
 
 	bool can_connect_to_player(const size_t client_num, const size_t target_xuid)
 	{
-		if (game::LiveUser_IsXUIDLocalPlayer(target_xuid))
-			return true;
+		if (const auto our_client_num = LobbySession_GetClientNumByXuid(LiveUser_GetXuid(0));
+			our_client_num >= 0 && client_num < std::size(session->clients))
+		{
+			if (our_client_num == client_num)
+				return true;
+			
+			return (1 << our_client_num) & session->clients[client_num].voiceInfo.connectivityBits;
+		}
 
-		const auto our_client_num = game::LobbySession_GetClientNumByXuid(game::LiveUser_GetXuid(0));
-		if (our_client_num < 0)
-			return false;
-
-		return (1 << our_client_num) & session->clients[client_num].voiceInfo.connectivityBits;
+		return false;
 	}
 
-	game::XSESSION_INFO get_session_info(const game::InfoResponseLobby& lobby)
+	XSESSION_INFO get_session_info(const InfoResponseLobby& lobby)
 	{
-		game::XSESSION_INFO sess_info{};
+		XSESSION_INFO sess_info{};
 		sess_info.sessionID = lobby.secId;
 		sess_info.keyExchangeKey = lobby.secKey;
 		sess_info.hostAddress = lobby.serializedAdr.xnaddr;
@@ -235,9 +207,9 @@ namespace game
 		return origin;
 	}
 
-	bool AimTarget_GetTagPos(const game::centity_t* cent, const scr_string_t& tag_name, Vec3* end)
+	bool AimTarget_GetTagPos(const centity_t* cent, const scr_string_t& tag_name, Vec3* end)
 	{
-		if (const auto dobj = game::Com_GetClientDObj(cent->nextState.number, 0); dobj)
+		if (const auto dobj = Com_GetClientDObj(cent->nextState.number, 0); dobj)
 		{
 			return CG_DObjGetWorldTagPos(&cent->pose, dobj, tag_name, end);
 		}
@@ -245,7 +217,7 @@ namespace game
 		return false;
 	}
 
-	bool CG_GetPlayerViewOrigin(const game::playerState_s* ps, Vec3* view_origin)
+	bool CG_GetPlayerViewOrigin(const playerState_s* ps, Vec3* view_origin)
 	{
 		const static auto CG_GetPlayerViewOrigin = reinterpret_cast<bool(*)(LocalClientNum_t, const playerState_s*, Vec3*, uint32_t)>(base_address + 0x11EF4C0); 
 		return spoof_call::call(CG_GetPlayerViewOrigin, 0u, ps, view_origin, 0u);
@@ -257,6 +229,40 @@ namespace game
 
 		cmd_old->forwardmove = ClampChar(static_cast<int>(std::cosf(delta_view) * cmd_old->forwardmove - std::sinf(delta_view) * cmd_old->rightmove));
 		cmd_old->rightmove = ClampChar(static_cast<int>(std::sinf(delta_view) * cmd_old->forwardmove + std::cosf(delta_view) * cmd_old->rightmove));
+	}
+
+	void adjust_user_cmd_movement(const usercmd_s* cmd, usercmd_s* cmd_old, const float yaw)
+	{
+		if (cmd->forwardmove || cmd->rightmove)
+		{
+			const auto move_angle = math::angle_normalize_360(RAD2DEG(std::atan2(-cmd->rightmove / 127.0f, cmd->forwardmove / 127.0f)));
+			const auto delta_angle = math::angle_normalize_360(yaw - SHORT2ANGLE(cmd->angles[1]));
+			const auto dest_angle = DEG2RAD(math::angle_normalize_360(move_angle - delta_angle));
+			auto forwardmove_ratio = std::cosf(dest_angle);
+			auto rightmove_ratio = -std::sinf(dest_angle);
+
+			const auto abs_forwardmove_ratio = std::abs(forwardmove_ratio);
+			const auto abs_rightmove_ratio = std::abs(rightmove_ratio);
+
+			if (abs_forwardmove_ratio < abs_rightmove_ratio)
+			{
+				forwardmove_ratio *= 1.0f / abs_rightmove_ratio;
+				rightmove_ratio = rightmove_ratio > 0.0f ? 1.0f : -1.0f;
+			}
+			else if (abs_forwardmove_ratio > abs_rightmove_ratio)
+			{
+				rightmove_ratio *= 1.0f / abs_forwardmove_ratio;
+				forwardmove_ratio = forwardmove_ratio > 0.0f ? 1.0f : -1.0f;
+			}
+			else
+			{
+				forwardmove_ratio = 1.0f;
+				rightmove_ratio = 1.0f;
+			}
+
+			cmd_old->forwardmove = ClampChar(static_cast<int>(forwardmove_ratio * std::numeric_limits<char>::max()));
+			cmd_old->rightmove = ClampChar(static_cast<int>(rightmove_ratio * std::numeric_limits<char>::max()));
+		}
 	}
 
 	float get_weapon_damage_range(const Weapon& weapon)
@@ -271,15 +277,20 @@ namespace game
 		return sv_bullet_range->current.value;
 	}
 
-	bool CG_BulletTrace(game::BulletTraceResults* br, game::BulletFireParams* bp, const int attacker_entity_num, int lastSurfaceType)
+	bool CG_BulletTrace(BulletTraceResults* br, BulletFireParams* bp, const int attacker_entity_num, int lastSurfaceType)
 	{
-		const static auto CG_BulletTrace = reinterpret_cast<bool(*)(LocalClientNum_t, game::BulletFireParams *, game::BulletTraceResults*, const game::Weapon, int, int)>(game::base_address + 0x1168BA0);
+		const static auto CG_BulletTrace = reinterpret_cast<bool(*)(LocalClientNum_t, BulletFireParams *, BulletTraceResults*, const Weapon, int, int)>(base_address + 0x1168BA0);
 		return CG_BulletTrace(0, bp, br, {}, attacker_entity_num, lastSurfaceType);
 	}
 
-	void send_instant_message(const std::vector<std::uint64_t>& recipients, std::uint8_t type, const void* message, const std::uint32_t message_size)
+	bool send_instant_message(const std::vector<std::uint64_t>& recipients, const std::uint8_t type, const void* message, const std::uint32_t message_size)
 	{
 		return dwInstantSendMessage(0, recipients.data(), recipients.size(), type, message, message_size);
+	}
+
+	bool send_instant_message(const std::vector<std::uint64_t>& recipients, const std::uint8_t type, const msg_t& msg)
+	{
+		return send_instant_message(recipients, type, msg.data, msg.cursize);
 	}
 
 	bool send_netchan_message(const netadr_t& netadr, const std::uint64_t xuid, const std::string& data)
@@ -318,13 +329,6 @@ namespace game
 	{
 		return lobby_type >= LOBBY_TYPE_PRIVATE && lobby_type < LOBBY_TYPE_TRANSITION;
 	}
-
-	bool MSG_JoinMemberInfo(Msg_JoinMemberInfo* thisptr, game::msg_t* msg)
-	{
-		return game::LobbyMsgRW_PackageGlob(msg, "serializedadr", &thisptr->serializedAdr, sizeof thisptr->serializedAdr)
-			&& game::LobbyMsgRW_PackageUInt64(msg, "reservationkey", &thisptr->reservationKey)
-			&& game::LobbyMsgRW_PackageInt(msg, "lobbytype", &thisptr->targetLobby);
-	}
 	
 	void enum_assets(const XAssetType type, const std::function<void(XAssetHeader)>& callback, const bool includeOverride)
 	{
@@ -335,51 +339,41 @@ namespace game
 		}), &callback, includeOverride);
 	}
 
-	Material* get_material(const char* material_ptr, const int length)
+	bool LobbyMsgRW_PackageElement(msg_t* msg, bool add_element)
 	{
-		if (length < 0 || length > 255)
-			return nullptr;
-
-		if (std::strlen(material_ptr) >= length)
-			return Material_RegisterHandle(material_ptr, 7, true, -1);
-
-		return nullptr;
-	}
-
-	bool is_invalid_material_pointer(const char* string)
-	{
-		const auto material = get_material(string + 4, string[3]);
-		if (material && material->techniqueSet && material->techniqueSet->name == "2d_blend#da7372ff"s)
+		switch (msg->packageType)
 		{
+		case PACKAGE_TYPE_NONE:
 			return false;
+		case PACKAGE_TYPE_WRITE:
+			if (!add_element)
+			{
+				MSG_WriteByte(msg, 14);
+				msg->encodeFlags = 0;
+				return false;
+			}
+
+			MSG_WriteByte(msg, 13);
+			break;
+		case PACKAGE_TYPE_READ:
+			const auto result = LobbyMsgRW_IsEndOfArray(msg);
+			const auto overflowed = msg->overflowed;
+			
+			if (result || overflowed)
+			{
+				if (overflowed)
+				{
+					utils::toast::add_toast("LobbyMSG", "Message overflowed.");
+					PRINT_LOG("Message overflowed [%s]", LobbyTypes_GetMsgTypeName(msg->type));
+				}
+				
+				msg->encodeFlags = 0;
+				return false;
+			}
+
+			break;
 		}
 
-		return true;
-	}
-
-	char CL_DeathMessageIconDimension(const float icon_width)
-	{
-		float v1; // ST00_4
-		signed int v2; // eax
-
-		v2 = (icon_width * 32.0f) + 9.313225746154785e-10;
-
-		if (v2 >= 127)
-			return 143;
-
-		if (v2 <= 16)
-			v2 = 16;
-
-		return v2 + 16;
-	}
-
-	std::string CL_AddMessageIcon(const std::string& name, const Vec2& dimensions, const bool flip_icon)
-	{
-		auto string{ "^H"s };
-		string += CL_DeathMessageIconDimension(dimensions.x);
-		string += CL_DeathMessageIconDimension(dimensions.y);
-		string += name.length();
-		string += name;
-		return string;
+		return !msg->overflowed;
 	}
 }

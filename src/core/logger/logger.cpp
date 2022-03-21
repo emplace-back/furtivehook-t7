@@ -14,7 +14,7 @@ namespace logger
 
 		return timestamp;
 	}
-	
+
 	std::string get_log_message(const std::string& message)
 	{
 		auto log_message{ "[" + get_log_timestamp() + "]" };
@@ -23,7 +23,7 @@ namespace logger
 		log_message.push_back('\n');
 		return log_message;
 	}
-	
+
 	void print_log(const char* msg, ...)
 	{
 		va_list ap;
@@ -31,7 +31,7 @@ namespace logger
 		const auto result = utils::string::format(ap, msg);
 		va_end(ap);
 
-		const static auto filename = utils::generate_log_filename("furtivehook\\logs\\");
+		const static auto filename = utils::string::generate_log_filename("furtivehook/logs/");
 		utils::io::write_file(filename, get_log_message(result), true);
 	}
 }

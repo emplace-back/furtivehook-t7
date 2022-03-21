@@ -5,6 +5,4 @@ namespace session
 {
 	void draw_session_list(const float width, const float spacing);
 	void register_session(const game::MatchMakingInfo& info);
-
-	extern bool grab_info_of_sessions;
 }

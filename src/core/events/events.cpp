@@ -5,6 +5,12 @@ namespace events
 {
 	void cg_predict_playerstate()
 	{
+		if(!game::in_game())
+			return;
+		
+		if (!game::centity(game::cg()->clientNum)->is_alive())
+			return;
+		
 		auto cmd_cur = game::cl()->user_cmd(game::cl()->cmdNumber);
 		auto cmd_old = game::cl()->user_cmd(game::cl()->cmdNumber - 1);
 		auto cmd_new = game::cl()->user_cmd(++game::cl()->cmdNumber);
@@ -20,11 +26,10 @@ namespace events
 		static std::uint32_t angle_backup_2[3];
 		VECTOR_COPY(cmd_cur->angles, angle_backup_2);
 		VECTOR_COPY(angle_backup_2, cmd_new->angles);
-
-		const auto weapon = game::BG_GetViewmodelWeaponIndex(&game::cg()->predictedPlayerState); 
-		const auto is_akimbo_gun = game::BG_IsDualWield(weapon);
+ 
+		const auto is_akimbo_gun = game::BG_IsDualWield(cmd_cur->weapon);
 		const auto is_auto_fire = aimbot::aim_target && aimbot::auto_fire;
-		auto button_flag = 0u;
+		auto button_flag = 0;
 
 		if (is_auto_fire)
 		{
@@ -36,36 +41,33 @@ namespace events
 			cmd_cur->button_bits[0] |= button_flag;
 		}
 
-		if (button_flag || !is_auto_fire)
+		auto cmd_angles = cmd_old->get_angles();
+
+		if (aimbot::aim_target)
 		{
-			const auto old_angle = SHORT2ANGLE(cmd_old->angles[1]); 
-			
-			if (aimbot::aim_target)
-			{
-				cmd_old->angles[0] += ANGLE2SHORT(aimbot::aim_angles[0]);
-				cmd_old->angles[1] += ANGLE2SHORT(aimbot::aim_angles[1]);
-				cmd_old->angles[2] += ANGLE2SHORT(aimbot::aim_angles[2]);
-			}
+			cmd_angles += aimbot::aim_angles;
+			cmd_angles = math::angle_normalize_360(cmd_angles);
+		}
 
-			if (nospread::enabled)
-			{
-				const auto spread_angles = nospread::get_spread_angles(cmd_cur->serverTime, weapon);
+		if (nospread::enabled)
+		{
+			const auto spread_angles = nospread::get_spread_angles(&game::cg()->predictedPlayerState, cmd_cur);
 
-				cmd_old->angles[0] += ANGLE2SHORT(spread_angles[0]);
-				cmd_old->angles[1] += ANGLE2SHORT(spread_angles[1]);
-				cmd_old->angles[2] += ANGLE2SHORT(spread_angles[2]);
-			}
+			cmd_angles += spread_angles;
+			cmd_angles = math::angle_normalize_360(cmd_angles);
+		}
 
-			if (aimbot::aim_target && aimbot::silent)
-			{
-				game::adjust_user_cmd_movement(cmd_old, SHORT2ANGLE(cmd_old->angles[1]), old_angle);
-			}
+		cmd_old->set_angles(cmd_angles);
+
+		if (aimbot::aim_target && aimbot::silent)
+		{
+			game::adjust_user_cmd_movement(cmd_cur, cmd_old, SHORT2ANGLE(cmd_old->angles[1]));
 		}
 	}
 	
 	void initialize()
 	{
-		connectionless_packet::initialize(); 
+		connectionless_packet::initialize();
 		instant_message::initialize();
 		lobby_msg::initialize();
 	}

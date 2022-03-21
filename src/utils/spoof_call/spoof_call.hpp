@@ -32,7 +32,7 @@ namespace spoof_call
 			void* function;
 		}; 
 		
-		shell_args p{ game::spoof_t, reinterpret_cast<void*>(fn) };
+		shell_args p{ reinterpret_cast<void*>(game::base_address + 0x2A95FFB), reinterpret_cast<void*>(fn) };
 		return do_call<T, Args...>(&spoof_call_stub, &p, sizeof...(Args), args...);
 	}
 }

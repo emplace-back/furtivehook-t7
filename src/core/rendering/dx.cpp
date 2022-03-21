@@ -17,12 +17,12 @@ namespace rendering::dx
 			ImGui_ImplDX11_NewFrame();
 			ImGui::NewFrame();
 
-			esp::draw();
-			menu::draw();
-
 			ImGui::PushStyleColor(ImGuiCol_WindowBg, ImColor(0, 100, 200, 255).Value);
 			utils::toast::draw_toast();
 			ImGui::PopStyleColor();
+
+			esp::draw();
+			menu::draw();
 
 			ImGui::Render();
 			ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());

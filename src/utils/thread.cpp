@@ -5,7 +5,7 @@ namespace utils::thread
 {
 	std::vector<DWORD> get_thread_ids()
 	{
-		auto* const handle{ CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0) };
+		const auto handle{ CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0) };
 
 		if (handle == INVALID_HANDLE_VALUE)
 		{
@@ -38,7 +38,7 @@ namespace utils::thread
 		CloseHandle(handle);
 		return ids;
 	}
-
+	
 	void for_each_thread(const std::function<void(HANDLE)>& callback)
 	{
 		const auto ids{ get_thread_ids() };
@@ -48,7 +48,9 @@ namespace utils::thread
 			const auto thread{ OpenThread(THREAD_ALL_ACCESS, FALSE, id) };
 
 			if (thread != nullptr)
+			{
 				callback(thread);
+			}
 
 			CloseHandle(thread);
 		}

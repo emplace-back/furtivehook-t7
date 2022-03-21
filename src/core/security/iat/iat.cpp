@@ -25,6 +25,6 @@ namespace security::iat
 			return nullptr;
 		});
 
-		loader::load_library("BlackOps3.exe");
+		loader::load_library();
 	}
 }

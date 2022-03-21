@@ -6,8 +6,7 @@
 #define PRINT_LOG_DETAILED(format, ...)																							\
 {																																\
     logger::print_log(utils::string::va("[%s] %s", __FUNCTION__, format).data(), __VA_ARGS__);									\
-																																\
-}
+}	
 
 #define PRINT_LOG(format, ...)																									\
 {																																\
@@ -22,9 +21,6 @@
 
 namespace utils
 {
-	std::string get_log_file_timestamp(); 
-	std::string generate_log_filename(const std::string& dir, const std::string& ext = "log");
-
 	template <typename T>
 	static auto atoi(const std::string& str)
 	{
@@ -66,4 +62,6 @@ namespace utils
 			callback(batch);
 		}
 	}
+	
+	uintptr_t get_stack_pointer(const CONTEXT & ctx, const int offset);
 }

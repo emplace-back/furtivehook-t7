@@ -4,5 +4,5 @@
 namespace nospread
 {
 	extern bool enabled;
-	Vec3 get_spread_angles(std::uint32_t rand_seed, const game::Weapon& weapon);
+	Vec3 get_spread_angles(const game::playerState_s* ps, const game::usercmd_s* cmd);
 }

@@ -3,6 +3,42 @@
 
 namespace utils::string
 {
+	std::string get_filtered_text(const std::string& string, const bool strip)
+	{
+		const std::pair<std::string, std::string> filters[] =
+		{
+			{"\^[BH]", ""},
+			{"k *k *k\\b", "BLM"},
+		};
+
+		std::string result{ strip ? utils::string::strip(string) : string };
+
+		for (const auto&[regex, replace] : filters)
+		{
+			result = std::regex_replace(result, std::regex{ regex }, replace);
+		}
+
+		return result;
+	}
+	
+	std::string generate_log_filename(const std::string& dir, const std::string& ext)
+	{
+		const auto filename = utils::string::va("furtivehook-%s.%s", string::data_time().data(), ext.data());
+		return dir + filename;
+	}
+
+	std::string data_time()
+	{
+		tm ltime{};
+		char timestamp[MAX_PATH] = { 0 };
+		const auto time = _time64(nullptr);
+
+		_localtime64_s(&ltime, &time);
+		std::strftime(timestamp, sizeof(timestamp) - 1, "%F", &ltime);
+
+		return timestamp;
+	}
+	
 	std::string adr_to_string(const game::XNADDR* address)
 	{
 		static auto adr = ""s;
@@ -170,5 +206,11 @@ namespace utils::string
 		}
 
 		return result;
-	};
+	}
+
+	std::string strip(const std::string& string)
+	{
+		const auto result = game::I_CleanStr(string.data());
+		return result;
+	}
 }

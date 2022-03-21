@@ -42,7 +42,7 @@ namespace exception
 			auto error{ "Termination due to a stack overflow."s };
 			if (exception_data.code != EXCEPTION_STACK_OVERFLOW)
 			{
-				error = utils::string::va("Exception: 0x%08X at offset 0x%llX", exception_data.code, DWORD64(exception_data.address) - game::base_address);
+				error = utils::string::va("Exception: 0x%08X at offset 0x%llX", exception_data.code, uintptr_t(exception_data.address) - game::base_address);
 			}
 
 			PRINT_LOG("%s", error.data());
@@ -71,7 +71,7 @@ namespace exception
 				&& !hwbp::handle_exception(ex)
 				&& !pageguard::handle_exception(ex))
 			{
-				utils::exception::minidump::write_minidump(ex);
+				utils::exception::minidump::write(ex);
 
 				exception_data.code = ex->ExceptionRecord->ExceptionCode;
 				exception_data.address = ex->ExceptionRecord->ExceptionAddress;
@@ -95,17 +95,5 @@ namespace exception
 		dvars::initialize();
 		hwbp::initialize();
 		pageguard::initialize();
-
-		exception::register_hook(game::base_address + 0x20E1C6F, [](auto& ctx)
-		{
-			ctx.Rcx = reinterpret_cast<std::uintptr_t>(misc::trace_thread_info);
-			ctx.Rip += sizeof(uint32_t);
-		});	
-
-		exception::register_hook(game::base_address + 0x20E112D, [](auto& ctx)
-		{
-			ctx.R9 = reinterpret_cast<std::uintptr_t>(misc::trace_thread_info);
-			ctx.Rip += sizeof(uint32_t);
-		});
 	}
 }

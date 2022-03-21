@@ -5,6 +5,7 @@ namespace exception::hwbp
 {
 	namespace
 	{
+		using callback = std::function<void(CONTEXT&)>; 
 		std::unordered_map<std::uintptr_t, callback>& get_callbacks()
 		{
 			static std::unordered_map<std::uintptr_t, callback> callbacks{};
@@ -15,8 +16,8 @@ namespace exception::hwbp
 		{
 			for (size_t i = 0; i < sizeof(std::uint32_t); ++i)
 			{
-				const auto a = i * sizeof(std::uint16_t);
-				const auto has_index = (ctx.Dr7 & (1 << a)) == 0;
+				const auto x = i * sizeof(std::uint16_t);
+				const auto has_index = (ctx.Dr7 & (1 << x)) == 0;
 
 				if (has_index)
 				{
@@ -25,6 +26,33 @@ namespace exception::hwbp
 			}
 
 			return -1;
+		}
+
+		void register_hook(const std::uintptr_t address, const callback& callback)
+		{
+			utils::thread::set_registers_for_each_thread([=](auto& ctx)
+			{
+				const auto index{ hwbp::get_register_index(ctx) };
+
+				if (index < 0 || index >= 4)
+				{
+					return;
+				}
+
+				auto* debug_register = reinterpret_cast<size_t*>(&ctx.Dr0);
+				debug_register[index] = address;
+
+				ctx.Dr7 |= (1 << index * 2);
+				ctx.Dr7 |= (0 << (16 + (index * 2) - 1)); // set condition type (16-17, 21-20, 24-25, 28-29)
+				ctx.Dr7 &= ~(1 << 18 + (index * 2)); // set size (18-19, 22-23, 26-27, 30-31)
+			});
+
+			get_callbacks()[address] = callback;
+		}
+
+		void register_hook(const std::uintptr_t address, const std::function<size_t()>& callback)
+		{
+			hwbp::register_hook(address, [=](auto& ctx) { ctx.Rip = callback(); });
 		}
 	}
 
@@ -42,69 +70,18 @@ namespace exception::hwbp
 		return true;
 	}
 
-	void register_hook(const std::uintptr_t address, const callback& callback)
-	{
-		utils::thread::set_registers_for_each_thread([=](auto& ctx)
-		{
-			const auto index{ get_register_index(ctx) };
-
-			if (index < 0 || index >= 4)
-			{
-				return;
-			}
-
-			auto* debug_register = reinterpret_cast<size_t*>(&ctx.Dr0);
-			debug_register[index] = address;
-
-			ctx.Dr7 |= (1 << index * 2);
-			ctx.Dr7 |= (0b00 << (16 + (index * 2) - 1)); // set condition type (16-17, 21-20, 24-25, 28-29)
-			ctx.Dr7 &= ~(1 << 18 + (index * 2)); // set size (18-19, 22-23, 26-27, 30-31)
-		});
-
-		get_callbacks()[address] = callback;
-	}
-
-	void register_hook(const std::uintptr_t address, const std::function<size_t()>& callback)
-	{
-		hwbp::register_hook(address, [=](auto& ctx)
-		{
-			ctx.Rip = callback();
-		});
-	}
-
 	void initialize()
 	{
-		exception::hwbp::register_hook(game::base_address + 0x1C623A0, [](auto& ctx)
+		hwbp::register_hook(game::base_address + 0x1EF5610, [](auto& ctx)
 		{
-			ctx.Rax = ctx.Rsp;
-			ctx.Rip += 3;
-
-			if (game::is_invalid_material_pointer(reinterpret_cast<const char*>(ctx.Rdx)))
-			{
-				ctx.Rip = game::base_address + 0x1C625D3;
-			}
+			ctx.Rip = reinterpret_cast<size_t>(game::LobbyMsgRW_PackageElement);
 		});
 
-		/*hwbp::register_hook(game::base_address + 0x1EE1DB0,
-			[](auto& ctx)
-			{
-				ctx.Rcx = ctx.Rbx;
-				ctx.Rip += 3;
+		hwbp::register_hook(game::base_address + 0x1439600, [](auto& ctx)
+		{
+			ctx.Rip = reinterpret_cast<size_t>(events::instant_message::dispatch_message);
+		});
 
-				if (session::grab_info_of_sessions)
-				{
-					ctx.Rip = game::base_address + 0x1EE1DB8;
-				}
-
-				for (size_t i = 0; i < game::s_lobbySearch.numResults; ++i)
-				{
-					const auto session_result = game::get_session_result(i);
-
-					if (session_result->info.hostAddrSize != sizeof game::XNADDR)
-						return;
-
-					session::register_session(*session_result);
-				}
-			});*/
+		hwbp::register_hook(game::base_address + 0x134BDAD, events::connectionless_packet::cl_dispatch_connectionless_packet_stub);
 	}
 }

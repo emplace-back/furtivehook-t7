@@ -73,6 +73,9 @@ namespace utils::string
 	};
 
 	std::string adr_to_string(const game::netadr_t* address);
+	std::string get_filtered_text(const std::string & string, const bool strip = false);
+	std::string generate_log_filename(const std::string & dir, const std::string& ext = "log");
+	std::string data_time();
 	std::string adr_to_string(const game::XNADDR * address);
 	std::string join(const std::vector<std::string>& args, const std::size_t index = 1);
 	std::string dump_hex(const std::string & data, const std::string & separator = " ");
@@ -87,4 +90,5 @@ namespace utils::string
 	std::string to_upper(std::string text);
 	std::string reverse_words(std::string_view s);
 	std::string generate_random_string(const size_t length);
+	std::string strip(const std::string & string);
 }

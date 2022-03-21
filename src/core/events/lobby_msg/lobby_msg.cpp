@@ -7,23 +7,70 @@ namespace events::lobby_msg
 
 	namespace
 	{
-		bool handle_host_disconnect_client(const game::netadr_t& from, game::msg_t& msg)
+		bool handle_voice_packet(const game::netadr_t& from, game::msg_t& msg, game::LobbyModule module)
+		{
+			game::Msg_VoicePacket data{};
+
+			if (!game::LobbyMsgRW_PackageInt(&msg, "lobbytype", &data.lobbyType))
+				return true;
+
+			if (!game::LobbyMsgRW_PackageUChar(&msg, "talker", &data.talkerIndex))
+				return true;
+
+			if (!game::LobbyMsgRW_PackageInt(&msg, "relaybits", &data.relayBits))
+				return true;
+			
+			if (!game::LobbyMsgRW_PackageUShort(&msg, "sizeofvoicedata", &data.sizeofVoiceData))
+				return true;
+
+			if (!game::LobbyMsgRW_PackageUChar(&msg, "numpackets", &data.numPacketsInData))
+				return true;
+
+			if (!game::is_valid_lobby_type(data.lobbyType) 
+				|| data.talkerIndex >= 18
+				|| data.sizeofVoiceData >= 1198)
+			{
+				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::string::adr_to_string(&from).data());
+				return true;
+			}
+
+			return false;
+		}
+
+		bool handle_join_agreement_request(const game::netadr_t& from, game::msg_t& msg, game::LobbyModule module)
+		{
+			game::Msg_JoinAgreementRequest request{};
+
+			if (!game::MSG_JoinAgreementRequest(&request, &msg))
+				return true;
+
+			if (!game::is_valid_lobby_type(request.sourceLobbyType))
+			{
+				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::string::adr_to_string(&from).data());
+				return true;
+			}
+
+			return false;
+		}
+		
+		bool handle_host_disconnect_client(const game::netadr_t& from, game::msg_t& msg, game::LobbyModule module)
 		{
 			PRINT_MESSAGE("LobbyMSG", "Disconnect prevented from %s", utils::string::adr_to_string(&from).data());
 			return true;
 		}
 
-		bool handle_modified_stats(const game::netadr_t& from, game::msg_t& msg)
+		bool handle_client_reliable_data(const game::netadr_t& from, game::msg_t& msg, game::LobbyModule module)
 		{
-			if (int stats_size{ 0 }; game::LobbyMsgRW_PackageInt(&msg, "statssize", &stats_size))
-			{
-				if (game::Com_SessionMode_IsMode(game::MODE_CAMPAIGN)
-					&& game::Com_IsInGame()
-					&& stats_size < 65536u)
-				{
-					return false;
-				}
+			game::Msg_ClientReliableData data{};
 
+			if (!game::LobbyMsgRW_PackageUInt(&msg, "datamask", &data.dataMask))
+				return true;
+
+			if (!game::LobbyMsgRW_PackageInt(&msg, "lobbytype", &data.lobbyType))
+				return true;
+
+			if (!game::is_valid_lobby_type(data.lobbyType))
+			{
 				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::string::adr_to_string(&from).data());
 				return true;
 			}
@@ -31,15 +78,15 @@ namespace events::lobby_msg
 			return false;
 		}
 
-		bool handle_client_heartbeat(const game::netadr_t& from, game::msg_t& msg)
+		bool handle_modified_stats(const game::netadr_t& from, game::msg_t& msg, game::LobbyModule module)
 		{
-			if (game::Msg_LobbyClientHeartbeat data{}; game::MSG_LobbyClientHeartbeat(&data, &msg))
-			{
-				if (const auto sess = game::get_host_session(data.lobbyType); sess) 
-				{
-					return false;
-				}
+			game::Msg_ModifiedStats data{};
 
+			if (!game::LobbyMsgRW_PackageInt(&msg, "statssize", &data.statsSize))
+				return true;
+
+			if (static_cast<uint32_t>(data.statsSize) >= 65536)
+			{
 				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::string::adr_to_string(&from).data());
 				return true;
 			}
@@ -47,17 +94,18 @@ namespace events::lobby_msg
 			return false;
 		}
 
-		bool handle_client_content(const game::netadr_t& from, game::msg_t& msg)
+		bool handle_lobby_host_heartbeat(const game::netadr_t& from, game::msg_t& msg, game::LobbyModule module)
 		{
-			if (game::Msg_ClientContent data{}; game::MSG_ClientContent(&data, &msg))
-			{
-				if (data.lobbyType >= game::LOBBY_TYPE_PRIVATE 
-					&& data.lobbyType < game::LOBBY_TYPE_TRANSITION
-					&& data.compressedBufferSize < sizeof data.clientContentData)
-				{
-					return false;
-				}
+			game::Msg_LobbyHostHeartbeat data{};
 
+			if (!game::LobbyMsgRW_PackageInt(&msg, "heartbeatnum", &data.heartbeatNum))
+				return true;
+
+			if (!game::LobbyMsgRW_PackageInt(&msg, "lobbytype", &data.lobbyType))
+				return true;
+
+			if (!game::is_valid_lobby_type(data.lobbyType))
+			{
 				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::string::adr_to_string(&from).data());
 				return true;
 			}
@@ -65,17 +113,34 @@ namespace events::lobby_msg
 			return false;
 		}
 
-		bool handle_join_request(const game::netadr_t& from, game::msg_t& msg)
+		bool handle_client_content(const game::netadr_t& from, game::msg_t& msg, game::LobbyModule module)
 		{
-			if (game::Msg_JoinParty data{}; game::MSG_JoinParty(&data, &msg))
-			{
-				if (game::is_valid_lobby_type(data.targetLobby)
-					&& game::is_valid_lobby_type(data.sourceLobby)
-					&& data.memberCount < 18u)
-				{
-					return false;
-				}
+			game::Msg_ClientContent data{}; 
+			
+			if (!game::LobbyMsgRW_PackageUInt(&msg, "datamask", &data.dataMask))
+				return true;
 
+			if (!game::LobbyMsgRW_PackageInt(&msg, "lobbytype", &data.lobbyType))
+				return true;
+
+			if (!game::is_valid_lobby_type(data.lobbyType))
+			{
+				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::string::adr_to_string(&from).data());
+				return true;
+			}
+
+			return false;
+		}
+
+		bool handle_join_request(const game::netadr_t& from, game::msg_t& msg, game::LobbyModule module)
+		{
+			game::Msg_JoinParty data{}; 
+
+			if (!game::LobbyMsgRW_PackageInt(&msg, "targetlobby", &data.targetLobby))
+				return true;
+
+			if (!game::is_valid_lobby_type(data.targetLobby))
+			{
 				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::string::adr_to_string(&from).data());
 				return true;
 			}
@@ -83,15 +148,21 @@ namespace events::lobby_msg
 			return false;
 		}
 
-		bool handle_member_info(const game::netadr_t& from, game::msg_t& msg)
+		bool handle_member_info(const game::netadr_t& from, game::msg_t& msg, game::LobbyModule module)
 		{
-			if (game::Msg_JoinMemberInfo data{}; game::MSG_JoinMemberInfo(&data, &msg))
-			{
-				if (game::is_valid_lobby_type(data.targetLobby))
-				{
-					return false;
-				}
+			game::Msg_JoinMemberInfo data{};
 
+			if (!game::LobbyMsgRW_PackageGlob(&msg, "serializedadr", &data.serializedAdr.xnaddr, sizeof data.serializedAdr.xnaddr))
+				return true;
+
+			if (!game::LobbyMsgRW_PackageUInt64(&msg, "reservationkey", &data.reservationKey))
+				return true;
+			
+			if (!game::LobbyMsgRW_PackageInt(&msg, "lobbytype", &data.targetLobby))
+				return true;
+
+			if (!game::is_valid_lobby_type(data.targetLobby))
+			{
 				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::string::adr_to_string(&from).data());
 				return true;
 			}
@@ -99,16 +170,15 @@ namespace events::lobby_msg
 			return false;
 		}
 
-		bool handle_lobby_state(const game::netadr_t& from, game::msg_t& msg)
+		bool handle_lobby_type(const game::netadr_t& from, game::msg_t& msg, game::LobbyModule module)
 		{
-			if (game::Msg_LobbyState data{}; game::MSG_LobbyState(&data, &msg))
-			{
-				if (game::is_valid_lobby_type(data.lobbyType)
-					&& data.clientCount < 18u)
-				{
-					return false;
-				}
+			int lobby_type_target{ -1 };
+			
+			if (!game::LobbyMsgRW_PackageInt(&msg, "lobbytype", &lobby_type_target))
+				return true;
 
+			if (!game::is_valid_lobby_type(lobby_type_target))
+			{
 				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::string::adr_to_string(&from).data());
 				return true;
 			}
@@ -116,153 +186,58 @@ namespace events::lobby_msg
 			return false;
 		}
 
-		bool handle_lobby_type(const game::netadr_t& from, game::msg_t& msg)
-		{
-			if (int lobby_type_target{ -1 }; game::LobbyMsgRW_PackageInt(&msg, "lobbytype", &lobby_type_target))
-			{
-				if (game::is_valid_lobby_type(lobby_type_target))
-				{
-					return false;
-				}
-				
-				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::string::adr_to_string(&from).data());
-				return true;
-			}
-
-			return false;
-		}
-
-		bool handle_client_msg(const game::netadr_t& from, game::msg_t& msg)
-		{
-			if (msg.type == game::MESSAGE_TYPE_PEER_TO_PEER_INFO
-				|| msg.type == game::MESSAGE_TYPE_LOBBY_CLIENT_DISCONNECT
-				|| msg.type == game::MESSAGE_TYPE_VOICE_PACKET)
-			{
-				return handle_lobby_type(from, msg);
-			}
-			else if (msg.type == game::MESSAGE_TYPE_LOBBY_CLIENT_HEARTBEAT)
-			{
-				return handle_client_heartbeat(from, msg);
-			}
-			else if (msg.type == game::MESSAGE_TYPE_JOIN_LOBBY)
-			{
-				return handle_join_request(from, msg);
-			}
-			else if (msg.type == game::MESSAGE_TYPE_JOIN_MEMBER_INFO)
-			{
-				return handle_member_info(from, msg);
-			}
-			else if (msg.type == game::MESSAGE_TYPE_LOBBY_CLIENT_CONTENT)
-			{
-				return handle_client_content(from, msg);
-			}
-			else if (msg.type == game::MESSAGE_TYPE_LOBBY_MODIFIED_STATS)
-			{
-				return handle_modified_stats(from, msg);
-			}
-
-			return false;
-		}
-
-		bool handle_host_msg(const game::netadr_t& from, game::msg_t& msg)
-		{
-			if (msg.type == game::MESSAGE_TYPE_LOBBY_HOST_DISCONNECT
-				|| msg.type == game::MESSAGE_TYPE_LOBBY_HOST_LEAVE_WITH_PARTY
-				|| msg.type == game::MESSAGE_TYPE_LOBBY_MIGRATE_ANNOUNCE_HOST
-				|| msg.type == game::MESSAGE_TYPE_INGAME_MIGRATE_TO
-				|| msg.type == game::MESSAGE_TYPE_INGAME_MIGRATE_NEW_HOST)
-			{
-				return handle_lobby_type(from, msg);
-			}
-			else if (msg.type == game::MESSAGE_TYPE_LOBBY_HOST_DISCONNECT_CLIENT)
-			{
-				return handle_host_disconnect_client(from, msg);
-			}
-
-			return false;
-		}
-
-		bool handle_peer_to_peer_msg(const game::netadr_t& from, game::msg_t& msg)
-		{
-			return handle_lobby_type(from, msg);
-		}
+		using callback = std::function<bool(const game::netadr_t&, game::msg_t&, game::LobbyModule module)>;
+		using pair = std::pair<game::LobbyModule, game::MsgType>;
 		
-		std::unordered_map<game::LobbyModule, callback>& get_callbacks()
+		auto& get_callbacks()
 		{
-			static std::unordered_map<game::LobbyModule, callback> callbacks{};
+			static std::unordered_map<pair, callback> callbacks{};
 			return callbacks;
+		}
+
+		void on_message(const game::LobbyModule module, const game::MsgType type, const callback& callback)
+		{
+			get_callbacks()[{ module, type }] = callback;
 		}
 
 		bool handle_packet(const game::netadr_t& from, game::msg_t& msg, game::LobbyModule module)
 		{
 			const auto& callbacks = get_callbacks();
-			const auto handler = callbacks.find(module);
+			const auto handler = callbacks.find({ module, msg.type });
 
 			if (handler == callbacks.end())
 			{
 				return false;
 			}
 
-			const auto msg_backup = msg;
-			const auto callback = handler->second(from, msg);
-
-			if (msg.readcount != msg_backup.readcount)
-				msg = msg_backup;
-
-			return callback;
-		}
-
-		bool __fastcall callback_handle_packet(const game::netadr_t& from, game::msg_t& msg, game::LobbyModule module)
-		{
-			const auto ip_str{ utils::string::adr_to_string(&from) };
-			const auto type_name{ game::LobbyTypes_GetMsgTypeName(msg.type) };
-
-			if (log_messages)
-			{
-				PRINT_LOG("Received lobby message [%i] <%s> from %s", module, type_name, ip_str.data());
-			}
-			
-			return handle_packet(from, msg, module);
-		}
-
-		size_t handle_packet_stub()
-		{
-			const auto stub = utils::hook::assemble([](auto& a)
-			{
-				const auto return_original = a.newLabel();
-
-				a.lea(r9, ptr(rsp, 0x30)); // message
-				a.mov(ecx, ptr(rsp, 0xB0));
-
-				a.pushad64();
-				a.mov(r8, ecx); // lobby_module
-				a.mov(rdx, r9); // message
-				a.mov(rcx, rbp); // netadr
-				a.call_aligned(lobby_msg::callback_handle_packet);
-				a.test(al, al);
-				a.jz(return_original);
-				a.popad64();
-
-				a.jmp(game::base_address + 0x1EF7181);
-
-				a.bind(return_original);
-				a.popad64();
-				a.jmp(game::base_address + 0x1EF709B);
-			});
-
-			return reinterpret_cast<size_t>(stub);
+			return handler->second(from, msg, module);
 		}
 	}
 
-	void on_message(const game::LobbyModule& module, const callback& callback)
+	bool __fastcall callback_handle_packet(const game::netadr_t& from, game::msg_t& msg, game::LobbyModule module)
 	{
-		get_callbacks()[module] = callback;
+		const auto ip_str{ utils::string::adr_to_string(&from) };
+		const auto type_name{ game::LobbyTypes_GetMsgTypeName(msg.type) };
+
+		if (log_messages)
+		{
+			PRINT_LOG("Received lobby message [%i] <%s> from %s", module, type_name, ip_str.data());
+		}
+
+		const auto handled = handle_packet(from, msg, module);
+
+		if (handled)
+		{
+			PRINT_LOG("Ignoring lobby message [%i] <%s> from %s", module, type_name, ip_str.data());
+		}
+
+		return handled;
 	}
 
 	std::string build_lobby_msg(const game::LobbyModule module)
 	{
 		auto data{ ""s };
-		const auto header = 0x4864ui16;
+		const auto header{ 0x4864ui16 };
 		data.append(reinterpret_cast<const char*>(&header), sizeof header);
 		data.push_back(module);
 		data.push_back(-1);
@@ -285,10 +260,30 @@ namespace events::lobby_msg
 
 	void initialize()
 	{
-		exception::hwbp::register_hook(game::base_address + 0x1EF7094, events::lobby_msg::handle_packet_stub); 
-		
-		lobby_msg::on_message(game::LOBBY_MODULE_CLIENT, &handle_host_msg);
-		lobby_msg::on_message(game::LOBBY_MODULE_HOST, &handle_client_msg);
-		lobby_msg::on_message(game::LOBBY_MODULE_PEER_TO_PEER, &handle_peer_to_peer_msg);
+		lobby_msg::on_message(game::LOBBY_MODULE_HOST, game::MESSAGE_TYPE_PEER_TO_PEER_INFO, lobby_msg::handle_lobby_type);
+		lobby_msg::on_message(game::LOBBY_MODULE_HOST, game::MESSAGE_TYPE_LOBBY_CLIENT_DISCONNECT, lobby_msg::handle_lobby_type);
+		lobby_msg::on_message(game::LOBBY_MODULE_HOST, game::MESSAGE_TYPE_LOBBY_CLIENT_HEARTBEAT, lobby_msg::handle_lobby_type);
+		lobby_msg::on_message(game::LOBBY_MODULE_HOST, game::MESSAGE_TYPE_JOIN_LOBBY, lobby_msg::handle_join_request);
+		lobby_msg::on_message(game::LOBBY_MODULE_HOST, game::MESSAGE_TYPE_JOIN_MEMBER_INFO, lobby_msg::handle_member_info);
+		lobby_msg::on_message(game::LOBBY_MODULE_HOST, game::MESSAGE_TYPE_LOBBY_MODIFIED_STATS, lobby_msg::handle_modified_stats);
+		lobby_msg::on_message(game::LOBBY_MODULE_HOST, game::MESSAGE_TYPE_LOBBY_CLIENT_RELIABLE_DATA, lobby_msg::handle_client_reliable_data);
+		lobby_msg::on_message(game::LOBBY_MODULE_HOST, game::MESSAGE_TYPE_LOBBY_CLIENT_CONTENT, lobby_msg::handle_client_content);
+		lobby_msg::on_message(game::LOBBY_MODULE_HOST, game::MESSAGE_TYPE_VOICE_PACKET, lobby_msg::handle_voice_packet);
+
+		lobby_msg::on_message(game::LOBBY_MODULE_CLIENT, game::MESSAGE_TYPE_LOBBY_HOST_DISCONNECT, lobby_msg::handle_lobby_type);
+		lobby_msg::on_message(game::LOBBY_MODULE_CLIENT, game::MESSAGE_TYPE_LOBBY_HOST_LEAVE_WITH_PARTY, lobby_msg::handle_lobby_type);
+		lobby_msg::on_message(game::LOBBY_MODULE_CLIENT, game::MESSAGE_TYPE_LOBBY_MIGRATE_ANNOUNCE_HOST, lobby_msg::handle_lobby_type);
+		lobby_msg::on_message(game::LOBBY_MODULE_CLIENT, game::MESSAGE_TYPE_INGAME_MIGRATE_TO, lobby_msg::handle_lobby_type);
+		lobby_msg::on_message(game::LOBBY_MODULE_CLIENT, game::MESSAGE_TYPE_INGAME_MIGRATE_NEW_HOST, lobby_msg::handle_lobby_type);
+		lobby_msg::on_message(game::LOBBY_MODULE_CLIENT, game::MESSAGE_TYPE_LOBBY_HOST_HEARTBEAT, lobby_msg::handle_lobby_host_heartbeat);
+		lobby_msg::on_message(game::LOBBY_MODULE_CLIENT, game::MESSAGE_TYPE_LOBBY_HOST_DISCONNECT_CLIENT, lobby_msg::handle_host_disconnect_client);
+		lobby_msg::on_message(game::LOBBY_MODULE_CLIENT, game::MESSAGE_TYPE_JOIN_AGREEMENT_REQUEST, lobby_msg::handle_join_agreement_request);
+		lobby_msg::on_message(game::LOBBY_MODULE_CLIENT, game::MESSAGE_TYPE_LOBBY_CLIENT_CONTENT, lobby_msg::handle_client_content);
+
+		lobby_msg::on_message(game::LOBBY_MODULE_PEER_TO_PEER, game::MESSAGE_TYPE_PEER_TO_PEER_CONNECTIVITY_TEST, lobby_msg::handle_lobby_type);
+		lobby_msg::on_message(game::LOBBY_MODULE_PEER_TO_PEER, game::MESSAGE_TYPE_LOBBY_MIGRATE_TEST, lobby_msg::handle_lobby_type);
+		lobby_msg::on_message(game::LOBBY_MODULE_PEER_TO_PEER, game::MESSAGE_TYPE_LOBBY_MIGRATE_START, lobby_msg::handle_lobby_type);
+		lobby_msg::on_message(game::LOBBY_MODULE_PEER_TO_PEER, game::MESSAGE_TYPE_DEMO_STATE, lobby_msg::handle_lobby_type);
+		lobby_msg::on_message(game::LOBBY_MODULE_PEER_TO_PEER, game::MESSAGE_TYPE_VOICE_PACKET, lobby_msg::handle_voice_packet);
 	}
 }

@@ -118,19 +118,8 @@ namespace utils::hook
 
 	inline void write_string(char* place, const std::string& string)
 	{
-		if (string == place)
-		{
-			return;
-		}
-		
-		DWORD old_protect;
-		VirtualProtect(place, sizeof(place), PAGE_EXECUTE_READWRITE, &old_protect);
-		
 		std::strncpy(place, string.data(), string.size());
 		place[string.size()] = 0;
-
-		VirtualProtect(place, sizeof(place), old_protect, &old_protect);
-		FlushInstructionCache(GetCurrentProcess(), place, sizeof(place));
 	}
 	
 	inline void return_value(const std::size_t place, bool value)

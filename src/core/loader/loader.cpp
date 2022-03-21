@@ -71,12 +71,17 @@ namespace loader
 	void load_library(const std::string& filename)
 	{
 		const auto target = utils::nt::library::load(filename);
-
 		if (!target)
 		{
 			throw std::runtime_error{ "Failed to map binary!" };
 		}
 
 		return load_imports(target, target);
+	}
+
+	void load_library()
+	{
+		const utils::nt::library self{};
+		load_library(self.get_name());
 	}
 }

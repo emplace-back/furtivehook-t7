@@ -10,7 +10,7 @@
 #pragma once
 #endif
 
-#include "steam_api_common.h"
+#include "steam_api_common.hpp"
 
 const int k_cubAppProofOfPurchaseKeyMax = 240;			// max supported length of a legacy cd key 
 

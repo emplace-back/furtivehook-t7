@@ -3,7 +3,7 @@
 
 namespace aimbot
 {
-	bool enabled = false, silent = true, auto_fire = true, priority_bonescan = true, asynchronous = true, legit = true;
+	bool enabled = false, silent = true, auto_fire = true, priority_bonescan = true, legit = true;
 	Vec3 aim_angles, view_origin;
 	bone_target_t* bone_target = nullptr;
 	aim_target_t* aim_target = nullptr;
@@ -33,29 +33,11 @@ namespace aimbot
 		bone_targets.clear();
 		bone_target = nullptr;
 
-		if (asynchronous)
+		for (const auto& point : points)
 		{
-			for (const auto& point : points)
+			if (const auto damage = autowall::get_penetration_damage(start, point, &game::cg()->predictedPlayerState, cent->nextState.number); damage > 0.0f)
 			{
-				penetration_damage.emplace_back(std::async(&autowall::get_penetration_damage, start, point, &game::cg()->predictedPlayerState, cent->nextState.number));
-			}
-
-			for (size_t i = 0; i < points.size(); ++i)
-			{
-				if (const auto damage = penetration_damage[i].get(); damage > 0.0f)
-				{
-					bone_targets.emplace_back(damage, points[i]);
-				}
-			}
-		}
-		else
-		{
-			for (const auto& point : points)
-			{
-				if (const auto damage = autowall::get_penetration_damage(start, point, &game::cg()->predictedPlayerState, cent->nextState.number); damage > 0.0f)
-				{
-					bone_targets.emplace_back(damage, point);
-				}
+				bone_targets.emplace_back(damage, point);
 			}
 		}
 
@@ -142,12 +124,12 @@ namespace aimbot
 			aim_target = &*std::max_element(aim_targets.begin(), aim_targets.end());
 			game::vectoangles(&(get_best_target_position(aim_target) - view_origin), &aim_angles);
 
-			aim_angles[0] = math::angle_delta(aim_angles[0], game::cg()->refdefViewAngles[0]);
-			aim_angles[1] = math::angle_delta(aim_angles[1], game::cg()->refdefViewAngles[1]);
-			aim_angles[2] = math::angle_delta(aim_angles[2], game::cg()->refdefViewAngles[2]);
+			aim_angles = math::angle_delta(aim_angles, game::cg()->refdefViewAngles);
 
 			if (!silent)
+			{
 				game::cl()->viewangles += aim_angles;
+			}
 		}
 	}
 }

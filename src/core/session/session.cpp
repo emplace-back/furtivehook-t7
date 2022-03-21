@@ -3,8 +3,6 @@
 
 namespace session
 {
-	bool grab_info_of_sessions = false; 
-	
 	namespace
 	{
 		std::vector<game::MatchMakingInfo> sessions;
@@ -47,23 +45,16 @@ namespace session
 				sessions.clear();
 			}
 			
-			if (ImGui::MenuItem("Freeze all sessions", nullptr, nullptr, !sessions.empty()))
+			if (ImGui::MenuItem("Fetch servers"))
 			{
-				for (const auto& session : sessions)
-				{
-					std::vector<std::uint64_t> recipients{};
-					recipients.emplace_back(session.xuid);
+				const static auto TaskManager2_CreateTask = reinterpret_cast<void*(*)(uintptr_t, const ControllerIndex_t, int, int)>(game::base_address + 0x22AF770);
+				const static auto dwFindSessions = reinterpret_cast<void(*)(void*, game::MatchMakingQuery *const)>(game::base_address + 0x1437DB0);
+				const static auto& task_lobbySearch = reinterpret_cast<void*>(game::base_address + 0x3022208);
+				const static auto& s_lobbySearch = *reinterpret_cast<game::LobbySearch*>(game::base_address + 0x15B9D600);
 
-					utils::for_each_batch<std::uint64_t>(recipients, 18, [](const auto& xuids)
-					{
-						exploit::instant_message::send_info_response_overflow(xuids);
-					});
-				}
-			}
+				const auto task = TaskManager2_CreateTask(game::base_address + 0x3022208, 0, 0, 0);
 
-			if (ImGui::MenuItem("Grab info of joined sessions", nullptr, grab_info_of_sessions))
-			{
-				grab_info_of_sessions = !grab_info_of_sessions;
+				PRINT_LOG("%i %i", s_lobbySearch.numResults);
 			}
 
 			ImGui::Separator();

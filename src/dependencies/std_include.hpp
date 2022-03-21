@@ -43,6 +43,7 @@ using namespace std::literals;
 using json = nlohmann::json;
 
 #include "../thirdparty/steam_api/isteamuser.hpp"
+#include "../thirdparty/steam_api/isteamapps.hpp"
 #include "../thirdparty/steam_api/isteamfriends.hpp"
 #include "../thirdparty/steam_api/isteamgameserver.hpp"
 #include "../thirdparty/steam_api/isteamnetworking.hpp"
