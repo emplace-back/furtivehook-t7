@@ -3,24 +3,6 @@
 
 namespace utils::string
 {
-	std::string get_filtered_text(const std::string& string, const bool strip)
-	{
-		const std::pair<std::string, std::string> filters[] =
-		{
-			{"\^[BH]", ""},
-			{"k *k *k\\b", "BLM"},
-		};
-
-		std::string result{ strip ? utils::string::strip(string) : string };
-
-		for (const auto&[regex, replace] : filters)
-		{
-			result = std::regex_replace(result, std::regex{ regex }, replace);
-		}
-
-		return result;
-	}
-	
 	std::string generate_log_filename(const std::string& dir, const std::string& ext)
 	{
 		const auto filename = utils::string::va("furtivehook-%s.%s", string::data_time().data(), ext.data());
@@ -37,22 +19,6 @@ namespace utils::string
 		std::strftime(timestamp, sizeof(timestamp) - 1, "%F", &ltime);
 
 		return timestamp;
-	}
-	
-	std::string adr_to_string(const game::XNADDR* address)
-	{
-		static auto adr = ""s;
-		adr = utils::string::va("%u.%u.%u.%u", address->ip[0], address->ip[1], address->ip[2], address->ip[3]);
-
-		return adr;
-	}
-
-	std::string adr_to_string(const game::netadr_t* address)
-	{
-		game::XNADDR xn{};
-		game::dwNetadrToCommonAddr(*address, &xn, sizeof xn, nullptr);
-
-		return adr_to_string(&xn);
 	}
 	
 	std::string join(const std::vector<std::string>& args, const std::size_t index)

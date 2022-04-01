@@ -2,7 +2,6 @@
 
 namespace game
 {
-	std::unordered_map<std::string, bool> handlers;
 	LobbySession* session = nullptr;
 	std::array<scr_string_t, static_cast<std::uint32_t>(bone_tag::num_tags)> bone_tags; 
 
@@ -100,12 +99,11 @@ namespace game
 
 	void on_every_frame()
 	{
-		if (!in_game())
+		if (in_game())
 		{
-			return;
+			aimbot::run(&cg()->predictedPlayerState); 
 		}
-		
-		aimbot::run(&cg()->predictedPlayerState);
+
 		esp::visuals();
 	}
 
@@ -123,10 +121,10 @@ namespace game
 	{
 		for (size_t i = 0; i < 18; ++i)
 		{
-			if (const auto client = &session->clients[i]; client && client->activeClient)
+			if (const auto client = session->clients[i].activeClient; client)
 			{
-				const auto session_info = client->activeClient->sessionInfo[session->type];
-				if (NET_CompareAdr(from, session_info.netAdr))
+				const auto netadr = get_session_netadr(client);
+				if (NET_CompareAdr(from, netadr))
 					return i;
 			}
 		}
@@ -219,6 +217,9 @@ namespace game
 
 	bool CG_GetPlayerViewOrigin(const playerState_s* ps, Vec3* view_origin)
 	{
+		if (ps == nullptr)
+			return false;
+		
 		const static auto CG_GetPlayerViewOrigin = reinterpret_cast<bool(*)(LocalClientNum_t, const playerState_s*, Vec3*, uint32_t)>(base_address + 0x11EF4C0); 
 		return spoof_call::call(CG_GetPlayerViewOrigin, 0u, ps, view_origin, 0u);
 	}
@@ -267,9 +268,9 @@ namespace game
 
 	float get_weapon_damage_range(const Weapon& weapon)
 	{
-		const auto weap_def = BG_GetWeaponDef(weapon); 
-		
-		if (weap_def->weapClass == WEAPCLASS_SPREAD || weap_def->weapClass == WEAPCLASS_PISTOL_SPREAD)
+		const auto weapon_def{ BG_GetWeaponDef(weapon) };
+
+		if (weapon_def->weapClass == WEAPCLASS_SPREAD || weapon_def->weapClass == WEAPCLASS_PISTOL_SPREAD)
 		{
 			return BG_GetMinDamageRangeScaled(weapon) * BG_GetMultishotBaseMinDamageRangeScaled(weapon);
 		}
@@ -279,15 +280,22 @@ namespace game
 
 	bool CG_BulletTrace(BulletTraceResults* br, BulletFireParams* bp, const int attacker_entity_num, int lastSurfaceType)
 	{
-		const static auto CG_BulletTrace = reinterpret_cast<bool(*)(LocalClientNum_t, BulletFireParams *, BulletTraceResults*, const Weapon, int, int)>(base_address + 0x1168BA0);
-		return CG_BulletTrace(0, bp, br, {}, attacker_entity_num, lastSurfaceType);
+		return reinterpret_cast<bool(*)(LocalClientNum_t, BulletFireParams *, BulletTraceResults*, const Weapon, int, int)>(base_address + 0x1168BA0)(0, bp, br, {}, attacker_entity_num, lastSurfaceType);
 	}
 
 	bool send_instant_message(const std::vector<std::uint64_t>& recipients, const std::uint8_t type, const void* message, const std::uint32_t message_size)
 	{
+		if (!Live_IsUserSignedInToDemonware(0))
+			return false; 
+		
 		return dwInstantSendMessage(0, recipients.data(), recipients.size(), type, message, message_size);
 	}
 
+	bool send_instant_message(const std::vector<std::uint64_t>& recipients, const std::uint8_t type, const std::string& data)
+	{
+		return send_instant_message(recipients, type, data.data(), data.size());
+	}
+	
 	bool send_instant_message(const std::vector<std::uint64_t>& recipients, const std::uint8_t type, const msg_t& msg)
 	{
 		return send_instant_message(recipients, type, msg.data, msg.cursize);
@@ -305,7 +313,7 @@ namespace game
 		{
 			const auto client = &session->clients[i];
 
-			if (client->xuid == xuid)
+			if (client && client->xuid == xuid)
 				return client;
 		}
 
@@ -318,7 +326,7 @@ namespace game
 		{
 			const auto client = &session->clients[i];
 
-			if (client->xuid == xuid)
+			if (client && client->xuid == xuid)
 				return i;
 		}
 
@@ -375,5 +383,111 @@ namespace game
 		}
 
 		return !msg->overflowed;
+	}
+
+	netadr_t get_session_netadr(const ActiveClient* client)
+	{
+		netadr_t netadr{};
+		
+		if (client)
+		{
+			const auto session_info = &client->sessionInfo[session->type];
+			if (session_info)
+			{
+				netadr = session_info->netAdr;
+			}
+		}
+		
+		return netadr;
+	}
+
+	int I_stricmp(const std::string& a, const std::string& b)
+	{
+		return _strnicmp(a.data(), b.data(), std::numeric_limits<int>::max());
+	}
+
+	char* I_strncpyz(char* place, const std::string& string, const size_t length)
+	{
+		const auto result = std::strncpy(place, string.data(), length);
+		place[length - 1] = 0;
+		return result;
+	}
+	
+	TaskRecord* get_dw_presence(const std::vector<std::uint64_t>& recipients)
+	{
+		if (!Live_IsUserSignedInToDemonware(0))
+			return nullptr;
+
+		if (TaskManager2_TaskGetInProgress(task_livepresence_dw_get))
+			return nullptr;
+
+		s_presenceTaskData->xuids = recipients.data();
+		s_presenceTaskData->count = recipients.size();
+		s_presenceTaskData->info = reinterpret_cast<bdRichPresenceInfo*>(base_address + 0x113C8650 + 0xB80 * 0);
+
+		const auto result = dwPresenceGet(0, s_presenceTaskData);
+		if (result)
+		{
+			return TaskManager2_SetupNestedTask(task_livepresence_dw_get, 0, result, s_presenceTaskData);
+		}
+
+		return result;
+	}
+
+	bool get_dw_sessions()
+	{
+		if (!Live_IsUserSignedInToDemonware(0))
+			return false; 
+
+		s_lobbySearch->numResults = 0;
+		s_lobbySearch->state = SEARCH_STATE_IDLE;
+
+		TaskManager2_ClearTasks(task_lobbySearch);
+
+		s_lobbySearch->numResults = 0;
+		s_lobbySearch->state = SEARCH_STATE_SEARCHING;
+
+		Live_SetupMatchmakingQuery(0);
+		
+		const auto task = TaskManager2_CreateTask(task_lobbySearch, 0, 0, 0);
+
+		if (!task)
+		{
+			PRINT_LOG_DETAILED("!task");
+			
+			return false;
+		}
+
+		s_lobbySearch->throttle = {};
+		s_lobbySearch->results = {};
+		s_lobbySearch->results.throttleData = &s_lobbySearch->throttle;
+
+		auto payload = *reinterpret_cast<uintptr_t**>(&task->payload);
+		*payload = 0;
+		payload[1] = *reinterpret_cast<uintptr_t*>(s_lobbySearch->results.throttleData);
+
+		dwFindSessions(task, &s_lobbySearch->info);
+		return true;
+	}
+
+	std::string get_gametype_on_mapname(const int map_id, const int gametype_id)
+	{
+		const auto entry = Com_GameInfo_GetMapForIndex(map_id);
+		const auto gametype_name = Com_GameInfo_GetGameTypeNameForID(gametype_id);
+
+		if (entry
+			&& gametype_name 
+			&& *gametype_name)
+		{
+			char buffer[0x100] = { 0 };
+			Com_GameInfo_GetGameTypeOnMapName(gametype_name, entry->name, buffer, sizeof buffer);
+
+			if (buffer)
+			{
+				return { buffer, sizeof buffer };
+			}
+		}
+
+		return "";
 	}
 }

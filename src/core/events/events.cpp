@@ -3,6 +3,8 @@
 
 namespace events
 {
+	bool prevent_join = false, update_presence = false;
+	
 	void cg_predict_playerstate()
 	{
 		if(!game::in_game())
@@ -51,7 +53,9 @@ namespace events
 
 		if (nospread::enabled)
 		{
-			const auto spread_angles = nospread::get_spread_angles(&game::cg()->predictedPlayerState, cmd_cur);
+			const auto spread_angles = nospread::get_spread_angles(
+				&game::cg()->predictedPlayerState, 
+				cmd_cur);
 
 			cmd_angles += spread_angles;
 			cmd_angles = math::angle_normalize_360(cmd_angles);
@@ -70,5 +74,6 @@ namespace events
 		connectionless_packet::initialize();
 		instant_message::initialize();
 		lobby_msg::initialize();
+		server_command::initialize();
 	}
 }

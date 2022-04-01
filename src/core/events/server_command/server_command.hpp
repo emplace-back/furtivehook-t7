@@ -1,9 +1,9 @@
 #pragma once
 #include "dependencies/std_include.hpp"
 
-namespace events::connectionless_packet
+namespace events::server_command
 {
-	bool __fastcall handle_command(const game::netadr_t & from);
+	bool __fastcall handle_command();
 	void initialize();
 
 	extern bool log_commands;

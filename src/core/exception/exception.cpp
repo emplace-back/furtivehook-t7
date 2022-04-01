@@ -5,77 +5,27 @@ namespace exception
 {
 	namespace
 	{
-		using callback = std::function<void(CONTEXT&)>; 
-		std::unordered_map<std::uintptr_t, callback>& get_callbacks()
-		{
-			static std::unordered_map<std::uintptr_t, callback> callbacks{};
-			return callbacks;
-		}
-
-		bool handle_exception(const LPEXCEPTION_POINTERS ex)
-		{
-			const auto& callbacks = get_callbacks();
-			const auto handler = callbacks.find(ex->ContextRecord->Rip);
-
-			if (handler == callbacks.end())
-			{
-				return false;
-			}
-
-			handler->second(*ex->ContextRecord);
-			return true;
-		}
-
-		void register_hook(const std::uintptr_t address, const callback& callback)
-		{
-			get_callbacks()[address] = callback;
-		}
-		
-		thread_local struct
-		{
-			DWORD code = 0;
-			PVOID address = nullptr;
-		} exception_data;
-
-		void reset_state()
-		{
-			auto error{ "Termination due to a stack overflow."s };
-			if (exception_data.code != EXCEPTION_STACK_OVERFLOW)
-			{
-				error = utils::string::va("Exception: 0x%08X at offset 0x%llX", exception_data.code, uintptr_t(exception_data.address) - game::base_address);
-			}
-
-			PRINT_LOG("%s", error.data());
-			game::Com_Error(nullptr, 0, game::ERROR_DROP, error.data());
-		}
-
-		size_t get_reset_state_stub()
-		{
-			const auto stub = utils::hook::assemble([](auto& a)
-			{
-				a.sub(rsp, 0x10);
-				a.or_(rsp, 0x8);
-				a.jmp(reset_state);
-			});
-
-			return reinterpret_cast<size_t>(stub);
-		}
-
 		LONG __stdcall exception_filter(const LPEXCEPTION_POINTERS ex)
 		{
-			if (const auto code{ ex->ExceptionRecord->ExceptionCode };
-				code != STATUS_INTEGER_OVERFLOW
+			const auto code{ ex->ExceptionRecord->ExceptionCode }; 
+			const auto address{ ex->ExceptionRecord->ExceptionAddress };
+			
+			if (code != STATUS_INTEGER_OVERFLOW
 				&& code != STATUS_FLOAT_OVERFLOW
-				&& !handle_exception(ex)
 				&& !dvars::handle_exception(ex)
 				&& !hwbp::handle_exception(ex)
 				&& !pageguard::handle_exception(ex))
 			{
 				utils::exception::minidump::write(ex);
 
-				exception_data.code = ex->ExceptionRecord->ExceptionCode;
-				exception_data.address = ex->ExceptionRecord->ExceptionAddress;
-				ex->ContextRecord->Rip = get_reset_state_stub();
+				auto error{ "Termination due to a stack overflow."s };
+				if (code != EXCEPTION_STACK_OVERFLOW)
+				{
+					error = utils::string::va("Exception: 0x%08X at offset 0x%llX", code, reinterpret_cast<uintptr_t>(address) - game::base_address);
+				}
+
+				PRINT_LOG("%s", error.data());
+				game::Com_Error(nullptr, 0, game::ERROR_DROP, error.data());
 			}
 
 			return EXCEPTION_CONTINUE_EXECUTION;

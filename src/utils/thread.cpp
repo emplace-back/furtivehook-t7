@@ -21,16 +21,10 @@ namespace utils::thread
 		{
 			do
 			{
-				const auto check_size = entry.dwSize < FIELD_OFFSET(THREADENTRY32, th32OwnerProcessID)
-					+ sizeof(entry.th32OwnerProcessID);
-				entry.dwSize = sizeof(entry);
+				if (entry.th32OwnerProcessID != GetCurrentProcessId() || entry.th32ThreadID == GetCurrentThreadId())
+					continue;
 
-				if (entry.th32ThreadID != GetCurrentThreadId()
-					&& entry.th32OwnerProcessID == GetCurrentProcessId()
-					&& !check_size)
-				{
-					ids.emplace_back(entry.th32ThreadID);
-				}
+				ids.emplace_back(entry.th32ThreadID);
 			} 
 			while (Thread32Next(handle, &entry));
 		}

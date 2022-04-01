@@ -6,6 +6,7 @@ namespace exception::hwbp
 	namespace
 	{
 		using callback = std::function<void(CONTEXT&)>; 
+		
 		std::unordered_map<std::uintptr_t, callback>& get_callbacks()
 		{
 			static std::unordered_map<std::uintptr_t, callback> callbacks{};
@@ -49,13 +50,8 @@ namespace exception::hwbp
 
 			get_callbacks()[address] = callback;
 		}
-
-		void register_hook(const std::uintptr_t address, const std::function<size_t()>& callback)
-		{
-			hwbp::register_hook(address, [=](auto& ctx) { ctx.Rip = callback(); });
-		}
 	}
-
+	
 	bool handle_exception(const LPEXCEPTION_POINTERS ex)
 	{
 		const auto& callbacks = get_callbacks();
@@ -69,7 +65,7 @@ namespace exception::hwbp
 		handler->second(*ex->ContextRecord);
 		return true;
 	}
-
+	
 	void initialize()
 	{
 		hwbp::register_hook(game::base_address + 0x1EF5610, [](auto& ctx)
@@ -82,6 +78,30 @@ namespace exception::hwbp
 			ctx.Rip = reinterpret_cast<size_t>(events::instant_message::dispatch_message);
 		});
 
-		hwbp::register_hook(game::base_address + 0x134BDAD, events::connectionless_packet::cl_dispatch_connectionless_packet_stub);
+		hwbp::register_hook(game::base_address + 0x134BDAD, [](auto& ctx)
+		{
+			if (events::connectionless_packet::handle_command(*reinterpret_cast<game::netadr_t*>(ctx.R15)))
+			{
+				ctx.Rip = game::base_address + 0x134C43F;
+			}
+			else
+			{
+				ctx.Rdx = ctx.R12;
+				ctx.Rip += 0x3;
+			}
+		});
+
+		hwbp::register_hook(game::base_address + 0x131ED33, [](auto& ctx)
+		{
+			if (events::server_command::handle_command())
+			{
+				ctx.Rip = game::base_address + 0x131EEDB;
+			}
+			else
+			{
+				ctx.Rbx = *reinterpret_cast<uint64_t*>(ctx.Rax);
+				ctx.Rip += 0x3;
+			}
+		});
 	}
 }

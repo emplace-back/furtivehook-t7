@@ -129,7 +129,6 @@ namespace autowall
 			rev_bp.origStart = bp.origStart;
 			rev_bp.dir = -bp.dir;
 			rev_bp.start = bp.end;
-			//rev_bp.end = last_hit_pos + rev_bp.dir * 0.01f;
 			rev_bp.end = rev_bp.dir * 0.01f + last_hit_pos;
 
 			auto rev_br = br;

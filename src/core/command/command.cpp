@@ -34,28 +34,31 @@ namespace command
 		}
 	}
 
-	const char* args::get(const size_t index) const noexcept
+	const char* args::get(const int index) const noexcept
 	{
-		if (index >= this->size())
+		if (index < 0 || index >= this->size())
 		{
 			return "";
 		}
 
-		const auto args = game::Sys_GetTLS()->cmdArgs;
-		return args->argv[args->nesting][index];
+		return cmd_args->argv[cmd_args->nesting][index];
 	}
 
 	int args::size() const noexcept
 	{
-		const auto args = game::Sys_GetTLS()->cmdArgs;
-		return args->argc[args->nesting];
+		return cmd_args->argc[cmd_args->nesting];
 	}
 
-	std::string args::join(const size_t index) const noexcept
+	std::string args::join(const int index) const noexcept
 	{
-		auto result = ""s;
+		if (index < 0)
+		{
+			return "";
+		}
+		
+		std::string result{};
 
-		for (size_t i = index; i < this->size(); ++i)
+		for (auto i = index; i < this->size(); ++i)
 		{
 			if (i > index) result.append(" ");
 			result.append(this->get(i));
@@ -80,7 +83,7 @@ namespace command
 
 	void initialize()
 	{
-		add("list_asset", [](const auto& args)
+		command::add("list_asset", [](const auto& args)
 		{
 			if (args.size() > 0)
 			{

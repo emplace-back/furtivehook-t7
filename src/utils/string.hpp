@@ -1,5 +1,6 @@
 #pragma once
 #include "dependencies/std_include.hpp"
+#include "../dependencies/game/game.hpp"
 
 namespace utils::string
 {
@@ -72,11 +73,8 @@ namespace utils::string
 		entry string_pool_[Buffers];
 	};
 
-	std::string adr_to_string(const game::netadr_t* address);
-	std::string get_filtered_text(const std::string & string, const bool strip = false);
 	std::string generate_log_filename(const std::string & dir, const std::string& ext = "log");
 	std::string data_time();
-	std::string adr_to_string(const game::XNADDR * address);
 	std::string join(const std::vector<std::string>& args, const std::size_t index = 1);
 	std::string dump_hex(const std::string & data, const std::string & separator = " ");
 	std::string format(const va_list ap, const char * message);

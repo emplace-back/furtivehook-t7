@@ -3,7 +3,7 @@
 
 namespace events::instant_message
 {
-	bool log_messages = true, prevent_join = false;
+	bool log_messages = true;
 
 	namespace
 	{
@@ -58,7 +58,7 @@ namespace events::instant_message
 		game::MSG_InitReadOnly(&msg, message, message_size);
 		game::MSG_BeginReading(&msg);
 
-		auto type = 0ui8;
+		auto type{ 0ui8 };
 
 		if (game::MSG_ReadByte(&msg) == '1')
 		{
@@ -75,7 +75,7 @@ namespace events::instant_message
 
 	bool send_info_request(const std::vector<std::uint64_t>& recipients)
 	{
-		if (game::Live_IsDemonwareFetchingDone(0))
+		if (game::Live_IsUserSignedInToDemonware(0))
 		{
 			char buffer[0x400] = { 0 };
 			game::msg_t msg{};
@@ -144,13 +144,13 @@ namespace events::instant_message
 				if (!game::LobbyMsgRW_PackageUInt(&msg, "nonce", &nonce))
 					return false;
 
-				if (!game::s_infoProbe.active
-					&& game::s_infoProbe.nonce != nonce
+				if (!game::s_infoProbe->active
+					&& game::s_infoProbe->nonce != nonce
 					&& nonce != friends::NONCE)
 				{
 					PRINT_MESSAGE("Instant Message", "Received a info request from %s", get_sender_string(sender_id).data());
 
-					if (instant_message::prevent_join)
+					if (events::prevent_join)
 						return false;
 				}
 
@@ -159,23 +159,39 @@ namespace events::instant_message
 			else if (msg.type == game::MESSAGE_TYPE_INFO_RESPONSE)
 			{
 				auto msg_backup{ msg };
-				game::Msg_InfoResponse response{};
+				game::Msg_InfoResponse info_response{};
 
-				if (!game::MSG_InfoResponse(&response, &msg))
+				if (!game::MSG_InfoResponse(&info_response, &msg))
 					return false;
 				
-				if (response.nonce == friends::NONCE)
+				if (info_response.nonce != friends::NONCE)
 				{
-					friends::add_friend_response(response, sender_id);
-					return false;
+					return game::LobbyJoinSource_IMInfoResponse(0, sender_id, &msg_backup);
 				}
 
-				if (game::s_infoProbe.active && game::s_infoProbe.nonce != response.nonce)
-				{
-					PRINT_MESSAGE("Instant Message", "Received info response from %s", get_sender_string(sender_id).data());
-				}
-				
-				return game::LobbyJoinSource_IMInfoResponse(0, sender_id, &msg_backup);
+				friends::for_each_friend(sender_id, false,
+					[=](const auto& time, auto& friends)
+					{	
+						if (friends.steam_id == sender_id || friends.steam_id == info_response.lobby[0].hostXuid)
+						{
+							auto& response = friends.response;
+
+							if (!response.valid)
+							{
+								friends.last_online = std::chrono::system_clock::to_time_t(time);
+								friends::write_to_friends();
+
+								PRINT_MESSAGE("Friends", "%s is online.", friends.name.data());
+							}
+							
+							response.valid = true;
+							response.last_online = time;
+							response.info_response = info_response;
+						}
+					}
+				);
+
+				return false;
 			}
 
 			return true;

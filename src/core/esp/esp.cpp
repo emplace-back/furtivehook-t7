@@ -232,10 +232,9 @@ namespace esp
 				draw_line(draw_list, pos[static_cast<size_t>(game::bone_tag::spinelower)], pos[static_cast<size_t>(game::bone_tag::knee_left)], color);
 				draw_line(draw_list, pos[static_cast<size_t>(game::bone_tag::spinelower)], pos[static_cast<size_t>(game::bone_tag::knee_right)], color);
 				draw_line(draw_list, pos[static_cast<size_t>(game::bone_tag::knee_left)], pos[static_cast<size_t>(game::bone_tag::ankle_left)], color);
-				return draw_line(draw_list, pos[static_cast<size_t>(game::bone_tag::knee_right)], pos[static_cast<size_t>(game::bone_tag::ankle_right)], color);
+				draw_line(draw_list, pos[static_cast<size_t>(game::bone_tag::knee_right)], pos[static_cast<size_t>(game::bone_tag::ankle_right)], color);
 			}
-
-			if (aimbot_positions)
+			else if (aimbot_positions)
 			{
 				for (const auto& bone_tag : bone_tags)
 				{

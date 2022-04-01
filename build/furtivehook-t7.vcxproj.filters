@@ -25,6 +25,9 @@
     <Filter Include="core\events\lobby_msg">
       <UniqueIdentifier>{7F359D40-EBA1-583B-B495-F09820C17AA3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="core\events\server_command">
+      <UniqueIdentifier>{F670ABA7-E280-5778-4B3A-BC9637694611}</UniqueIdentifier>
+    </Filter>
     <Filter Include="core\exception">
       <UniqueIdentifier>{AC25D4F4-98F3-C7FA-8187-38216DF4A35F}</UniqueIdentifier>
     </Filter>
@@ -94,15 +97,6 @@
     <Filter Include="utils">
       <UniqueIdentifier>{169C8510-82B0-ADC1-4B32-5121B705AAF2}</UniqueIdentifier>
     </Filter>
-    <Filter Include="utils\asmjit">
-      <UniqueIdentifier>{ED8BDA20-D9EE-69C5-8274-A27B6EB63548}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="utils\asmjit\core">
-      <UniqueIdentifier>{85B88A22-F1CE-88B8-3A46-14DAA69B5940}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="utils\asmjit\x86">
-      <UniqueIdentifier>{228604E2-0E7F-2334-37B1-08B923090340}</UniqueIdentifier>
-    </Filter>
     <Filter Include="utils\exception">
       <UniqueIdentifier>{74DB9F59-E066-0D1E-E977-90125582691E}</UniqueIdentifier>
     </Filter>
@@ -140,6 +134,9 @@
     </ClInclude>
     <ClInclude Include="..\src\core\events\lobby_msg\lobby_msg.hpp">
       <Filter>core\events\lobby_msg</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\core\events\server_command\server_command.hpp">
+      <Filter>core\events\server_command</Filter>
     </ClInclude>
     <ClInclude Include="..\src\core\exception\dvars\dvars.hpp">
       <Filter>core\exception\dvars</Filter>
@@ -216,219 +213,6 @@
     <ClInclude Include="..\src\steam\steam.hpp">
       <Filter>steam</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\asmjit-scope-begin.h">
-      <Filter>utils\asmjit</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\asmjit-scope-end.h">
-      <Filter>utils\asmjit</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\asmjit.h">
-      <Filter>utils\asmjit</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core.h">
-      <Filter>utils\asmjit</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\api-build_p.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\api-config.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\archcommons.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\archtraits.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\assembler.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\builder.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\codebuffer.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\codeholder.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\codewriter_p.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\compiler.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\compilerdefs.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\constpool.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\cpuinfo.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\datatypes.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\emithelper_p.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\emitter.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\emitterutils_p.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\environment.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\errorhandler.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\features.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\formatter.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\func.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\funcargscontext_p.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\globals.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\inst.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\jitallocator.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\jitruntime.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\logger.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\misc_p.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\operand.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\osutils.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\osutils_p.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\raassignment_p.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\rabuilders_p.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\radefs_p.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\ralocal_p.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\rapass_p.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\rastack_p.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\string.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\support.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\target.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\type.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\virtmem.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\zone.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\zonehash.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\zonelist.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\zonestack.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\zonestring.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\zonetree.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\core\zonevector.h">
-      <Filter>utils\asmjit\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\x86.h">
-      <Filter>utils\asmjit</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\x86\x86archtraits_p.h">
-      <Filter>utils\asmjit\x86</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\x86\x86assembler.h">
-      <Filter>utils\asmjit\x86</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\x86\x86builder.h">
-      <Filter>utils\asmjit\x86</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\x86\x86compiler.h">
-      <Filter>utils\asmjit\x86</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\x86\x86emithelper_p.h">
-      <Filter>utils\asmjit\x86</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\x86\x86emitter.h">
-      <Filter>utils\asmjit\x86</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\x86\x86features.h">
-      <Filter>utils\asmjit\x86</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\x86\x86formatter_p.h">
-      <Filter>utils\asmjit\x86</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\x86\x86func_p.h">
-      <Filter>utils\asmjit\x86</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\x86\x86globals.h">
-      <Filter>utils\asmjit\x86</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\x86\x86instapi_p.h">
-      <Filter>utils\asmjit\x86</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\x86\x86instdb.h">
-      <Filter>utils\asmjit\x86</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\x86\x86instdb_p.h">
-      <Filter>utils\asmjit\x86</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\x86\x86opcode_p.h">
-      <Filter>utils\asmjit\x86</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\x86\x86operand.h">
-      <Filter>utils\asmjit\x86</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\asmjit\x86\x86rapass_p.h">
-      <Filter>utils\asmjit\x86</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\utils\concurrency.hpp">
       <Filter>utils</Filter>
     </ClInclude>
@@ -490,6 +274,9 @@
     </ClCompile>
     <ClCompile Include="..\src\core\events\lobby_msg\lobby_msg.cpp">
       <Filter>core\events\lobby_msg</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\core\events\server_command\server_command.cpp">
+      <Filter>core\events\server_command</Filter>
     </ClCompile>
     <ClCompile Include="..\src\core\exception\dvars\dvars.cpp">
       <Filter>core\exception\dvars</Filter>
@@ -556,150 +343,6 @@
     </ClCompile>
     <ClCompile Include="..\src\steam\steam.cpp">
       <Filter>steam</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\archtraits.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\assembler.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\builder.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\codeholder.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\codewriter.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\compiler.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\constpool.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\cpuinfo.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\emithelper.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\emitter.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\emitterutils.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\environment.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\errorhandler.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\formatter.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\func.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\funcargscontext.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\globals.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\inst.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\jitallocator.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\jitruntime.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\logger.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\operand.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\osutils.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\ralocal.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\rapass.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\rastack.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\string.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\support.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\target.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\type.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\virtmem.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\zone.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\zonehash.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\zonelist.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\zonestack.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\zonetree.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\core\zonevector.cpp">
-      <Filter>utils\asmjit\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\x86\x86assembler.cpp">
-      <Filter>utils\asmjit\x86</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\x86\x86builder.cpp">
-      <Filter>utils\asmjit\x86</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\x86\x86compiler.cpp">
-      <Filter>utils\asmjit\x86</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\x86\x86emithelper.cpp">
-      <Filter>utils\asmjit\x86</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\x86\x86features.cpp">
-      <Filter>utils\asmjit\x86</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\x86\x86formatter.cpp">
-      <Filter>utils\asmjit\x86</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\x86\x86func.cpp">
-      <Filter>utils\asmjit\x86</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\x86\x86instapi.cpp">
-      <Filter>utils\asmjit\x86</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\x86\x86instdb.cpp">
-      <Filter>utils\asmjit\x86</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\x86\x86operand.cpp">
-      <Filter>utils\asmjit\x86</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\asmjit\x86\x86rapass.cpp">
-      <Filter>utils\asmjit\x86</Filter>
     </ClCompile>
     <ClCompile Include="..\src\utils\exception\minidump.cpp">
       <Filter>utils\exception</Filter>

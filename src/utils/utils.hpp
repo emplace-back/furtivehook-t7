@@ -29,7 +29,7 @@ namespace utils
 
 	static auto atoi(const std::string& str)
 	{
-		return atoi<std::uint32_t>(str);
+		return atoi<int>(str);
 	}
 
 	static auto atoll(const std::string& str)
@@ -63,5 +63,5 @@ namespace utils
 		}
 	}
 	
-	uintptr_t get_stack_pointer(const CONTEXT & ctx, const int offset);
+	std::string get_sender_string(const game::netadr_t & from);
 }

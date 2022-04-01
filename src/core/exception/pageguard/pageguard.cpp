@@ -5,6 +5,7 @@ namespace exception::pageguard
 {
 	namespace
 	{
+		using callback = std::function<void()>; 
 		std::unordered_map<std::uintptr_t, callback>& get_callbacks()
 		{
 			static std::unordered_map<std::uintptr_t, callback> callbacks{};

@@ -26,11 +26,13 @@ namespace events::lobby_msg
 			if (!game::LobbyMsgRW_PackageUChar(&msg, "numpackets", &data.numPacketsInData))
 				return true;
 
+			if (data.talkerIndex >= 18)
+				return true;
+
 			if (!game::is_valid_lobby_type(data.lobbyType) 
-				|| data.talkerIndex >= 18
 				|| data.sizeofVoiceData >= 1198)
 			{
-				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::string::adr_to_string(&from).data());
+				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::get_sender_string(from).data());
 				return true;
 			}
 
@@ -46,7 +48,7 @@ namespace events::lobby_msg
 
 			if (!game::is_valid_lobby_type(request.sourceLobbyType))
 			{
-				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::string::adr_to_string(&from).data());
+				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::get_sender_string(from).data());
 				return true;
 			}
 
@@ -55,7 +57,7 @@ namespace events::lobby_msg
 		
 		bool handle_host_disconnect_client(const game::netadr_t& from, game::msg_t& msg, game::LobbyModule module)
 		{
-			PRINT_MESSAGE("LobbyMSG", "Disconnect prevented from %s", utils::string::adr_to_string(&from).data());
+			PRINT_MESSAGE("LobbyMSG", "Disconnect prevented from %s", utils::get_sender_string(from).data());
 			return true;
 		}
 
@@ -71,7 +73,7 @@ namespace events::lobby_msg
 
 			if (!game::is_valid_lobby_type(data.lobbyType))
 			{
-				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::string::adr_to_string(&from).data());
+				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::get_sender_string(from).data());
 				return true;
 			}
 
@@ -87,7 +89,7 @@ namespace events::lobby_msg
 
 			if (static_cast<uint32_t>(data.statsSize) >= 65536)
 			{
-				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::string::adr_to_string(&from).data());
+				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::get_sender_string(from).data());
 				return true;
 			}
 
@@ -106,7 +108,7 @@ namespace events::lobby_msg
 
 			if (!game::is_valid_lobby_type(data.lobbyType))
 			{
-				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::string::adr_to_string(&from).data());
+				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::get_sender_string(from).data());
 				return true;
 			}
 
@@ -125,7 +127,7 @@ namespace events::lobby_msg
 
 			if (!game::is_valid_lobby_type(data.lobbyType))
 			{
-				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::string::adr_to_string(&from).data());
+				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::get_sender_string(from).data());
 				return true;
 			}
 
@@ -134,14 +136,68 @@ namespace events::lobby_msg
 
 		bool handle_join_request(const game::netadr_t& from, game::msg_t& msg, game::LobbyModule module)
 		{
-			game::Msg_JoinParty data{}; 
+			game::Msg_JoinParty data{};
 
 			if (!game::LobbyMsgRW_PackageInt(&msg, "targetlobby", &data.targetLobby))
 				return true;
 
-			if (!game::is_valid_lobby_type(data.targetLobby))
+			if (!game::LobbyMsgRW_PackageInt(&msg, "sourcelobby", &data.sourceLobby))
+				return true;
+
+			if (!game::LobbyMsgRW_PackageInt(&msg, "jointype", &data.joinType))
+				return true;
+
+			if (!game::LobbyMsgRW_PackageXuid(&msg, "probedxuid", &data.probedXuid))
+				return true;
+
+			if (!game::LobbyMsgRW_PackageInt(&msg, "playlistid", &data.playlistID))
+				return true;
+
+			if (!game::LobbyMsgRW_PackageInt(&msg, "playlistver", &data.playlistVersion))
+				return true;
+
+			if (!game::LobbyMsgRW_PackageInt(&msg, "ffotdver", &data.ffotdVersion))
+				return true;
+
+			if (!game::LobbyMsgRW_PackageShort(&msg, "networkmode", &data.networkMode))
+				return true;
+
+			if (!game::LobbyMsgRW_PackageUInt(&msg, "netchecksum", &data.netFieldChecksum))
+				return true;
+
+			if (!game::LobbyMsgRW_PackageInt(&msg, "protocol", &data.protocolVersion))
+				return true;
+
+			if (!game::LobbyMsgRW_PackageInt(&msg, "changelist", &data.changelist))
+				return true;
+
+			if (!game::LobbyMsgRW_PackageInt(&msg, "pingband", &data.pingBand))
+				return true;
+
+			if (!game::LobbyMsgRW_PackageUInt(&msg, "dlcbits", &data.dlcBits))
+				return true;
+
+			if (!game::LobbyMsgRW_PackageUInt64(&msg, "joinnonce", &data.joinNonce))
+				return true;
+
+			for (size_t i = 0; i < std::size(data.chunkStatus); ++i)
 			{
-				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::string::adr_to_string(&from).data());
+				if (!game::LobbyMsgRW_PackageBool(&msg, "chunk", &data.chunkStatus[i]))
+					return true;
+			}
+
+			if (!game::LobbyMsgRW_PackageBool(&msg, "isStarterPack", &data.isStarterPack))
+				return true;
+
+			if (!game::LobbyMsgRW_PackageString(&msg, "password", data.password, sizeof data.password))
+				return true;
+
+			if (!game::LobbyMsgRW_PackageInt(&msg, "membercount", &data.memberCount))
+				return true;
+
+			if (!game::is_valid_lobby_type(data.targetLobby) || data.memberCount >= 18)
+			{
+				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::get_sender_string(from).data());
 				return true;
 			}
 			
@@ -163,7 +219,7 @@ namespace events::lobby_msg
 
 			if (!game::is_valid_lobby_type(data.targetLobby))
 			{
-				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::string::adr_to_string(&from).data());
+				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::get_sender_string(from).data());
 				return true;
 			}
 
@@ -179,7 +235,7 @@ namespace events::lobby_msg
 
 			if (!game::is_valid_lobby_type(lobby_type_target))
 			{
-				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::string::adr_to_string(&from).data());
+				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::get_sender_string(from).data());
 				return true;
 			}
 
@@ -199,24 +255,11 @@ namespace events::lobby_msg
 		{
 			get_callbacks()[{ module, type }] = callback;
 		}
-
-		bool handle_packet(const game::netadr_t& from, game::msg_t& msg, game::LobbyModule module)
-		{
-			const auto& callbacks = get_callbacks();
-			const auto handler = callbacks.find({ module, msg.type });
-
-			if (handler == callbacks.end())
-			{
-				return false;
-			}
-
-			return handler->second(from, msg, module);
-		}
 	}
 
-	bool __fastcall callback_handle_packet(const game::netadr_t& from, game::msg_t& msg, game::LobbyModule module)
+	bool __fastcall handle_packet(const game::netadr_t& from, game::msg_t& msg, game::LobbyModule module)
 	{
-		const auto ip_str{ utils::string::adr_to_string(&from) };
+		const auto ip_str{ utils::get_sender_string(from) };
 		const auto type_name{ game::LobbyTypes_GetMsgTypeName(msg.type) };
 
 		if (log_messages)
@@ -224,14 +267,21 @@ namespace events::lobby_msg
 			PRINT_LOG("Received lobby message [%i] <%s> from %s", module, type_name, ip_str.data());
 		}
 
-		const auto handled = handle_packet(from, msg, module);
+		const auto& callbacks = get_callbacks();
+		const auto handler = callbacks.find({ module, msg.type });
 
-		if (handled)
+		if (handler == callbacks.end())
 		{
-			PRINT_LOG("Ignoring lobby message [%i] <%s> from %s", module, type_name, ip_str.data());
+			return false;
 		}
 
-		return handled;
+		const auto msg_backup = msg;
+		const auto callback = handler->second(from, msg, module);
+
+		if (msg.readcount != msg_backup.readcount)
+			msg = msg_backup;
+
+		return callback;
 	}
 
 	std::string build_lobby_msg(const game::LobbyModule module)
@@ -243,19 +293,17 @@ namespace events::lobby_msg
 		data.push_back(-1);
 		return data;
 	}
-
-	bool send_to_host_unreliably(const game::msg_t& msg, const game::LobbyModule module)
-	{
-		auto data{ lobby_msg::build_lobby_msg(module) };
-		data.append(reinterpret_cast<const char*>(msg.data), msg.cursize);
-		return game::send_netchan_message(game::session->host.info.netAdr, game::session->host.info.xuid, data);
-	}
 	
-	bool send_to_client_unreliably(const game::netadr_t& netadr, const std::uint64_t xuid, const game::msg_t& msg, const game::LobbyModule module)
+	bool send_to_client(const game::netadr_t& netadr, const std::uint64_t xuid, const game::msg_t& msg, const game::LobbyModule module)
 	{
 		auto data{ lobby_msg::build_lobby_msg(module) };
 		data.append(reinterpret_cast<const char*>(msg.data), msg.cursize);
 		return game::send_netchan_message(netadr, xuid, data);
+	}
+
+	bool send_to_host(const game::msg_t& msg, const game::LobbyModule module)
+	{
+		return lobby_msg::send_to_client(game::session->host.info.netAdr, game::session->host.info.xuid, msg, module);
 	}
 
 	void initialize()

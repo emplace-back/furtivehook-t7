@@ -33,8 +33,6 @@
 #include <sstream>
 #include <TlHelp32.h>
 #include <utils/json/nlohmann/json.hpp>
-#include <utils/asmjit/core/jitruntime.h>
-#include <utils/asmjit/x86/x86assembler.h>
 #pragma comment(lib, "dbghelp.lib")
 #pragma comment(lib, "shlwapi.lib")
 
@@ -93,6 +91,7 @@ using json = nlohmann::json;
 #include "core/exception/dvars/dvars.hpp"
 #include "core/exception/exception.hpp"
 #include "core/logger/logger.hpp"
+#include "core/events/server_command/server_command.hpp"
 #include "core/events/connectionless_packet/connectionless_packet.hpp"
 #include "core/events/lobby_msg/lobby_msg.hpp"
 

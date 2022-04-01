@@ -7,5 +7,5 @@ namespace events::instant_message
 	bool send_info_request(const std::vector<std::uint64_t>& recipients);
 	void initialize();
 	
-	extern bool log_messages, prevent_join;
+	extern bool log_messages;
 }

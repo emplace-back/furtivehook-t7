@@ -19,6 +19,7 @@ namespace steam
 		if (steam_name != nullptr
 			&& *steam_name
 			&& steam_name != "[unknown]"s
+			&& steam_name != "[anonymous]"s
 			&& steam_name != name)
 		{
 			return steam_name;
@@ -27,12 +28,12 @@ namespace steam
 		return "";
 	}
 	
-	void __fastcall live_steam_filter_persona_name(char *, int, bool)
+	void __fastcall live_steam_filter_persona_name(char *, int size, bool)
 	{
 		live_steam_filter_persona_name_hook.clear();
 	}
 
-	void __fastcall utf8safe_strncpyz(const char *src, char *dest, int destsize)
+	void __fastcall utf8safe_strncpyz(const char *src, char *dest, int size)
 	{
 		utf8safe_strncpyz_hook.invoke<void>(src, dest, 128);
 		utf8safe_strncpyz_hook.clear();

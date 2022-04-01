@@ -15,16 +15,17 @@ namespace aimbot
 	std::vector<std::future<float>> penetration_damage;
 	std::vector<game::bone_tag> aim_bones
 	{
+		game::bone_tag::head_end,
 		game::bone_tag::head,
-		game::bone_tag::neck,
+		game::bone_tag::helmet,
 		game::bone_tag::shoulder_left,
 		game::bone_tag::shoulder_right,
-		game::bone_tag::spineupper,
 		game::bone_tag::spine,
-		game::bone_tag::spinelower,
-		game::bone_tag::knee_left,
-		game::bone_tag::knee_right,
 		game::bone_tag::mainroot,
+		game::bone_tag::ankle_left,
+		game::bone_tag::ankle_right,
+		game::bone_tag::ball_left,
+		game::bone_tag::ball_right,
 	};
 
 	bool get_best_bone(const game::centity_t* cent, const Vec3& start, const std::vector<Vec3> points, Vec3* pos, float* damage)
@@ -56,7 +57,7 @@ namespace aimbot
 	
 	Vec3 get_best_target_position(const aim_target_t* aim_target)
 	{
-		const auto priority_target = std::find_if(aim_targets.begin(), aim_targets.end(), [&](const auto& target) { return target.priority; });
+		const auto priority_target = std::find_if(aim_targets.begin(), aim_targets.end(), [&](const aim_target_t& target) { return target.priority; });
 
 		if (priority_target != aim_targets.end())
 		{

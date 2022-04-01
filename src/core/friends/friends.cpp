@@ -19,51 +19,6 @@ namespace friends
 			return timestamp;
 		}
 
-		void refresh_friend_online_status()
-		{
-			std::vector<std::uint64_t> recipients{};
-
-			for (const auto& friends : friends::friends)
-			{
-				recipients.emplace_back(friends.steam_id);
-			}
-
-			utils::for_each_batch<std::uint64_t>(recipients, 18, [](const auto& ids)
-			{
-				events::instant_message::send_info_request(ids);
-			});
-		}
-
-		void add_friend_response(const game::Msg_InfoResponse& info_response, friends::friend_info& friends)
-		{
-			response_t response{};
-			response.valid = true;
-			response.info_response = info_response;
-			response.last_online = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-
-			if (!friends.response.valid)
-			{
-				friends.last_online = response.last_online;
-				friends::write_to_friends();
-
-				PRINT_MESSAGE("Friends", "%s is online.", friends.name.data());
-			}
-
-			friends.response = response;
-		}
-
-		void remove_friend(const std::uint64_t steam_id)
-		{
-			const auto entry = std::find_if(friends.begin(), friends.end(), [&steam_id](const auto& friends) { return friends.steam_id == steam_id; });
-
-			if (entry != friends.end())
-			{
-				friends.erase(entry);
-			}
-
-			write_to_friends();
-		}
-
 		std::string get_friends_file()
 		{
 			const utils::nt::library self{};
@@ -87,44 +42,135 @@ namespace friends
 			
 			return result;
 		}
+		
+		bool update_friend_presence(const std::vector<std::uint64_t>& recipients)
+		{
+			const auto result = game::get_dw_presence(recipients);
 
+			if (!result)
+			{
+				return false;
+			}
+
+			const auto task_data{ game::s_presenceTaskData };
+
+			for (size_t i = 0; i < task_data->count; ++i)
+			{
+				const auto info = task_data->info[i];
+
+				friends::for_each_friend(task_data->xuids[i], true, 
+					[=](const auto& time, auto& friends)
+					{
+						auto& response = friends.response;
+
+						if (response.presence_data.version && !info.online)
+						{
+							friends.last_online = std::chrono::system_clock::to_time_t(response.last_online);
+							friends::write_to_friends();
+
+							response = {};
+
+							PRINT_MESSAGE("Presence", "%s is offline.", friends.name.data());
+						}
+
+						if (!response.valid && info.online)
+						{
+							friends.last_online = std::chrono::system_clock::to_time_t(time);
+							friends::write_to_friends();
+
+							PRINT_MESSAGE("Presence", "%s is online.", friends.name.data());
+						}
+
+						game::PresenceData presence_data{};
+						const auto count = game::LivePresence_Serialize(true, &presence_data, info.richPresence, std::min(info.count, 128u));
+
+						if (count > 0)
+						{
+							response.valid = true; 
+							response.presence_data = presence_data;
+						}
+					}
+				);
+			}
+
+			return true;
+		}
+
+		void refresh_friend_online_status()
+		{
+			std::vector<std::uint64_t> recipients{};
+
+			friends::for_each_friend(0, false,
+				[&recipients](const auto& time, auto& friends)
+				{
+					auto& response = friends.response;
+
+					if (response.info_response.nonce && time - response.last_online > 15s)
+					{
+						response.info_response = {};
+					}
+
+					recipients.emplace_back(friends.steam_id);
+				}
+			);
+
+			utils::for_each_batch<std::uint64_t>(recipients, 18, [](const auto& ids)
+			{
+				events::instant_message::send_info_request(ids);
+			});
+
+			friends::update_friend_presence(recipients);
+		}
+		
 		void refresh_friends()
 		{
 			friends.clear();
 
 			const auto json = load_friends();
-			for (const auto& element : json) 
+			for (const auto& data : json)
 			{
-				for (size_t i = 0; i < element.size(); ++i)
+				for (const auto& element : data)
 				{
-					auto& info = element[i].get<friend_info>();
+					auto& info = element.get<friend_info>();
 					info.response = {};
-					
+
 					friends.emplace_back(std::move(info));
 				}
 			}
 
 			refresh_friend_online_status();
 		}
+
+		void remove_friend(const std::uint64_t steam_id)
+		{
+			const auto entry = std::find_if(friends.begin(), friends.end(), [&steam_id](const auto& friends) { return friends.steam_id == steam_id; });
+
+			if (entry != friends.end())
+			{
+				friends.erase(entry);
+			}
+
+			write_to_friends();
+		}
 	}
 	
 	void write_to_friends()
 	{
 		json result{};
-		result["friends"] = friends::friends;
+		result["friends"] = friends;
 
 		const auto friends = get_friends_file();
 		utils::io::write_file(friends, result.dump());
 	}
 
-	void add_friend_response(const game::Msg_InfoResponse& info_response, const std::uint64_t sender_id)
+	void for_each_friend(const uint64_t sender_id, const bool ignore, const callback& callback)
 	{
-		for (auto& friends : friends::friends)
+		for (auto& f : friends)
 		{
-			if (friends.steam_id == sender_id || friends.steam_id == info_response.lobby[0].hostXuid)
-			{
-				add_friend_response(info_response, friends);
-			}
+			if (f.steam_id != sender_id && ignore)
+				continue;
+
+			callback(std::chrono::system_clock::now(), f);
 		}
 	}
 
@@ -132,52 +178,41 @@ namespace friends
 	{
 		if (ImGui::BeginTabItem("Friends"))
 		{
-			const auto popup = "Add friend##add_friend_popup"s;
-
 			static ImGuiTextFilter filter;
-			
 			ImGui::TextUnformatted("Search friends");
 			filter.Draw("##search_friend", "Name", width * 0.85f);
 
 			ImGui::SameLine(0.0f, spacing);
 
+			const auto popup = "Add friend##add_friend_popup"s; 
+			
 			if (ImGui::Button("Add friend"))
 			{
 				ImGui::OpenPopup(popup.data());
 			}
 
-			ImGui::SetNextWindowBgAlpha(1.0f);
-
-			if (ImGui::BeginPopupModal(popup.data(), nullptr, ImGuiWindowFlags_NoResize))
+			if (ImGui::BeginPopupModal(popup.data(), nullptr, ImGuiWindowFlags_AlwaysAutoResize))
 			{
 				static auto name_input = ""s;
 				static auto steam_id_input = ""s;
-				static auto ip_data_input = ""s;
 
-				ImGui::AlignTextToFramePadding(); 
-				
 				ImGui::SetNextItemWidth(width * 0.5f);
 				ImGui::InputTextWithHint("##name_input", "Name", &name_input);
-
-				ImGui::SetNextItemWidth(width * 0.5f);
-				ImGui::InputTextWithHint("##steam_id_input", "Steam ID", &steam_id_input);
-
-				ImGui::AlignTextToFramePadding(); 
 				
 				ImGui::SetNextItemWidth(width * 0.5f);
-				ImGui::InputTextWithHint("##ip_data_input", "IP Address", &ip_data_input);
+				ImGui::InputTextWithHint("##steam_id_input", "Steam ID", &steam_id_input);
 
 				if (ImGui::MenuItem("Add friend", nullptr, nullptr, !name_input.empty() && !steam_id_input.empty()))
 				{
 					friends.emplace_back(friend_info{ utils::atoll(steam_id_input), name_input });
-					write_to_friends();
+					friends::write_to_friends();
 
 					ImGui::CloseCurrentPopup();
 				}
 
 				if (ImGui::MenuItem("Refresh friends"))
 				{
-					refresh_friends();
+					friends::refresh_friends();
 
 					ImGui::CloseCurrentPopup();
 				}
@@ -217,10 +252,15 @@ namespace friends
 
 			for (const auto& friend_num : indices)
 			{
-				if (auto& friends{ friends::friends[friend_num] }; filter.PassFilter(friends.name))
+				if (auto& f{ friends[friend_num] }; filter.PassFilter(f.name))
 				{
-					const auto response{ friends.response };
-					const auto lobby{ response.info_response.lobby[0] };
+					const auto response{ f.response };
+					
+					const auto presence{ response.presence_data };
+					const auto info_response{ response.info_response };
+					
+					auto party_session{ info_response.lobby[0] };
+					auto lobby_session{ info_response.lobby[1] };
 					
 					ImGui::AlignTextToFramePadding();
 
@@ -231,16 +271,16 @@ namespace friends
 					ImGui::PushStyleColor(ImGuiCol_Text, ImColor(200, 200, 200, 250).Value);
 
 					ImGui::AlignTextToFramePadding();
-					const auto selected = ImGui::Selectable(friends.name.data() + "##"s + std::to_string(friend_num));
+					const auto selected = ImGui::Selectable(f.name.data() + "##"s + std::to_string(friend_num));
 
 					ImGui::PopStyleColor();
+					
+					const auto is_local{ party_session.isValid && party_session.hostXuid == f.steam_id };
 
-					const auto is_local{ lobby.hostXuid == friends.steam_id && lobby.isValid };
-
-					if (is_local && lobby.hostName != friends.name)
+					if (is_local && party_session.hostName != f.name)
 					{
 						ImGui::SameLine(0, spacing);
-						ImGui::TextColored(ImColor(200, 200, 200, 250).Value, "(%s)", lobby.hostName);
+						ImGui::TextColored(ImColor(200, 200, 200, 250).Value, "(%s)", party_session.hostName);
 					}
 
 					const auto popup = "friend_popup##" + std::to_string(friend_num);
@@ -248,21 +288,18 @@ namespace friends
 
 					if (selected)
 					{
-						if (!game::oob::register_remote_addr(lobby, &netadr))
-						{
-							PRINT_LOG("Failed to retrieve the remote IP address from XNADDR.");
-						}
+						game::oob::register_remote_addr(party_session, &netadr);
 						
 						ImGui::OpenPopup(popup.data());
 					}
 
 					if (ImGui::BeginPopup(popup.data(), ImGuiWindowFlags_NoMove))
 					{
-						ImGui::MenuItem(friends.name + "##" + std::to_string(friend_num) + "friend_menu_item", nullptr, false, false);
+						ImGui::MenuItem(f.name + "##" + std::to_string(friend_num) + "friend_menu_item", nullptr, false, false);
 
 						if (ImGui::IsItemClicked())
 						{
-							game::LiveSteam_PopOverlayForSteamID(friends.steam_id);
+							game::LiveSteam_PopOverlayForSteamID(f.steam_id);
 						}
 
 						if (ImGui::IsItemHovered())
@@ -278,9 +315,9 @@ namespace friends
 
 							if (ImGui::MenuItem("Rename"))
 							{
-								if (friends.name != rename_friend_input)
+								if (f.name != rename_friend_input)
 								{
-									friends.name = rename_friend_input;
+									f.name = rename_friend_input;
 									
 									write_to_friends();
 								}
@@ -291,43 +328,91 @@ namespace friends
 
 						if (ImGui::MenuItem("Remove"))
 						{
-							remove_friend(friends.steam_id);
+							remove_friend(f.steam_id);
 						}
 
 						ImGui::Separator();
 
-						if (ImGui::MenuItem(std::to_string(friends.steam_id)))
+						if (ImGui::MenuItem(std::to_string(f.steam_id)))
 						{
-							ImGui::LogToClipboardUnformatted(std::to_string(friends.steam_id));
+							ImGui::LogToClipboardUnformatted(std::to_string(f.steam_id));
+						}
+						
+						if (party_session.isValid)
+						{
+							ImGui::Separator(); 
+							
+							auto message{ "Party: " + party_session.serializedAdr.xnaddr.to_string(true) };
+							message.append(" - "s + party_session.hostName + " (" + std::to_string(party_session.hostXuid) + ")");
+
+							if (const auto party{ presence.title.party }; 
+								ImGui::BeginMenu(message, party.availableCount > 1))
+							{
+								for (size_t i = 0; i < party.availableCount; ++i)
+								{
+									std::string gamertag = party.members[i].gamertag;
+									if (gamertag[0] == '&' && gamertag[1] == '&' && !gamertag[2])
+										gamertag = f.name;
+									
+									ImGui::MenuItem(gamertag + "##"s + std::to_string(i), i == 0 ? "(Leader)" : "");
+								}
+								
+								ImGui::EndMenu();
+							}
 						}
 
-						const auto is_ready{ response.valid && netadr.inaddr && is_local };
-						const auto ip_data_string{ is_ready ? utils::string::adr_to_string(&netadr) : "Invalid IP Data" };
-
-						if (ImGui::MenuItem(ip_data_string, nullptr, nullptr, is_ready))
+						if (lobby_session.isValid && lobby_session.hostXuid != f.steam_id)
 						{
-							ImGui::LogToClipboardUnformatted(ip_data_string);
+							const auto message{ "Session: " + lobby_session.serializedAdr.xnaddr.to_string(true) };
+							
+							if (ImGui::MenuItem(message))
+							{
+								ImGui::LogToClipboardUnformatted(message);
+							}
+						}
+
+						const auto activity = presence.title.activity;
+						const auto gametype_id = presence.title.gametypeID;
+						const auto map_id = presence.title.mapID;
+
+						if (activity == game::PRESENCE_ACTIVITY_MP_PLAYING_GMODE_ON_MAP
+							&& gametype_id >= 0
+							&& map_id >= 0)
+						{
+							const auto data = game::get_gametype_on_mapname(map_id, gametype_id);
+							if (!data.empty() && ImGui::MenuItem(data))
+							{
+								ImGui::LogToClipboardUnformatted(data);
+							}
+						}
+						
+						if (const auto start_up_time = presence.title.startupTimestamp; presence.title.startupTimestamp)
+						{
+							ImGui::Separator(); 
+							
+							ImGui::MenuItem("Online since: " + get_timestamp(start_up_time));
 						}
 
 						ImGui::Separator();
 						
-						if (ImGui::MenuItem("Join session", nullptr, nullptr, response.valid))
+						if (ImGui::MenuItem("Join session"))
 						{
-							const auto command = "join " + std::to_string(friends.steam_id);
-							command::execute(command);
+							game::LobbyVM_JoinEvent(0, f.steam_id, game::JOIN_TYPE_PARTY);
 						}
 
 						ImGui::Separator();
 
+						const auto is_ready{ response.valid && party_session.isValid && netadr.inaddr };
+						
 						if (ImGui::MenuItem("Crash game"))
 						{
-							exploit::instant_message::send_friend_message_crash({ friends.steam_id });
-							exploit::instant_message::send_info_response_overflow({ friends.steam_id });
+							exploit::instant_message::send_friend_message_crash({ f.steam_id });
+							exploit::instant_message::send_info_response_overflow({ f.steam_id });
 						}
 						
 						if (ImGui::MenuItem("Open popup", nullptr, nullptr, response.valid))
 						{
-							exploit::instant_message::send_popup({ friends.steam_id });
+							exploit::instant_message::send_popup({ f.steam_id });
 						}
 
 						if (ImGui::MenuItem("Kick player", nullptr, nullptr, is_ready))
@@ -366,7 +451,7 @@ namespace friends
 
 					ImGui::AlignTextToFramePadding();
 					
-					const auto timestamp = friends.last_online ? get_timestamp(friends.last_online) : "Never";
+					const auto timestamp = f.last_online ? get_timestamp(f.last_online) : "Never";
 					const auto online_status = response.valid ? "Online" : "Last seen: " + timestamp;
 					ImGui::TextColored(response.valid ? ImColor(0, 255, 127, 250).Value : ImColor(200, 200, 200, 250).Value, online_status.data());
 
@@ -386,7 +471,12 @@ namespace friends
 
 	void initialize()
 	{
-		scheduler::on_dw_initialized(refresh_friend_online_status, scheduler::pipeline::backend, 10s);
+		scheduler::on_dw_initialized([]()
+		{
+			scheduler::once(refresh_friend_online_status, scheduler::pipeline::backend);
+			scheduler::loop(refresh_friend_online_status, scheduler::pipeline::backend, 10s);
+		}, scheduler::pipeline::main);
+		
 		friends::refresh_friends();
 	}
 }

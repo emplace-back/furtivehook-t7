@@ -5,14 +5,18 @@ namespace command
 	class args final
 	{
 	public:
-		const char* get(const size_t index) const noexcept;
+		args() : cmd_args(game::Sys_GetTLS()->cmdArgs) {}
+		
+		const char* get(const int index) const noexcept;
 		int size() const noexcept;
-		std::string join(const size_t index = 0) const noexcept;
+		std::string join(const int index = 0) const noexcept;
 
-		const char* operator[](const int index) const
+		const char* operator[](const int index) const noexcept
 		{
 			return this->get(index);
 		}
+	private:
+		game::CmdArgs* cmd_args{};
 	};
 	
 	using callback = std::function<void(const args&)>;

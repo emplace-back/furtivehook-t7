@@ -20,7 +20,7 @@ namespace esp
 
 	struct player_name_t
 	{
-		char name[256];
+		char name[256]{};
 		Vec2 pos;
 		Vec3 center;
 	};

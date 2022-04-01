@@ -14,6 +14,7 @@ namespace menu
 	void set_style(); 
 	bool is_open();
 	bool begin_section(const std::string& text);
+	bool selectable(const std::string & label, bool enabled = true, bool noprint = false);
 	void draw();
 	void initialize(IDXGISwapChain * swap_chain);
 }

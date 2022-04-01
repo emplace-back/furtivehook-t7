@@ -54,7 +54,7 @@ namespace utils::toast
 			const auto toast = toasts[i];
 			const auto opacity = get_fade_percentage(toast);
 
-			if (opacity < 0 || toasts.size() >= 15)
+			if (opacity < 0)
 			{
 				toasts.erase(toasts.begin() + i);
 				continue;
