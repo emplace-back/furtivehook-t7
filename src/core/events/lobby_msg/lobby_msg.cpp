@@ -298,12 +298,12 @@ namespace events::lobby_msg
 	{
 		auto data{ lobby_msg::build_lobby_msg(module) };
 		data.append(reinterpret_cast<const char*>(msg.data), msg.cursize);
-		return game::send_netchan_message(netadr, xuid, data);
+		return game::send_netchan_message(game::session_data(), netadr, xuid, data);
 	}
 
-	bool send_to_host(const game::msg_t& msg, const game::LobbyModule module)
+	bool send_to_host(const game::LobbySession* session, const game::msg_t& msg, const game::LobbyModule module)
 	{
-		return lobby_msg::send_to_client(game::session->host.info.netAdr, game::session->host.info.xuid, msg, module);
+		return lobby_msg::send_to_client(session->host.info.netAdr, session->host.info.xuid, msg, module);
 	}
 
 	void initialize()

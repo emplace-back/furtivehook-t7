@@ -8,8 +8,8 @@ namespace aimbot
 	bone_target_t* bone_target = nullptr;
 	aim_target_t* aim_target = nullptr;
 	target_t target[18];
-	std::vector<std::uint8_t> ignore_target(18, 0);
-	std::vector<std::uint8_t> priority_target(18, 0);
+	bool ignore_target[18] = { false };
+	bool priority_target[18] = { false };
 	std::vector<aim_target_t> aim_targets;
 	std::vector<bone_target_t> bone_targets;
 	std::vector<std::future<float>> penetration_damage;

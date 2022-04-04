@@ -174,9 +174,8 @@ namespace utils::string
 		return result;
 	}
 
-	std::string strip(const std::string& string)
+	std::string strip_colors(const std::string& string)
 	{
-		const auto result = game::I_CleanStr(string.data());
-		return result;
+		return std::regex_replace(string, std::regex{ "\\^[\\d;HIBF]" }, "");
 	}
 }

@@ -51,8 +51,8 @@ namespace game
 	
 	void initialize();
 	bool in_game();
-	int find_target_from_addr(const netadr_t & from);
-	bool can_connect_to_player(const size_t client_num, const size_t target_xuid);
+	int find_target_from_addr(const LobbySession* session, const netadr_t& from);
+	bool can_connect_to_player(const LobbySession* session, const size_t client_num, const size_t target_xuid);
 	XSESSION_INFO get_session_info(const InfoResponseLobby& lobby);
 	void on_every_frame();
 	bool is_enemy(const int client_num);
@@ -66,17 +66,15 @@ namespace game
 	void adjust_user_cmd_movement(const usercmd_s * cmd, usercmd_s * cmd_old, const float yaw);
 	float get_weapon_damage_range(const Weapon & weapon);
 	bool CG_BulletTrace(BulletTraceResults * br, BulletFireParams * bp, const int attacker_entity_num, int lastSurfaceType);
-	bool is_valid_target(const int client_num);
 	bool send_instant_message(const std::vector<std::uint64_t>& recipients, const std::uint8_t type, const void * message, const std::uint32_t message_size);
 	bool send_instant_message(const std::vector<std::uint64_t>& recipients, const std::uint8_t type, const std::string & data);
 	bool send_instant_message(const std::vector<std::uint64_t>& recipients, const std::uint8_t type, const msg_t & msg);
-	bool send_netchan_message(const netadr_t& netadr, const std::uint64_t xuid, const std::string& data);
-	SessionClient* LobbySession_GetClientByXuid(const std::uint64_t xuid);
-	int LobbySession_GetClientNumByXuid(const std::uint64_t xuid);
+	bool send_netchan_message(const LobbySession* session, const netadr_t& netadr, const std::uint64_t xuid, const std::string& data);
+	int LobbySession_GetClientNumByXuid(const game::LobbySession* session, const std::uint64_t xuid);
 	bool is_valid_lobby_type(const int lobby_type);
 	void enum_assets(const XAssetType type, const std::function<void(XAssetHeader)>& callback, const bool includeOverride);
 	bool LobbyMsgRW_PackageElement(msg_t * msg, bool add_element);
-	netadr_t get_session_netadr(const ActiveClient * client);
+	netadr_t get_session_netadr(const LobbySession* session, const ActiveClient* client);
 	int I_stricmp(const std::string & a, const std::string & b);
 	char * I_strncpyz(char * place, const std::string & string, const size_t length);
 	TaskRecord* get_dw_presence(const std::vector<std::uint64_t>& recipients);
@@ -84,7 +82,6 @@ namespace game
 	std::string get_gametype_on_mapname(const int map_id, const int gametype_id);
 	
 	extern std::array<scr_string_t, static_cast<std::uint32_t>(bone_tag::num_tags)> bone_tags;
-	extern LobbySession* session;
 
 	const static auto base_address = reinterpret_cast<std::uintptr_t>(GetModuleHandleA(nullptr)) + 0x1000;
 
@@ -255,6 +252,14 @@ namespace game
 		}
 		
 		return reinterpret_cast<LobbySession*>(base_address + 0x15676490 + sizeof LobbySession * lobby_type);
+	}
+
+	inline LobbySession* session_data()
+	{
+		const auto lobby_session = game::get_client_session(game::LOBBY_TYPE_GAME);
+		const auto party_session = game::get_client_session(game::LOBBY_TYPE_PRIVATE);
+
+		return party_session->active ? party_session : lobby_session;
 	}
 
 	inline clientActive_t* cl() 

@@ -88,5 +88,5 @@ namespace utils::string
 	std::string to_upper(std::string text);
 	std::string reverse_words(std::string_view s);
 	std::string generate_random_string(const size_t length);
-	std::string strip(const std::string & string);
+	std::string strip_colors(const std::string & string);
 }

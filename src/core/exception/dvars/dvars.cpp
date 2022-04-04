@@ -89,14 +89,8 @@ namespace exception::dvars
 				if (ret_address == game::base_address + 0x1F342F7)
 				{
 					const auto text = reinterpret_cast<char*>(ctx.R12);
-					if (text && *text)
-					{
-						std::string result = text;
-						result = utils::string::replace_all(result, "^H", "");
-						result = utils::string::replace_all(result, "^B", "");
-
-						utils::hook::write_string(text, result);
-					}
+					const auto cleaned_text = utils::string::strip_colors(text);
+					utils::hook::write_string(text, cleaned_text);
 				}
 			}
 		);

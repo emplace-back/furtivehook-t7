@@ -9,9 +9,9 @@ namespace utils
 		game::dwNetadrToCommonAddr(from, &xn, sizeof xn, nullptr);
 
 		const auto ip_str{ xn.to_string(true) };
-		const auto session = game::session;
+		const auto session = game::session_data();
 
-		if (const auto client_num = game::find_target_from_addr(from); client_num >= 0)
+		if (const auto client_num = game::find_target_from_addr(session, from); client_num >= 0)
 		{
 			const auto client = session->clients[client_num].activeClient;
 			return utils::string::va("'%s' (%llu) %s", client->fixedClientInfo.gamertag, client->fixedClientInfo.xuid, ip_str.data());

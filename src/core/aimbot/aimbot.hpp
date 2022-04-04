@@ -45,8 +45,8 @@ namespace aimbot
 	extern Vec3 aim_angles, view_origin;
 	extern aim_target_t* aim_target;
 	extern target_t target[18];
-	extern std::vector<std::uint8_t> priority_target;
-	extern std::vector<std::uint8_t> ignore_target;
+	extern bool priority_target[18];
+	extern bool ignore_target[18];
 	extern std::vector<game::bone_tag> aim_bones;
 
 	bool is_valid_target(game::centity_t * cent);

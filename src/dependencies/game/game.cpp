@@ -2,7 +2,6 @@
 
 namespace game
 {
-	LobbySession* session = nullptr;
 	std::array<scr_string_t, static_cast<std::uint32_t>(bone_tag::num_tags)> bone_tags; 
 
 	namespace oob
@@ -89,14 +88,6 @@ namespace game
 		return LobbyClientLaunch_IsInGame() && cg()->clients[cg()->clientNum].infoValid;
 	}
 
-	bool is_valid_target(const int client_num)
-	{
-		if (client_num >= 0 && client_num < 18)
-			return session->clients[client_num].activeClient;
-
-		return false;
-	}
-
 	void on_every_frame()
 	{
 		if (in_game())
@@ -117,13 +108,16 @@ namespace game
 		return cg()->clients[client_num].team != cg()->clients[cg()->clientNum].team;
 	}
 	
-	int find_target_from_addr(const netadr_t& from)
+	int find_target_from_addr(const LobbySession* session, const netadr_t& from)
 	{
+		if (session == nullptr)
+			return -1;
+		
 		for (size_t i = 0; i < 18; ++i)
 		{
 			if (const auto client = session->clients[i].activeClient; client)
 			{
-				const auto netadr = get_session_netadr(client);
+				const auto netadr = get_session_netadr(session, client);
 				if (NET_CompareAdr(from, netadr))
 					return i;
 			}
@@ -132,9 +126,9 @@ namespace game
 		return -1;
 	}
 
-	bool can_connect_to_player(const size_t client_num, const size_t target_xuid)
+	bool can_connect_to_player(const LobbySession* session, const size_t client_num, const size_t target_xuid)
 	{
-		if (const auto our_client_num = LobbySession_GetClientNumByXuid(LiveUser_GetXuid(0));
+		if (const auto our_client_num = LobbySession_GetClientNumByXuid(session, LiveUser_GetXuid(0));
 			our_client_num >= 0 && client_num < std::size(session->clients))
 		{
 			if (our_client_num == client_num)
@@ -207,12 +201,18 @@ namespace game
 
 	bool AimTarget_GetTagPos(const centity_t* cent, const scr_string_t& tag_name, Vec3* end)
 	{
-		if (const auto dobj = Com_GetClientDObj(cent->nextState.number, 0); dobj)
+		if (cent == nullptr)
 		{
-			return CG_DObjGetWorldTagPos(&cent->pose, dobj, tag_name, end);
+			return false;
 		}
 
-		return false;
+		const auto dobj = Com_GetClientDObj(cent->nextState.number, 0);
+		if (!dobj)
+		{
+			return false;
+		}
+
+		return CG_DObjGetWorldTagPos(&cent->pose, dobj, tag_name, end);
 	}
 
 	bool CG_GetPlayerViewOrigin(const playerState_s* ps, Vec3* view_origin)
@@ -270,6 +270,11 @@ namespace game
 	{
 		const auto weapon_def{ BG_GetWeaponDef(weapon) };
 
+		if (weapon_def == nullptr)
+		{
+			return sv_bullet_range->current.value;
+		}
+
 		if (weapon_def->weapClass == WEAPCLASS_SPREAD || weapon_def->weapClass == WEAPCLASS_PISTOL_SPREAD)
 		{
 			return BG_GetMinDamageRangeScaled(weapon) * BG_GetMultishotBaseMinDamageRangeScaled(weapon);
@@ -301,32 +306,25 @@ namespace game
 		return send_instant_message(recipients, type, msg.data, msg.cursize);
 	}
 
-	bool send_netchan_message(const netadr_t& netadr, const std::uint64_t xuid, const std::string& data)
+	bool send_netchan_message(const game::LobbySession* session, const netadr_t& netadr, const std::uint64_t xuid, const std::string& data)
 	{
+		if (session == nullptr)
+			return false;
+		
 		const auto channel = LobbyNetChan_GetLobbyChannel(session->type, LOBBY_CHANNEL_UNRELIABLE);
 		return Netchan_SendMessage(0, channel, NETCHAN_UNRELIABLE, data.data(), data.size(), xuid, netadr, nullptr);
 	}
 
-	SessionClient* LobbySession_GetClientByXuid(const std::uint64_t xuid)
+	int LobbySession_GetClientNumByXuid(const game::LobbySession* session, const std::uint64_t xuid)
 	{
+		if (session == nullptr)
+			return -1;
+		
 		for (size_t i = 0; i < 18; ++i)
 		{
-			const auto client = &session->clients[i];
+			const auto client = session->clients[i].activeClient;
 
-			if (client && client->xuid == xuid)
-				return client;
-		}
-
-		return nullptr;
-	}
-
-	int LobbySession_GetClientNumByXuid(const std::uint64_t xuid)
-	{
-		for (size_t i = 0; i < 18; ++i)
-		{
-			const auto client = &session->clients[i];
-
-			if (client && client->xuid == xuid)
+			if (client && client->fixedClientInfo.xuid == xuid)
 				return i;
 		}
 
@@ -385,13 +383,17 @@ namespace game
 		return !msg->overflowed;
 	}
 
-	netadr_t get_session_netadr(const ActiveClient* client)
+	netadr_t get_session_netadr(const game::LobbySession* session, const ActiveClient* client)
 	{
+		if (session == nullptr)
+			return {};
+		
 		netadr_t netadr{};
 		
 		if (client)
 		{
 			const auto session_info = &client->sessionInfo[session->type];
+			
 			if (session_info)
 			{
 				netadr = session_info->netAdr;
@@ -453,8 +455,6 @@ namespace game
 
 		if (!task)
 		{
-			PRINT_LOG_DETAILED("!task");
-			
 			return false;
 		}
 

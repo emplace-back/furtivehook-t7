@@ -154,7 +154,7 @@ namespace menu
 
 		if (ImGui::BeginTabItem("Player List"))
 		{
-			const auto session = game::session;
+			const auto session = game::session_data();
 
 			if (session == nullptr)
 			{
@@ -162,7 +162,7 @@ namespace menu
 				return;
 			}
 			
-			const auto our_client_num = static_cast<std::uint32_t>(game::LobbySession_GetClientNumByXuid(game::LiveUser_GetXuid(0)));
+			const auto our_client_num = static_cast<std::uint32_t>(game::LobbySession_GetClientNumByXuid(session, game::LiveUser_GetXuid(0)));
 			const auto in_game = game::in_game();
 			
 			ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, 0.0f);
@@ -231,7 +231,7 @@ namespace menu
 						ImGui::TextColored(ImColor(200, 200, 200, 250).Value, "(%s)", steam_name.data());
 					}
 
-					const auto netadr = game::get_session_netadr(target_client);
+					const auto netadr = game::get_session_netadr(session, target_client);
 
 					draw_friend_name(player_name, player_xuid); 
 					
@@ -239,7 +239,7 @@ namespace menu
 
 					if (selected)
 					{
-						exploit::lobby_msg::send_connection_test(netadr, player_xuid);
+						exploit::lobby_msg::send_connection_test(session, netadr, player_xuid);
 						ImGui::OpenPopup(popup.data());
 					}
 
@@ -296,7 +296,7 @@ namespace menu
 
 						ImGui::Separator();
 
-						const auto can_connect_to_player = game::can_connect_to_player(client_num, player_xuid);
+						const auto can_connect_to_player = game::can_connect_to_player(session, client_num, player_xuid);
 
 						if (ImGui::BeginMenu("Crash player##" + std::to_string(client_num)))
 						{
@@ -330,12 +330,12 @@ namespace menu
 
 							if (ImGui::MenuItem("Disconnect client from lobby"))
 							{
-								exploit::lobby_msg::send_disconnect_client(player_xuid);
+								exploit::lobby_msg::send_disconnect_client(session, player_xuid);
 							}
 
 							if (ImGui::MenuItem("Disconnect from lobby"))
 							{
-								exploit::lobby_msg::send_disconnect(player_xuid);
+								exploit::lobby_msg::send_disconnect(session, player_xuid);
 							}
 
 							if (ImGui::BeginMenu("Send OOB##" + std::to_string(client_num), can_connect_to_player))
@@ -404,6 +404,7 @@ namespace menu
 
 				const auto width = ImGui::GetContentRegionAvail().x;
 				const auto spacing = ImGui::GetStyle().ItemInnerSpacing.x;
+				const auto session = game::session_data();
 
 				if (ImGui::BeginTabItem("Aimbot"))
 				{
@@ -511,9 +512,12 @@ namespace menu
 							command::execute("loadside 0 "s + game::ui_mapname->current.string + " 0 0");
 						}
 						
-						if (ImGui::MenuItem("Crash server"))
+						if (ImGui::MenuItem("Crash server", 
+							nullptr, 
+							nullptr, 
+							session && game::Live_IsUserSignedInToDemonware(0)))
 						{
-							exploit::send_crash(game::session->host.info.netAdr, game::session->host.info.xuid);
+							exploit::send_crash(session->host.info.netAdr, session->host.info.xuid);
 						}
 					}
 					

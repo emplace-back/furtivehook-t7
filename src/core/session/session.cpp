@@ -95,12 +95,6 @@ namespace session
 					const auto message = utils::string::va("%u/%u", session->info.numPlayers, session->info.maxPlayers);
 					const auto selected = ImGui::MenuItem(ip_string + "##"s + std::to_string(session_num), message.data());
 
-					if (session->xuid == game::session->host.info.xuid)
-					{
-						ImGui::SameLine();
-						ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.5f, 0.95f), "[Current]");
-					}
-
 					const auto popup = "session_popup##" + std::to_string(session_num);
 
 					if (selected)

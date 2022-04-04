@@ -12,15 +12,12 @@ namespace misc
 		
 		scheduler::loop([]()
 		{
-			const auto lobby_session = game::get_client_session(game::LOBBY_TYPE_GAME);
-			const auto party_session = game::get_client_session(game::LOBBY_TYPE_PRIVATE);
-
-			if (lobby_session->active || (game::session = party_session, !party_session->active))
-				game::session = lobby_session;
-
 			for (size_t i = 0; i < 18; ++i)
 			{
-				if (!game::is_valid_target(i))
+				const auto session = game::session_data();
+				const auto valid = session->clients[i].activeClient;
+				
+				if (!valid)
 				{
 					aimbot::priority_target[i] = false;
 					aimbot::ignore_target[i] = false;
