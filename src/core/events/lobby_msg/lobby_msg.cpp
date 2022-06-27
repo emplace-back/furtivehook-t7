@@ -29,8 +29,7 @@ namespace events::lobby_msg
 			if (data.talkerIndex >= 18)
 				return true;
 
-			if (!game::is_valid_lobby_type(data.lobbyType) 
-				|| data.sizeofVoiceData >= 1198)
+			if (!game::is_valid_lobby_type(data.lobbyType) || data.sizeofVoiceData >= 1198)
 			{
 				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::get_sender_string(from).data());
 				return true;
@@ -180,7 +179,7 @@ namespace events::lobby_msg
 			if (!game::LobbyMsgRW_PackageUInt64(&msg, "joinnonce", &data.joinNonce))
 				return true;
 
-			for (size_t i = 0; i < std::size(data.chunkStatus); ++i)
+			for (size_t i = std::size(data.chunkStatus); i != 0; --i)
 			{
 				if (!game::LobbyMsgRW_PackageBool(&msg, "chunk", &data.chunkStatus[i]))
 					return true;
@@ -275,13 +274,21 @@ namespace events::lobby_msg
 			return false;
 		}
 
-		const auto msg_backup = msg;
-		const auto callback = handler->second(from, msg, module);
+		return handler->second(from, msg, module);
+	}
 
-		if (msg.readcount != msg_backup.readcount)
-			msg = msg_backup;
+	void prep_lobby_msg(game::msg_t* msg, char* buffer, const size_t buf_size, const game::MsgType msg_type)
+	{
+		msg->init(buffer, buf_size);
+		
+		msg->packageType = game::PACKAGE_TYPE_WRITE;
+		msg->type = msg_type;
+		msg->encodeFlags = 0;
 
-		return callback;
+		msg->write<uint8_t>(game::MESSAGE_ELEMENT_UINT8);
+		msg->write<uint8_t>(msg_type);
+		msg->write<uint8_t>(game::MESSAGE_ELEMENT_STRING);
+		msg->write_data("sike\0"s);
 	}
 
 	std::string build_lobby_msg(const game::LobbyModule module)
@@ -294,16 +301,27 @@ namespace events::lobby_msg
 		return data;
 	}
 	
-	bool send_to_client(const game::netadr_t& netadr, const std::uint64_t xuid, const game::msg_t& msg, const game::LobbyModule module)
+	bool send_to_client(const game::LobbyModule module, const game::msg_t& msg, const game::netadr_t& netadr, const std::uint64_t xuid)
 	{
 		auto data{ lobby_msg::build_lobby_msg(module) };
-		data.append(reinterpret_cast<const char*>(msg.data), msg.cursize);
-		return game::send_netchan_message(game::session_data(), netadr, xuid, data);
+		data.append(reinterpret_cast<const char*>(msg.data), msg.cursize); 
+		
+		if (xuid)
+		{
+			return game::send_netchan_message(game::session_data(), netadr, xuid, data);
+		}
+		else
+		{
+			return game::oob::send(netadr, "LM\n" + data);
+		}
 	}
 
 	bool send_to_host(const game::LobbySession* session, const game::msg_t& msg, const game::LobbyModule module)
 	{
-		return lobby_msg::send_to_client(session->host.info.netAdr, session->host.info.xuid, msg, module);
+		if (session == nullptr)
+			return false;
+		
+		return lobby_msg::send_to_client(module, msg, session->host.info.netAdr, session->host.info.xuid);
 	}
 
 	void initialize()

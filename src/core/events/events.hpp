@@ -6,5 +6,5 @@ namespace events
 	void cg_predict_playerstate();
 	void initialize();
 
-	extern bool prevent_join, update_presence;
+	extern bool prevent_join, no_presence;
 }

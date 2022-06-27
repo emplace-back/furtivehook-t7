@@ -11,13 +11,6 @@ namespace game
 			return NET_OutOfBandData(NS_SERVER, target, data.data(), data.size());
 		}
 
-		bool send_lobby_msg(const netadr_t& to, const msg_t& msg, const LobbyModule module)
-		{
-			auto data{ "LM\n" + events::lobby_msg::build_lobby_msg(module) };
-			data.append(reinterpret_cast<const char*>(msg.data), msg.cursize);
-			return oob::send(to, data);
-		}
-
 		bool register_remote_addr(const XSESSION_INFO* info, netadr_t* addr)
 		{
 			dwRegisterSecIDAndKey(&info->sessionID, &info->keyExchangeKey);
@@ -315,6 +308,16 @@ namespace game
 		return Netchan_SendMessage(0, channel, NETCHAN_UNRELIABLE, data.data(), data.size(), xuid, netadr, nullptr);
 	}
 
+	const char* LobbyTypes_GetMsgTypeName(const MsgType type)
+	{
+		if (type < MESSAGE_TYPE_INFO_REQUEST || type > MESSAGE_TYPE_DEMO_STATE)
+		{
+			return "Invalid";
+		}
+
+		return lobbyMsgName[type];
+	}
+
 	int LobbySession_GetClientNumByXuid(const game::LobbySession* session, const std::uint64_t xuid)
 	{
 		if (session == nullptr)
@@ -354,12 +357,12 @@ namespace game
 		case PACKAGE_TYPE_WRITE:
 			if (!add_element)
 			{
-				MSG_WriteByte(msg, 14);
+				msg->write(14ui8);
 				msg->encodeFlags = 0;
 				return false;
 			}
 
-			MSG_WriteByte(msg, 13);
+			msg->write(13ui8);
 			break;
 		case PACKAGE_TYPE_READ:
 			const auto result = LobbyMsgRW_IsEndOfArray(msg);
@@ -413,61 +416,6 @@ namespace game
 		const auto result = std::strncpy(place, string.data(), length);
 		place[length - 1] = 0;
 		return result;
-	}
-	
-	TaskRecord* get_dw_presence(const std::vector<std::uint64_t>& recipients)
-	{
-		if (!Live_IsUserSignedInToDemonware(0))
-			return nullptr;
-
-		if (TaskManager2_TaskGetInProgress(task_livepresence_dw_get))
-			return nullptr;
-
-		s_presenceTaskData->xuids = recipients.data();
-		s_presenceTaskData->count = recipients.size();
-		s_presenceTaskData->info = reinterpret_cast<bdRichPresenceInfo*>(base_address + 0x113C8650 + 0xB80 * 0);
-
-		const auto result = dwPresenceGet(0, s_presenceTaskData);
-		if (result)
-		{
-			return TaskManager2_SetupNestedTask(task_livepresence_dw_get, 0, result, s_presenceTaskData);
-		}
-
-		return result;
-	}
-
-	bool get_dw_sessions()
-	{
-		if (!Live_IsUserSignedInToDemonware(0))
-			return false; 
-
-		s_lobbySearch->numResults = 0;
-		s_lobbySearch->state = SEARCH_STATE_IDLE;
-
-		TaskManager2_ClearTasks(task_lobbySearch);
-
-		s_lobbySearch->numResults = 0;
-		s_lobbySearch->state = SEARCH_STATE_SEARCHING;
-
-		Live_SetupMatchmakingQuery(0);
-		
-		const auto task = TaskManager2_CreateTask(task_lobbySearch, 0, 0, 0);
-
-		if (!task)
-		{
-			return false;
-		}
-
-		s_lobbySearch->throttle = {};
-		s_lobbySearch->results = {};
-		s_lobbySearch->results.throttleData = &s_lobbySearch->throttle;
-
-		auto payload = *reinterpret_cast<uintptr_t**>(&task->payload);
-		*payload = 0;
-		payload[1] = *reinterpret_cast<uintptr_t*>(s_lobbySearch->results.throttleData);
-
-		dwFindSessions(task, &s_lobbySearch->info);
-		return true;
 	}
 
 	std::string get_gametype_on_mapname(const int map_id, const int gametype_id)

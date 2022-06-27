@@ -6,25 +6,70 @@ namespace friends
 	std::vector<friend_info> friends; 
 	uint32_t NONCE{ 0x696969 };
 
-	namespace 
+	namespace
 	{
-		std::string get_timestamp(const std::int64_t time)
+		std::array<std::pair<std::vector<uint64_t>, game::dwPresenceTask*>, 256> presence_tasks;
+		game::dwPresenceTask* pending_task{};
+		
+		const auto presence_update_success_callback = [](game::TaskRecord* task)
 		{
-			tm ltime{};
-			char timestamp[MAX_PATH] = { 0 };
+			if (pending_task == task->payload)
+				pending_task = nullptr;
+			
+			const auto remote_task = task->remoteTask;
 
-			_localtime64_s(&ltime, &time);
-			std::strftime(timestamp, sizeof timestamp - 1, "%D (%r)", &ltime);
+			if (!remote_task)
+				return;
 
-			return timestamp;
-		}
+			const auto num_results = remote_task->numResults;
 
+			if (num_results == 0)
+				return;
+
+			const auto presence_task = std::find_if(presence_tasks.begin(), presence_tasks.end(), [=](const auto& presence) { return presence.second == task->payload; });
+
+			if (presence_task == presence_tasks.end())
+				return;
+
+			const auto task_data = presence_task->second;
+
+			for (size_t i = 0; i < num_results; ++i)
+			{
+				const auto xuid = task_data->xuids[i];
+				const auto info = task_data->infos[i];
+
+				if (const auto f = friends::get(xuid); f)
+				{
+					auto& presence = f->response.presence;
+				
+					presence = {};
+
+					game::LivePresence_Serialize(true, &presence, info.richPresence, info.count); 
+					
+					if (presence.version)
+					{
+						f->last_online = std::time(nullptr);
+					}
+				}
+			}
+
+			friends::write();
+		};
+
+		const auto presence_update_failure_callback = [](game::TaskRecord* task)
+		{
+			if (pending_task == task->payload)
+				pending_task = nullptr;
+
+			PRINT_LOG("Presence update task failed.");
+		};
+		
 		std::string get_friends_file()
 		{
 			const utils::nt::library self{};
 			return self.get_folder() + "\\furtivehook\\friends.json";
 		}
-		
+
 		json load_friends()
 		{
 			std::string data{};
@@ -39,90 +84,85 @@ namespace friends
 			{
 				return {};
 			}
-			
+
 			return result;
 		}
-		
-		bool update_friend_presence(const std::vector<std::uint64_t>& recipients)
+
+		void update_presence(const size_t index, const std::vector<std::uint64_t>& recipients)
 		{
-			const auto result = game::get_dw_presence(recipients);
+			auto& task = presence_tasks[index];
+			
+			task.first = recipients;
+			task.second = game::s_presenceTaskData;
+			
+			pending_task = task.second;
+			
+			pending_task->xuids = task.first.data();
+			pending_task->count = static_cast<int>(task.first.size());
+			pending_task->infos = reinterpret_cast<game::bdRichPresenceInfo*>(game::base_address + 0x113C8650);
+			pending_task->successCallback = presence_update_success_callback;
+			pending_task->failureCallback = presence_update_failure_callback;
 
-			if (!result)
+			if (const auto result = game::dwPresenceGet(0, pending_task))
 			{
-				return false;
+				game::TaskManager2_SetupNestedTask(game::task_livepresence_dw_get, 0, result, pending_task);
 			}
-
-			const auto task_data{ game::s_presenceTaskData };
-
-			for (size_t i = 0; i < task_data->count; ++i)
-			{
-				const auto info = task_data->info[i];
-
-				friends::for_each_friend(task_data->xuids[i], true, 
-					[=](const auto& time, auto& friends)
-					{
-						auto& response = friends.response;
-
-						if (response.presence_data.version && !info.online)
-						{
-							friends.last_online = std::chrono::system_clock::to_time_t(response.last_online);
-							friends::write_to_friends();
-
-							response = {};
-
-							PRINT_MESSAGE("Presence", "%s is offline.", friends.name.data());
-						}
-
-						if (!response.valid && info.online)
-						{
-							friends.last_online = std::chrono::system_clock::to_time_t(time);
-							friends::write_to_friends();
-
-							PRINT_MESSAGE("Presence", "%s is online.", friends.name.data());
-						}
-
-						game::PresenceData presence_data{};
-						const auto count = game::LivePresence_Serialize(true, &presence_data, info.richPresence, std::min(info.count, 128u));
-
-						if (count > 0)
-						{
-							response.valid = true; 
-							response.presence_data = presence_data;
-						}
-					}
-				);
-			}
-
-			return true;
 		}
 
-		void refresh_friend_online_status()
+		void fetch_sessions(const std::vector<std::uint64_t>& targets)
 		{
-			std::vector<std::uint64_t> recipients{};
+			std::vector<uint64_t> online_targets;
+			online_targets.reserve(targets.size());
 
-			friends::for_each_friend(0, false,
-				[&recipients](const auto& time, auto& friends)
+			for (const auto& id : targets)
+			{
+				if (const auto f = friends::get(id); f && f->is_online())
 				{
-					auto& response = friends.response;
-
-					if (response.info_response.nonce && time - response.last_online > 15s)
-					{
-						response.info_response = {};
-					}
-
-					recipients.emplace_back(friends.steam_id);
+					online_targets.emplace_back(id);
 				}
-			);
+			}
 
-			utils::for_each_batch<std::uint64_t>(recipients, 18, [](const auto& ids)
+			events::instant_message::send_info_request(online_targets, friends::NONCE);
+		}
+
+		void update_online_status()
+		{
+			static std::vector<std::uint64_t> recipients{};
+			
+			if (recipients.empty())
+				for (const auto& f : friends) recipients.emplace_back(f.steam_id);
+
+			if (recipients.empty())
+				return;
+
+			if (pending_task)
+				return;
+
+			constexpr auto num{ 16 };
+			
+			static size_t batch_index{ 0 };
+
+			if (batch_index * num < recipients.size())
 			{
-				events::instant_message::send_info_request(ids);
-			});
+				const std::vector<uint64_t> batch
+				{ 
+					recipients.begin() + (batch_index * num), 
+					recipients.begin() + std::min(recipients.size(), (batch_index * num) + num)
+				};
 
-			friends::update_friend_presence(recipients);
+				friends::update_presence(batch_index, batch);
+				friends::fetch_sessions(batch);
+
+				++batch_index;
+			}
+			else
+			{
+				batch_index = 0;
+				recipients.clear();
+			}
 		}
 		
-		void refresh_friends()
+		void read()
 		{
 			friends.clear();
 
@@ -137,41 +177,34 @@ namespace friends
 					friends.emplace_back(std::move(info));
 				}
 			}
-
-			refresh_friend_online_status();
 		}
 
-		void remove_friend(const std::uint64_t steam_id)
+		void remove(const std::uint64_t id)
 		{
-			const auto entry = std::find_if(friends.begin(), friends.end(), [&steam_id](const auto& friends) { return friends.steam_id == steam_id; });
-
-			if (entry != friends.end())
-			{
-				friends.erase(entry);
-			}
-
-			write_to_friends();
+			friends.erase(std::remove_if(friends.begin(), friends.end(), [&id](const auto& f) { return f.steam_id == id; }));
+			friends::write();
 		}
 	}
+
+	friend_info* get(const uint64_t id)
+	{
+		const auto entry = std::find_if(friends.begin(), friends.end(), [id](const auto& f) { return f.steam_id == id; });
+
+		if (entry != friends.end())
+		{
+			return &*entry;
+		}
+
+		return nullptr;
+	}
 	
-	void write_to_friends()
+	void write()
 	{
 		json result{};
 		result["friends"] = friends;
 
 		const auto friends = get_friends_file();
 		utils::io::write_file(friends, result.dump());
-	}
-
-	void for_each_friend(const uint64_t sender_id, const bool ignore, const callback& callback)
-	{
-		for (auto& f : friends)
-		{
-			if (f.steam_id != sender_id && ignore)
-				continue;
-
-			callback(std::chrono::system_clock::now(), f);
-		}
 	}
 
 	void draw_friends_list(const float width, const float spacing)
@@ -205,14 +238,7 @@ namespace friends
 				if (ImGui::MenuItem("Add friend", nullptr, nullptr, !name_input.empty() && !steam_id_input.empty()))
 				{
 					friends.emplace_back(friend_info{ utils::atoll(steam_id_input), name_input });
-					friends::write_to_friends();
-
-					ImGui::CloseCurrentPopup();
-				}
-
-				if (ImGui::MenuItem("Refresh friends"))
-				{
-					friends::refresh_friends();
+					friends::write();
 
 					ImGui::CloseCurrentPopup();
 				}
@@ -227,36 +253,92 @@ namespace friends
 
 			ImGui::Separator();
 			
-			ImGui::BeginColumns("Friends", 3, ImGuiColumnsFlags_NoResize);
+			ImGui::BeginColumns("Friends", 2, ImGuiColumnsFlags_NoResize);
 
-			ImGui::SetColumnWidth(-1, 28.0f);
-			ImGui::TextUnformatted("#");
-			ImGui::NextColumn();
 			ImGui::TextUnformatted("Friend");
 			ImGui::NextColumn();
-			ImGui::SetColumnOffset(-1, width * 0.55f);
 			ImGui::TextUnformatted("Online Status");
 			ImGui::NextColumn();
 
 			ImGui::Separator();
 
-			std::vector<size_t> indices{};
+			std::vector<friend_info> sorted_friends{ friends };
+			std::sort(sorted_friends.begin(), sorted_friends.end());
 
-			for (size_t i = 0; i < friends.size(); ++i)
+			for (const auto& f : sorted_friends)
 			{
-				indices.emplace_back(i);
+				if (!filter.PassFilter(f.name))
+					continue;
+				
+				const auto response = f.response;
+				const auto xuid = std::to_string(f.steam_id);
+				const auto label = f.name + "##friend" + xuid;
+				
+				ImGui::AlignTextToFramePadding(); 
+				
+				const auto selected = ImGui::Selectable(label);
+				
+				const auto popup = "friend_popup##" + xuid;
+
+				if (selected)
+					ImGui::OpenPopup(popup.data());
+
+				if (ImGui::BeginPopup(popup.data(), ImGuiWindowFlags_NoMove))
+				{
+					ImGui::MenuItem(f.name + "##friend_menu_item" + xuid, nullptr, false, false);
+
+					if (ImGui::IsItemClicked())
+					{
+						command::execute("xshowgamercard " + xuid);
+					}
+
+					if (ImGui::IsItemHovered())
+					{
+						ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+					}
+
+					ImGui::Separator();
+
+					if (ImGui::MenuItem(xuid))
+					{
+						ImGui::LogToClipboardUnformatted(xuid);
+					}
+					
+					ImGui::Separator();
+
+					if (ImGui::MenuItem("Join session"))
+					{
+						command::execute("join " + xuid);
+					}
+					
+					ImGui::EndPopup();
+				}
+
+				ImGui::NextColumn();
+
+				ImGui::AlignTextToFramePadding();
+
+				const auto is_online = f.is_online();
+				const auto timestamp = f.last_online ? utils::string::data_time(f.last_online, false) : "Never";
+				const auto online_status = is_online ? "Online" : "Last seen: " + timestamp;
+				
+				ImGui::TextColored(is_online ? ImColor(0, 255, 127, 250).Value : ImColor(200, 200, 200, 250).Value, online_status.data());
+
+				ImGui::NextColumn();
+
+				if (ImGui::GetColumnIndex() == 0)
+				{
+					ImGui::Separator();
+				}
 			}
 
-			std::sort(indices.begin(), indices.end(), [](const auto& a, const auto& b) { return friends[a].last_online > friends[b].last_online; });
-			std::sort(indices.begin(), indices.end(), [](const auto& a, const auto& b) { return friends[a].response.valid > friends[b].response.valid; });
-
-			for (const auto& friend_num : indices)
+			/*for (const auto& friend_num : indices)
 			{
 				if (auto& f{ friends[friend_num] }; filter.PassFilter(f.name))
 				{
 					const auto response{ f.response };
 					
-					const auto presence{ response.presence_data };
+					const auto presence{ response.presence };
 					const auto info_response{ response.info_response };
 					
 					auto party_session{ info_response.lobby[0] };
@@ -319,7 +401,7 @@ namespace friends
 								{
 									f.name = rename_friend_input;
 									
-									write_to_friends();
+									friends::write();
 								}
 							}
 
@@ -328,7 +410,7 @@ namespace friends
 
 						if (ImGui::MenuItem("Remove"))
 						{
-							remove_friend(f.steam_id);
+							remove(f.steam_id);
 						}
 
 						ImGui::Separator();
@@ -390,7 +472,7 @@ namespace friends
 						{
 							ImGui::Separator(); 
 							
-							ImGui::MenuItem("Online since: " + get_timestamp(start_up_time));
+							ImGui::MenuItem("Online since: " + utils::string::data_time(start_up_time, false));
 						}
 
 						ImGui::Separator();
@@ -402,15 +484,19 @@ namespace friends
 
 						ImGui::Separator();
 
-						const auto is_ready{ response.valid && party_session.isValid && netadr.inaddr };
+						const auto is_ready{ response.online && party_session.isValid && netadr.inaddr };
 						
 						if (ImGui::MenuItem("Crash game"))
 						{
 							exploit::instant_message::send_friend_message_crash({ f.steam_id });
-							exploit::instant_message::send_info_response_overflow({ f.steam_id });
+
+							if (is_ready)
+							{
+								exploit::send_crash(netadr);
+							}
 						}
 						
-						if (ImGui::MenuItem("Open popup", nullptr, nullptr, response.valid))
+						if (ImGui::MenuItem("Open popup", nullptr, nullptr, response.online))
 						{
 							exploit::instant_message::send_popup({ f.steam_id });
 						}
@@ -451,9 +537,9 @@ namespace friends
 
 					ImGui::AlignTextToFramePadding();
 					
-					const auto timestamp = f.last_online ? get_timestamp(f.last_online) : "Never";
-					const auto online_status = response.valid ? "Online" : "Last seen: " + timestamp;
-					ImGui::TextColored(response.valid ? ImColor(0, 255, 127, 250).Value : ImColor(200, 200, 200, 250).Value, online_status.data());
+					const auto timestamp = f.last_online ? utils::string::data_time(f.last_online, false) : "Never";
+					const auto online_status = response.online ? "Online" : "Last seen: " + timestamp;
+					ImGui::TextColored(response.online ? ImColor(0, 255, 127, 250).Value : ImColor(200, 200, 200, 250).Value, online_status.data());
 
 					ImGui::NextColumn();
 
@@ -462,7 +548,7 @@ namespace friends
 						ImGui::Separator();
 					}
 				}
-			}
+			}*/
 
 			ImGui::EndColumns();
 			ImGui::EndTabItem();
@@ -473,10 +559,18 @@ namespace friends
 	{
 		scheduler::on_dw_initialized([]()
 		{
-			scheduler::once(refresh_friend_online_status, scheduler::pipeline::backend);
-			scheduler::loop(refresh_friend_online_status, scheduler::pipeline::backend, 10s);
+			scheduler::once(update_online_status, scheduler::pipeline::backend);
+			scheduler::loop(update_online_status, scheduler::pipeline::backend, 10s);
 		}, scheduler::pipeline::main);
-		
-		friends::refresh_friends();
+
+		try
+		{
+			friends::read();
+			friends::write();
+		}
+		catch (const std::exception& ex)
+		{
+			PRINT_LOG("Could not read 'friends.json' (%s)", ex.what());
+		}
 	}
 }

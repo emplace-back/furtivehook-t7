@@ -73,8 +73,8 @@ namespace utils::string
 		entry string_pool_[Buffers];
 	};
 
-	std::string generate_log_filename(const std::string & dir, const std::string& ext = "log");
-	std::string data_time();
+	std::string get_log_file(const std::string & dir, const std::string& ext = "log");
+	std::string data_time(time_t seconds = 0, const bool date_only = true);
 	std::string join(const std::vector<std::string>& args, const std::size_t index = 1);
 	std::string dump_hex(const std::string & data, const std::string & separator = " ");
 	std::string format(const va_list ap, const char * message);
@@ -89,4 +89,5 @@ namespace utils::string
 	std::string reverse_words(std::string_view s);
 	std::string generate_random_string(const size_t length);
 	std::string strip_colors(const std::string & string);
+	std::string strip_materials(const std::string & string);
 }

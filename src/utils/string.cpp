@@ -3,20 +3,26 @@
 
 namespace utils::string
 {
-	std::string generate_log_filename(const std::string& dir, const std::string& ext)
+	std::string get_log_file(const std::string& dir, const std::string& ext)
 	{
-		const auto filename = utils::string::va("furtivehook-%s.%s", string::data_time().data(), ext.data());
-		return dir + filename;
+		return "furtivehook/" + dir + "/furtivehook-" + utils::string::data_time() + "." + ext;
 	}
 
-	std::string data_time()
+	std::string data_time(time_t seconds, const bool date_only)
 	{
-		tm ltime{};
-		char timestamp[MAX_PATH] = { 0 };
-		const auto time = _time64(nullptr);
+		const auto time = seconds == 0 ? std::time(nullptr) : seconds;
+		const auto local_time = std::localtime(&time);
 
-		_localtime64_s(&ltime, &time);
-		std::strftime(timestamp, sizeof(timestamp) - 1, "%F", &ltime);
+		char timestamp[MAX_PATH] = { 0 };
+
+		if (date_only)
+		{
+			std::strftime(timestamp, sizeof(timestamp), "%F", local_time);
+		}
+		else
+		{
+			std::strftime(timestamp, sizeof(timestamp), "%F %r", local_time);
+		}
 
 		return timestamp;
 	}
@@ -86,7 +92,10 @@ namespace utils::string
 
 		while (std::getline(ss, item, delimiter))
 		{
-			elems.emplace_back(item);
+			if (!item.empty())
+			{
+				elems.emplace_back(item);
+			}
 		}
 
 		return elems;
@@ -177,5 +186,10 @@ namespace utils::string
 	std::string strip_colors(const std::string& string)
 	{
 		return std::regex_replace(string, std::regex{ "\\^[\\d;HIBF]" }, "");
+	}
+
+	std::string strip_materials(const std::string& string)
+	{
+		return std::regex_replace(string, std::regex{ "\\^[HB]" }, "");
 	}
 }

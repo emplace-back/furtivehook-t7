@@ -3,13 +3,12 @@
 
 namespace utils::hook
 {
-	enum class instructions
-	{ 
-		call = 0xE8, 
-		jump = 0xE9,
-		retn = 0xC3,
-		mov_al_1_ret = 0xC301B0,
-		xor_eax_eax_ret = 0xC3C033,
+	enum class instr : uint8_t
+	{
+		call = 0xE8,
+		jmp = 0xE9,
+		ret = 0xC3,
+		mov = 0xB8,
 		nop = 0x90,
 	};
 	
@@ -59,7 +58,7 @@ namespace utils::hook
 		}
 
 		template <typename T = void, typename... Args>
-		T invoke(Args ... args)
+		T invoke(Args... args)
 		{
 			return static_cast<T(*)(Args ...)>(this->get_original())(args...);
 		}
@@ -71,56 +70,101 @@ namespace utils::hook
 		void* original_{};
 	};
 
-	void return_value(void * place, bool value);
-	
-	bool is_relatively_far(const void* pointer, const void* data, int offset = 5); 
-	
-	void jump(void* pointer, void* data, bool use_far = false);
-	void jump(size_t pointer, void* data, bool use_far = false);
-	void jump(size_t pointer, size_t data, bool use_far = false);
-	
-	void call(void* pointer, void* data);
-	void call(size_t pointer, void* data);
-	void call(size_t pointer, size_t data);
-	
-	void nop(void* place, size_t length = 5);
+	void write_string(char* place, const std::string& string);
+	void retn(const uintptr_t address);
+	void nop(const uintptr_t address, const size_t size);
 
-	inline void write_string(char* place, const std::string& string)
+	template <typename T> void copy(const uintptr_t address, const T data, const size_t length)
 	{
-		std::strncpy(place, string.data(), string.size());
-		place[string.size()] = 0;
+		DWORD old_protect{ 0 };
+		VirtualProtect(reinterpret_cast<void*>(address), length, PAGE_EXECUTE_READWRITE, &old_protect);
+
+		std::memmove(reinterpret_cast<void*>(address), data, length);
+
+		VirtualProtect(reinterpret_cast<void*>(address), length, old_protect, &old_protect);
+
+		FlushInstructionCache(GetCurrentProcess(), reinterpret_cast<void*>(address), length);
 	}
 	
-	inline void return_value(const std::size_t place, bool value)
+	template <typename T> void set(const uintptr_t address, const T value)
 	{
-		return_value(reinterpret_cast<void*>(place), value);
+		DWORD old_protect{ 0 };
+		VirtualProtect(reinterpret_cast<void*>(address), sizeof value, PAGE_EXECUTE_READWRITE, &old_protect);
+
+		*reinterpret_cast<T*>(address) = value;
+
+		VirtualProtect(reinterpret_cast<void*>(address), sizeof value, old_protect, &old_protect);
+
+		FlushInstructionCache(GetCurrentProcess(), reinterpret_cast<void*>(address), sizeof value);
 	}
 
-	inline void nop(const std::size_t place, size_t length = 5)
+	template <typename T> void set(const void* place, const T value)
 	{
-		nop(reinterpret_cast<void*>(place), length);
+		set<T>(reinterpret_cast<uintptr_t>(place), value);
 	}
 
-	template <typename T>
-	static void set(void* place, T value)
+	template <typename T> void jump(const uintptr_t address, const T function, const bool use_far = false)
 	{
-		DWORD old_protect;
-		VirtualProtect(place, sizeof(T), PAGE_EXECUTE_READWRITE, &old_protect);
-
-		*static_cast<T*>(place) = value;
-
-		VirtualProtect(place, sizeof(T), old_protect, &old_protect);
-		FlushInstructionCache(GetCurrentProcess(), place, sizeof(T));
+		if (use_far)
+		{
+			static const uint8_t jump_data[] =
+			{
+				0x48, 0xb8, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0xff, 0xe0
+			}; 
+			
+			copy(address, jump_data, sizeof(jump_data));
+			copy(address + 2, &function, sizeof(function));
+		}
+		else
+		{
+			set(address, instr::jmp);
+			set<uint32_t>(address + 1, uintptr_t(function) - address - 5);
+		}
 	}
 
-	template <typename T>
-	static void set(const size_t place, T value)
+	template <typename T> void jump(const void* place, const T function, const bool use_far = false)
 	{
-		return set<T>(reinterpret_cast<void*>(place), value);
+		jump<T>(uintptr_t(place), function, use_far);
 	}
 
-	static void retn(const std::size_t place)
+	template <typename T> void return_value(const uintptr_t address, const T value)
 	{
-		return set<std::uint8_t>(place, static_cast<std::uint8_t>(instructions::retn));
+		set(address, instr::mov);
+		set(address + 1, uintptr_t(value));
+		set(address + 5, instr::ret);
+	}
+
+	template <typename T> auto iat(const std::string& mod_name, const std::string& proc_name, T function)
+	{
+		const nt::library main;
+		if (!main.is_valid()) return T();
+
+		auto ptr = main.get_iat_entry(mod_name, proc_name);
+		if (!ptr) return T();
+
+		auto original = *ptr;
+		set(ptr, reinterpret_cast<uintptr_t*>(function));
+		return reinterpret_cast<T>(original);
+	}
+
+	template<typename T> T vtable(uintptr_t instance, const size_t index, T function)
+	{
+		auto table = *reinterpret_cast<uintptr_t**>(instance);
+
+		MEMORY_BASIC_INFORMATION mbi{};
+		VirtualQuery(reinterpret_cast<void*>(table), &mbi, sizeof(mbi));
+		VirtualProtect(mbi.BaseAddress, mbi.RegionSize, PAGE_READWRITE, &mbi.Protect);
+
+		const auto original = table[index];
+		table[index] = uintptr_t(function);
+
+		VirtualProtect(mbi.BaseAddress, mbi.RegionSize, mbi.Protect, &mbi.Protect);
+
+		return reinterpret_cast<T>(original);
+	}
+
+	template <typename T> T vtable(const void* place, const size_t index, T function)
+	{
+		return vtable<T>(uintptr_t(place), index, function);
 	}
 }

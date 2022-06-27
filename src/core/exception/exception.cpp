@@ -5,10 +5,18 @@ namespace exception
 {
 	namespace
 	{
+		bool is_exception_in_game_module(const uintptr_t address, const uintptr_t base)
+		{
+			utils::nt::library self{};
+			return address >= base && address < base - 0x1000 + self.get_nt_headers()->OptionalHeader.SizeOfImage;
+		}
+		
 		LONG __stdcall exception_filter(const LPEXCEPTION_POINTERS ex)
 		{
-			const auto code{ ex->ExceptionRecord->ExceptionCode }; 
-			const auto address{ ex->ExceptionRecord->ExceptionAddress };
+			const auto code = ex->ExceptionRecord->ExceptionCode; 
+			const auto addr = reinterpret_cast<uintptr_t>(ex->ExceptionRecord->ExceptionAddress);
+			const auto base = game::base_address; 
+			const auto offset = addr - base;
 			
 			if (code != STATUS_INTEGER_OVERFLOW
 				&& code != STATUS_FLOAT_OVERFLOW
@@ -16,16 +24,32 @@ namespace exception
 				&& !hwbp::handle_exception(ex)
 				&& !pageguard::handle_exception(ex))
 			{
-				utils::exception::minidump::write(ex);
+				std::string message;
 
-				auto error{ "Termination due to a stack overflow."s };
-				if (code != EXCEPTION_STACK_OVERFLOW)
+				if (is_exception_in_game_module(addr, base))
 				{
-					error = utils::string::va("Exception: 0x%08X at offset 0x%llX", code, reinterpret_cast<uintptr_t>(address) - game::base_address);
+					message = utils::string::va("Exception: 0x%08X at offset 0x%llX", code, offset);
+				}
+				else
+				{
+					message = utils::string::va("Exception: 0x%08X at 0x%llX (outside of game module)", code, addr);
 				}
 
-				PRINT_LOG("%s", error.data());
-				game::Com_Error(nullptr, 0, game::ERROR_DROP, error.data());
+				PRINT_LOG("%s", message.data());
+
+				if (code == STATUS_ACCESS_VIOLATION)
+				{
+					MessageBoxA(nullptr, message.data(), "Exception", MB_ICONERROR);
+
+					if (!utils::exception::minidump::write(ex))
+					{
+						MessageBoxA(nullptr, utils::string::va("There was an error creating the minidump! (0x%08X)", GetLastError()).data(), "Minidump Error", MB_OK | MB_ICONERROR);
+					}
+					
+					utils::nt::terminate(code);
+				}
+				
+				return EXCEPTION_CONTINUE_SEARCH;
 			}
 
 			return EXCEPTION_CONTINUE_EXECUTION;

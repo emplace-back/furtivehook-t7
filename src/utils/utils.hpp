@@ -1,24 +1,6 @@
 #pragma once
 #include "dependencies/std_include.hpp"
 
-#define FRIENDS_LIST "friends.json"
-
-#define PRINT_LOG_DETAILED(format, ...)																							\
-{																																\
-    logger::print_log(utils::string::va("[%s] %s", __FUNCTION__, format).data(), __VA_ARGS__);									\
-}	
-
-#define PRINT_LOG(format, ...)																									\
-{																																\
-    logger::print_log(format, __VA_ARGS__);																						\
-}																																\
-
-#define PRINT_MESSAGE(title, format, ...)																						\
-{																																\
-    PRINT_LOG(format, __VA_ARGS__);																								\
-    utils::toast::add_toast(title, utils::string::va(format, __VA_ARGS__));														\
-}
-
 namespace utils
 {
 	template <typename T>
@@ -36,32 +18,8 @@ namespace utils
 	{
 		return static_cast<std::uint64_t>(std::atoll(str.data()));
 	}
-
-	template <typename T>
-	std::vector<std::vector<T>> get_batch(const std::vector<T>& v, const size_t num)
-	{
-		std::vector<std::vector<T>> batches{};
-		batches.reserve(v.size() / num);
-
-		for (size_t i = 0; i < v.size(); i += num)
-		{
-			const auto last{ std::min(v.size(), i + num) };
-			batches.emplace_back(v.begin() + i, v.begin() + last);
-		}
-
-		return batches;
-	}
-
-	template <typename T>
-	void for_each_batch(const std::vector<T>& v, const size_t num, const std::function<void(std::vector<T>)>& callback)
-	{
-		const auto batches{ get_batch(v, num) };
-
-		for (const auto& batch : batches)
-		{
-			callback(batch);
-		}
-	}
 	
+	void print_log(const char* msg, ...);
 	std::string get_sender_string(const game::netadr_t & from);
+	std::string get_chat_message(const std::string& data, const uint64_t sender_id);
 }

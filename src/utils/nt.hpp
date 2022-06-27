@@ -18,25 +18,24 @@ namespace utils::nt
 		{
 		}
 
-		bool operator!=(const library& obj) const noexcept { return !(*this == obj); };
-		bool operator==(const library& obj) const noexcept;
+		bool operator!=(const library& obj) const { return !(*this == obj); };
+		bool operator==(const library& obj) const;
 
-		operator bool() const noexcept;
-		operator HMODULE() const noexcept;
+		operator bool() const;
+		operator HMODULE() const;
 
-		void unprotect() const noexcept;
-		void* get_entry_point() const noexcept;
-		size_t get_base_address() const noexcept;
-		size_t get_relative_entry_point() const noexcept;
+		void unprotect() const;
+		void* get_entry_point() const;
+		size_t get_relative_entry_point() const;
 
-		bool is_valid() const noexcept;
-		std::string get_name() const noexcept;
-		std::string get_path() const noexcept;
-		std::string get_folder() const noexcept;
-		std::uint8_t* get_ptr() const noexcept;
+		bool is_valid() const;
+		std::string get_name() const;
+		std::string get_path() const;
+		std::string get_folder() const;
+		std::uint8_t* get_ptr() const;
 		void free();
 
-		HMODULE get_handle() const noexcept;
+		HMODULE get_handle() const;
 
 		template <typename T>
 		T get_proc(const std::string& process) const
@@ -76,13 +75,13 @@ namespace utils::nt
 			return T();
 		}
 
-		std::vector<PIMAGE_SECTION_HEADER> get_section_headers() const noexcept;
+		std::vector<PIMAGE_SECTION_HEADER> get_section_headers() const;
 
-		PIMAGE_NT_HEADERS get_nt_headers() const noexcept;
-		PIMAGE_DOS_HEADER get_dos_header() const noexcept;
-		PIMAGE_OPTIONAL_HEADER get_optional_header() const noexcept;
+		PIMAGE_NT_HEADERS get_nt_headers() const;
+		PIMAGE_DOS_HEADER get_dos_header() const;
+		PIMAGE_OPTIONAL_HEADER get_optional_header() const;
 
-		void** get_iat_entry(const std::string& module_name, const std::string& proc_name) const noexcept;
+		uintptr_t** get_iat_entry(const std::string& module_name, const std::string& proc_name) const;
 
 	private:
 		HMODULE module_;
@@ -92,5 +91,5 @@ namespace utils::nt
 	std::string load_resource(int id);
 
 	void relaunch_self();
-	__declspec(noreturn) void terminate(uint32_t code = 0);
+	void terminate(const uint32_t code);
 }

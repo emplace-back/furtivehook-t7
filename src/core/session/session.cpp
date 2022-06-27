@@ -7,45 +7,77 @@ namespace session
 	{
 		std::vector<game::MatchMakingInfo> sessions;
 
-		bool can_add_to_session(const game::MatchMakingInfo& info)
+		const static auto& s_lobbySearch = reinterpret_cast<game::LobbySearch*>(game::base_address + 0x15B9D600);
+		
+		const auto lobby_search_success_callback = [](game::TaskRecord* task)
 		{
-			for (auto& session : sessions)
-			{
-				if (session.xuid == info.xuid)
-				{
-					session = info; 
-					return false;
-				}
-			}
+			const auto remote_task = task->remoteTask;
 
-			return true;
+			if (!remote_task)
+				return;
+
+			const auto num_results = remote_task->numResults;
+
+			if (num_results == 0)
+				return;
+
+			for (size_t i = 0; i < num_results; ++i)
+			{
+				const auto r = reinterpret_cast<game::MatchMakingInfo*>(game::base_address + 0x99AB490 + sizeof(game::MatchMakingInfo) * i);
+
+				if (r->info.hostAddrSize != sizeof game::XNADDR)
+					continue;
+
+				session::register_session(*r);
+			}
+		};
+			
+		const auto lobby_search_failure_callback = [](game::TaskRecord*)
+		{
+			PRINT_LOG("Session search task failed.");
+		};
+			
+		const game::TaskDefinition task_lobby_search
+		{
+			2,
+			"LobbySearch",
+			0x10,
+			lobby_search_success_callback,
+			lobby_search_failure_callback
+		};
+
+		void fetch_sessions()
+		{
+			if (game::TaskManager2_TaskGetInProgress(&task_lobby_search))
+				return;
+				
+			game::Live_SetupMatchmakingQuery();
+
+			if (const auto task = game::TaskManager2_CreateTask(
+				&task_lobby_search,
+				0,
+				nullptr,
+				game::liveSessionTaskTimeoutSearch->current.integer))
+			{
+				auto payload = *reinterpret_cast<game::SessionSearchPayloadData**>(&task->payload);
+				*payload = {};
+
+				game::dwFindSessions(task, &s_lobbySearch->info);
+			}
 		}
 	}
 
 	void register_session(const game::MatchMakingInfo& session)
 	{
-		if (!session::can_add_to_session(session))
+		const auto entry = std::find_if(sessions.begin(), sessions.end(), [&](const auto& s) { return s.xuid == session.xuid; });
+
+		if (entry == sessions.end())
 		{
-			return;
+			sessions.emplace_back(session);
 		}
-			
-		sessions.emplace_back(session);
-	}
-
-	void fetch_servers()
-	{
-		const auto result = game::get_dw_sessions();
-
-		if (result)
+		else
 		{
-			for (size_t i = 0; i < 50; ++i)
-			{
-				const auto session = game::get_session_result(i);
-				if (session->info.hostAddrSize == sizeof game::XNADDR)
-				{
-					session::register_session(*session);
-				}
-			}
+			*entry = session;
 		}
 	}
 
@@ -57,96 +89,103 @@ namespace session
 			ImGui::TextUnformatted("Search session");
 			filter.Draw("##search_session", width * 0.85f); 
 
-			static auto show_empty{ true };
-			ImGui::MenuItem("Show empty sessions", nullptr, &show_empty);
-
 			if (ImGui::MenuItem("Fetch sessions")) 
 			{ 
-				session::fetch_servers(); 
+				session::fetch_sessions();
 			}
-	
-			ImGui::BeginColumns("Sessions", 1, ImGuiColumnsFlags_NoResize);
 
+			ImGui::Separator();
+	
+			ImGui::BeginColumns("Sessions", 2, ImGuiColumnsFlags_NoResize);
+
+			ImGui::TextUnformatted("Session");
+			ImGui::NextColumn();
+			ImGui::SetColumnOffset(-1, width - ImGui::CalcTextSize("Clients").x);
+			ImGui::TextUnformatted("Clients");
 			ImGui::NextColumn();
 
-			std::vector<size_t> indices{};
+			ImGui::Separator();
 
-			for (size_t i = 0; i < sessions.size(); ++i)
-			{
-				indices.emplace_back(i);
-			}
-
-			std::sort(indices.begin(), indices.end(), [](const auto& a, const auto& b) { return sessions[a].info.numPlayers > sessions[b].info.numPlayers; });
+			std::vector<game::MatchMakingInfo> sorted_sessions{ sessions };
+			std::sort(sorted_sessions.begin(), sorted_sessions.end());
 			
-			for (const auto& session_num : indices)
+			for (const auto& session : sorted_sessions)
 			{
-				const auto session = &sessions[session_num];
-
-				if (!show_empty && session->isEmpty)
-					continue;
-
-				const auto xnaddr = *reinterpret_cast<game::XNADDR*>(session->info.hostAddr);
+				const auto xnaddr = *reinterpret_cast<const game::XNADDR*>(session.info.hostAddr);
 				const auto ip_string = xnaddr.to_string(true);
+				const auto xuid = std::to_string(session.xuid);
+				const auto label = ip_string + "##session" + xuid;
+				const auto selected = ImGui::Selectable(label);
+				const auto popup = "session_popup##" + xuid;
+
+				if (!filter.PassFilter(ip_string))
+					continue;
 				
-				if (filter.PassFilter(ip_string))
+				ImGui::AlignTextToFramePadding();
+
+				if (selected)
+					ImGui::OpenPopup(popup.data());
+
+				if (ImGui::BeginPopup(popup.data(), ImGuiWindowFlags_NoMove))
 				{
-					ImGui::AlignTextToFramePadding(); 
-
-					const auto message = utils::string::va("%u/%u", session->info.numPlayers, session->info.maxPlayers);
-					const auto selected = ImGui::MenuItem(ip_string + "##"s + std::to_string(session_num), message.data());
-
-					const auto popup = "session_popup##" + std::to_string(session_num);
-
-					if (selected)
+					if (ImGui::MenuItem(ip_string))
 					{
-						ImGui::OpenPopup(popup.data());
+						ImGui::LogToClipboardUnformatted(ip_string);
 					}
 
-					if (ImGui::BeginPopup(popup.data(), ImGuiWindowFlags_NoMove))
+					if (ImGui::MenuItem(xuid))
 					{
-						if (ImGui::MenuItem(ip_string))
-						{
-							ImGui::LogToClipboardUnformatted(ip_string);
-						}
-
-						if (ImGui::MenuItem(std::to_string(session->xuid)))
-						{
-							game::LiveSteam_PopOverlayForSteamID(session->xuid);
-						}
-
-						ImGui::Separator();
-
-						if (ImGui::MenuItem("Join session"))
-						{
-							game::LobbyVM_JoinEvent(0, session->xuid, game::JOIN_TYPE_PARTY);
-						}
-
-						if (ImGui::MenuItem("Join session2"))
-						{
-							game::LobbyVM_JoinEvent(0, session->xuid, game::JOIN_TYPE_NORMAL);
-						}
-
-						if (ImGui::MenuItem("Join session3"))
-						{
-							game::LobbyVM_JoinEvent(0, session->xuid, game::JOIN_TYPE_FRIEND);
-						}
-
-						ImGui::Separator();
-
-						if (ImGui::MenuItem("Freeze session"))
-						{
-							exploit::instant_message::send_info_response_overflow({ session->xuid });
-						}
-
-						ImGui::EndPopup();
+						command::execute("xshowgamercard " + xuid);
 					}
 
-					ImGui::NextColumn();
+					ImGui::Separator();
 
-					if (ImGui::GetColumnIndex() == 0)
+					const static std::vector<std::string> join_types =
 					{
-						ImGui::Separator();
+						"Normal",
+						"Playlist",
+						"Friend",
+						"Invite",
+						"Party",
+						"Group"
+					};
+
+					if (ImGui::BeginMenu("Join Session"))
+					{
+						for (size_t i = 0; i < join_types.size(); ++i)
+						{
+							const auto label = join_types[i] + "##" + std::to_string(i);
+
+							if (ImGui::MenuItem(label))
+							{
+								game::LobbyVM_JoinEvent(0, session.xuid, static_cast<game::JoinType>(i));
+							}
+						}
+
+						ImGui::EndMenu();
 					}
+
+					ImGui::Separator();
+
+					if (ImGui::MenuItem("Freeze session"))
+					{
+						exploit::instant_message::send_info_response_overflow({ session.xuid });
+					}
+
+					ImGui::EndPopup();
+				}
+
+				ImGui::NextColumn();
+
+				ImGui::AlignTextToFramePadding();
+
+				ImGui::Text("%i / %i", session.info.numPlayers, session.info.maxPlayers);
+
+				ImGui::NextColumn();
+
+				if (ImGui::GetColumnIndex() == 0)
+				{
+					ImGui::Separator();
 				}
 			}
 

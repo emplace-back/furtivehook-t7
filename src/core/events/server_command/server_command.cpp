@@ -3,7 +3,7 @@
 
 namespace events::server_command
 {
-	bool log_commands = false;
+	bool log_commands = true;
 
 	namespace
 	{
@@ -41,29 +41,21 @@ namespace events::server_command
 
 	void initialize()
 	{
-		server_command::on_command('2', [](const auto& args)
+		server_command::on_command('2', [=](const auto& args)
 		{
 			const auto index = utils::atoi(args[1]);
-			const auto string_lwr = utils::string::to_lower(args[2]);
 
-			if (utils::string::begins_with(args[2], "^H")
-				|| utils::string::begins_with(args[2], "^B")
-				|| utils::string::contains(args[2], "^H")
-				|| utils::string::contains(args[2], "^B"))
-			{
-				PRINT_LOG("Caught!");
-				return true;
-			}
-			
 			if (index == 3627)
 			{
-				const auto ignore_strings = 
+				const auto ignore_strings =
 				{
 					"mspreload"s,
 					"msload"s,
-				};
+				}; 
+				
+				const auto result = std::any_of(ignore_strings.begin(), ignore_strings.end(), [=](const auto& string) { return string == utils::string::to_lower(args[2]); });
 
-				if (std::find(ignore_strings.begin(), ignore_strings.end(), string_lwr) == ignore_strings.end())
+				if (!result)
 				{
 					return false;
 				}
@@ -71,6 +63,20 @@ namespace events::server_command
 				PRINT_MESSAGE("Server", "Loadside attempt caught!");
 				return true;
 			}
+
+			return false;
+		});
+
+		server_command::on_command('v', [](const auto& args)
+		{
+			if (args.size() != 2)
+				return true;
+				
+			const auto argugments = utils::string::split(args.join(1), ' ');
+			const auto sender_id = utils::atoll(argugments[0]);
+			const auto message = utils::get_chat_message(utils::string::join(argugments, 3), sender_id);
+
+			PRINT_LOG("%s", message.data());
 
 			return false;
 		});

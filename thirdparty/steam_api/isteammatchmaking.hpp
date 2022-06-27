@@ -10,9 +10,9 @@
 #pragma once
 #endif
 
-#include "steam_api_common.h"
-#include "matchmakingtypes.h" 
-#include "isteamfriends.h"
+#include "steam_api_common.hpp"
+#include "matchmakingtypes.hpp" 
+#include "isteamfriends.hpp"
 
 // lobby type description
 enum ELobbyType

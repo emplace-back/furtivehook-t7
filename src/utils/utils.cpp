@@ -3,6 +3,17 @@
 
 namespace utils 
 {
+	void print_log(const char* msg, ...)
+	{
+		va_list ap;
+		va_start(ap, msg);
+		const auto result = utils::string::format(ap, msg);
+		va_end(ap);
+
+		const static auto file = utils::string::get_log_file("logs");
+		utils::io::write_file(file, "[" + utils::string::data_time(0, false) + "] " + result + "\n", true);
+	}
+	
 	std::string get_sender_string(const game::netadr_t & from)
 	{
 		game::XNADDR xn;
@@ -18,7 +29,21 @@ namespace utils
 		}
 		else
 		{
-			return utils::string::va("%s", ip_str.data());
+			return ip_str;
+		}
+	}
+
+	std::string get_chat_message(const std::string& data, const uint64_t sender_id)
+	{
+		const auto session = game::session_data(); 
+
+		if (const auto client_num = game::LobbySession_GetClientNumByXuid(session, sender_id); client_num >= 0)
+		{
+			return session->clients[client_num].activeClient->fixedClientInfo.gamertag + ": "s + data;
+		}
+		else
+		{
+			return std::to_string(sender_id) + ": " + data;
 		}
 	}
 }

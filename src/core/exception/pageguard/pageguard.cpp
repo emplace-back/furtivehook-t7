@@ -30,6 +30,9 @@ namespace exception::pageguard
 
 	bool handle_exception(const LPEXCEPTION_POINTERS ex)
 	{
+		if (ex->ExceptionRecord->ExceptionCode != STATUS_GUARD_PAGE_VIOLATION)
+			return false; 
+		
 		const auto& callbacks = get_callbacks();
 		const auto handler = callbacks.find(ex->ContextRecord->Rip);
 

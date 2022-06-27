@@ -71,7 +71,7 @@ namespace aimbot
 	
 	bool is_valid_target(game::centity_t* cent)
 	{
-		if (!cent->is_alive())
+		if (!cent->is_alive() || cent->nextState.lerp.eFlags & 0x40000)
 			return false;
 
 		if (cent->nextState.number == game::cg()->predictedPlayerState.clientNum || !game::is_enemy(cent->nextState.number))

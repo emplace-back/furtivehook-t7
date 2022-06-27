@@ -9,9 +9,10 @@ namespace exception::dvars
 		scr_update_frame = 2,
 		cg_predict_playerstate = 3,
 		handle_packet = 4,
-		ui_draw_text = 5,
-		update_presence = 6,
-		loot_enabled = 7,
+		draw_text = 5,
+		ui_get_num_text_lines = 6,
+		update_presence = 7,
+		loot_enabled = 8,
 	}; 
 	
 	using callback = std::function<void(CONTEXT&)>; 

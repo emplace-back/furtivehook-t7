@@ -49,12 +49,6 @@
     <Filter Include="core\input">
       <UniqueIdentifier>{ED821051-D93A-529E-4242-2BFA2E19ED8E}</UniqueIdentifier>
     </Filter>
-    <Filter Include="core\loader">
-      <UniqueIdentifier>{74EF297A-E0A4-A26F-6999-9C46D54D9973}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="core\logger">
-      <UniqueIdentifier>{7D462D7A-E9FB-A56F-72F0-9F46DEA49C73}</UniqueIdentifier>
-    </Filter>
     <Filter Include="core\menu">
       <UniqueIdentifier>{52A25FA5-BE0C-141C-074B-C5C173F4F170}</UniqueIdentifier>
     </Filter>
@@ -73,9 +67,6 @@
     <Filter Include="core\security">
       <UniqueIdentifier>{F50A4F26-61CB-CA5C-2A06-14DA96850F39}</UniqueIdentifier>
     </Filter>
-    <Filter Include="core\security\iat">
-      <UniqueIdentifier>{E20E317C-4E25-2F12-979C-BA3303F2FF99}</UniqueIdentifier>
-    </Filter>
     <Filter Include="core\session">
       <UniqueIdentifier>{C1F439C4-AD57-C968-56DD-011F421F95EB}</UniqueIdentifier>
     </Filter>
@@ -84,9 +75,6 @@
     </Filter>
     <Filter Include="dependencies\game">
       <UniqueIdentifier>{D5AA926A-41C1-9000-8A38-1C22F68D6188}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="dependencies\hooks">
-      <UniqueIdentifier>{FFD401BD-EBB8-C212-5419-BD65401CAD94}</UniqueIdentifier>
     </Filter>
     <Filter Include="dependencies\math">
       <UniqueIdentifier>{05F6956A-710C-9400-BA83-1F2226D96488}</UniqueIdentifier>
@@ -99,12 +87,6 @@
     </Filter>
     <Filter Include="utils\exception">
       <UniqueIdentifier>{74DB9F59-E066-0D1E-E977-90125582691E}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="utils\json">
-      <UniqueIdentifier>{9F314747-8BE9-8894-F4F0-61F0E0C72385}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="utils\json\nlohmann">
-      <UniqueIdentifier>{8950B65A-F5B1-9368-7E1F-DA1AEA7FCA27}</UniqueIdentifier>
     </Filter>
     <Filter Include="utils\spoof_call">
       <UniqueIdentifier>{47ED541E-33E6-7370-5C18-59F54870537C}</UniqueIdentifier>
@@ -159,12 +141,6 @@
     <ClInclude Include="..\src\core\input\input.hpp">
       <Filter>core\input</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\core\loader\loader.hpp">
-      <Filter>core\loader</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\core\logger\logger.hpp">
-      <Filter>core\logger</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\core\menu\menu.hpp">
       <Filter>core\menu</Filter>
     </ClInclude>
@@ -183,9 +159,6 @@
     <ClInclude Include="..\src\core\scheduler\scheduler.hpp">
       <Filter>core\scheduler</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\core\security\iat\iat.hpp">
-      <Filter>core\security\iat</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\core\security\security.hpp">
       <Filter>core\security</Filter>
     </ClInclude>
@@ -200,9 +173,6 @@
     </ClInclude>
     <ClInclude Include="..\src\dependencies\game\structs.hpp">
       <Filter>dependencies\game</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\dependencies\hooks\MinHook.h">
-      <Filter>dependencies\hooks</Filter>
     </ClInclude>
     <ClInclude Include="..\src\dependencies\math\math.hpp">
       <Filter>dependencies\math</Filter>
@@ -224,9 +194,6 @@
     </ClInclude>
     <ClInclude Include="..\src\utils\io.hpp">
       <Filter>utils</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\json\nlohmann\json.hpp">
-      <Filter>utils\json\nlohmann</Filter>
     </ClInclude>
     <ClInclude Include="..\src\utils\memory.hpp">
       <Filter>utils</Filter>
@@ -299,12 +266,6 @@
     <ClCompile Include="..\src\core\input\input.cpp">
       <Filter>core\input</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\core\loader\loader.cpp">
-      <Filter>core\loader</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\core\logger\logger.cpp">
-      <Filter>core\logger</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\core\main.cpp">
       <Filter>core</Filter>
     </ClCompile>
@@ -325,9 +286,6 @@
     </ClCompile>
     <ClCompile Include="..\src\core\scheduler\scheduler.cpp">
       <Filter>core\scheduler</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\core\security\iat\iat.cpp">
-      <Filter>core\security\iat</Filter>
     </ClCompile>
     <ClCompile Include="..\src\core\security\security.cpp">
       <Filter>core\security</Filter>

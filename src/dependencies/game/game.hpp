@@ -1,10 +1,8 @@
 #pragma once
 #include "utils/string.hpp"
+#include "utils/spoof_call/spoof_call.hpp"
 #include "structs.hpp"
 #include "offsets.hpp"
-#include "core/logger/logger.hpp"
-#include "utils/utils.hpp"
-#include "utils/spoof_call/spoof_call.hpp"
 
 namespace game
 {
@@ -46,7 +44,6 @@ namespace game
 		bool send(const netadr_t & target, const std::string & data);
 		bool register_remote_addr(const XSESSION_INFO * info, netadr_t * addr);
 		bool register_remote_addr(const InfoResponseLobby & lobby, netadr_t * addr);
-		bool send_lobby_msg(const netadr_t& to, const msg_t& msg, const LobbyModule module = LOBBY_MODULE_HOST);
 	}
 	
 	void initialize();
@@ -70,6 +67,7 @@ namespace game
 	bool send_instant_message(const std::vector<std::uint64_t>& recipients, const std::uint8_t type, const std::string & data);
 	bool send_instant_message(const std::vector<std::uint64_t>& recipients, const std::uint8_t type, const msg_t & msg);
 	bool send_netchan_message(const LobbySession* session, const netadr_t& netadr, const std::uint64_t xuid, const std::string& data);
+	const char* LobbyTypes_GetMsgTypeName(const MsgType type);
 	int LobbySession_GetClientNumByXuid(const game::LobbySession* session, const std::uint64_t xuid);
 	bool is_valid_lobby_type(const int lobby_type);
 	void enum_assets(const XAssetType type, const std::function<void(XAssetHeader)>& callback, const bool includeOverride);
@@ -77,14 +75,15 @@ namespace game
 	netadr_t get_session_netadr(const LobbySession* session, const ActiveClient* client);
 	int I_stricmp(const std::string & a, const std::string & b);
 	char * I_strncpyz(char * place, const std::string & string, const size_t length);
-	TaskRecord* get_dw_presence(const std::vector<std::uint64_t>& recipients);
-	bool get_dw_sessions();
 	std::string get_gametype_on_mapname(const int map_id, const int gametype_id);
 	
 	extern std::array<scr_string_t, static_cast<std::uint32_t>(bone_tag::num_tags)> bone_tags;
 
 	const static auto base_address = reinterpret_cast<std::uintptr_t>(GetModuleHandleA(nullptr)) + 0x1000;
 
+	const static auto dwFindSessions = reinterpret_cast<void(*)(game::TaskRecord*, game::MatchMakingQuery* const)>(game::base_address + 0x1437DB0); 
+	const static auto CL_StoreConfigString = reinterpret_cast<void(*)(int index, const char *s)>(game::base_address + 0x13657C0);
+	const static auto LiveInventory_IsValid = reinterpret_cast<bool(*)(const ControllerIndex_t)>(game::base_address + 0x1E09440);
 	const static auto Cmd_EndTokenizedString = reinterpret_cast<void(*)()>(base_address + 0x20EC770);
 	const static auto Cmd_TokenizeStringNoEval = reinterpret_cast<void(*)(const char*)>(base_address + 0x20EE870);
 	const static auto I_CleanStr = reinterpret_cast<char*(*)(const char*)>(base_address + 0x22E8C10);
@@ -111,6 +110,7 @@ namespace game
 	const static auto BG_GetDepth = reinterpret_cast<float(*)(BulletHitInfo*, const BulletTraceResults*, const BulletFireParams*, const BulletTraceResults*)>(base_address + 0xA1CF0);
 	const static auto BG_GetMinDamageRangeScaled = reinterpret_cast<float(*)(Weapon)>(base_address + 0x26F0960);
 	const static auto BG_GetMultishotBaseMinDamageRangeScaled = reinterpret_cast<float(*)(Weapon)>(base_address + 0x26F0550);
+	const static auto liveSessionTaskTimeoutSearch = *reinterpret_cast<dvar_t**>(base_address + 0x11419728);
 	const static auto sv_bullet_range = *reinterpret_cast<dvar_t**>(base_address + 0x176F96C0);
 	const static auto ui_mapname = *reinterpret_cast<dvar_t**>(base_address + 0x179E0AC0);
 	const static auto BG_GetSpreadForWeapon = reinterpret_cast<void(*)(playerState_s const*, const Weapon, float*, float*)>(base_address + 0x26D0310);
@@ -140,36 +140,29 @@ namespace game
 	const static auto LobbyClientLaunch_IsInGame = *reinterpret_cast<bool(__fastcall*)()>(base_address + 0x1ECD6D0);
 	const static auto dwRegisterSecIDAndKey = reinterpret_cast<bool(*)(const bdSecurityID *, const bdSecurityKey *)>(base_address + 0x143D120);
 	const static auto dwCommonAddrToNetadr = reinterpret_cast<bool(*)(netadr_t *const, const void *const, const bdSecurityID *)>(base_address + 0x143B360);
+	const static auto MSG_InfoResponseLobbyServer = reinterpret_cast<bool(__fastcall *)(void*, msg_t *)>(base_address + 0x1EDA1E0);
 	const static auto MSG_InfoResponse = reinterpret_cast<bool(__fastcall *)(void*, msg_t *)>(base_address + 0x1EE0EB0);
 	const static auto LobbyMsgRW_PackageShort = reinterpret_cast<bool(*)(game::msg_t *, const char*, short*)>(game::base_address + 0x1EF57A0);
 	const static auto LobbyMsgRW_PackageBool = reinterpret_cast<bool(*)(game::msg_t *, const char*, bool*)>(game::base_address + 0x1EF55D0);
 	const static auto LobbyMsgRW_PackageString = reinterpret_cast<bool(*)(game::msg_t *, const char*, char*, int)>(game::base_address + 0x1EF57C0);
 	const static auto LobbyMsgRW_PackageUShort = reinterpret_cast<bool(__fastcall *)(msg_t *, const char*, std::uint16_t*)>(base_address + 0x1EF5970);
 	const static auto LobbyMsgRW_PackageUChar = reinterpret_cast<bool(__fastcall *)(msg_t *, const char*, std::uint8_t*)>(base_address + 0x1EF5850);
-	const static auto LobbyMsgRW_PrepWriteMsg = reinterpret_cast<bool(__fastcall *)(msg_t *, char *, int, MsgType)>(base_address + 0x1EF5A80);
 	const static auto LobbyMsgRW_PackageUInt64 = reinterpret_cast<bool(__fastcall *)(msg_t *, const char *, std::uint64_t*)>(base_address + 0x1EF5870);
 	const static auto LobbyMsgRW_PackageUInt = reinterpret_cast<bool(__fastcall *)(msg_t *, const char *, std::uint32_t*)>(base_address + 0x1EF58F0);
 	const static auto LobbyMsgRW_PackageXuid = reinterpret_cast<bool(__fastcall *)(msg_t *, const char*, std::uint64_t*)>(base_address + 0x1EF5990);
 	const static auto LobbyMsgRW_PackageArrayStart = reinterpret_cast<bool(__fastcall *)(msg_t *, const char*)>(base_address + 0x1EF5560);
 	const static auto LobbyMsgRW_PackageInt = reinterpret_cast<bool(__fastcall *)(msg_t *, const char*, int*)>(base_address + 0x1EF5720);
 	const static auto LobbyMsgRW_PackageGlob = reinterpret_cast<bool(__fastcall *)(msg_t *, const char*, void*, int)>(base_address + 0x1EF5700);
-	const static auto LobbyMsgRW_PrepReadMsg = reinterpret_cast<bool(__fastcall *)(msg_t *, msg_t*)>(base_address + 0x1EF5A40);
-	const static auto LobbyMsgRW_PrepReadData = reinterpret_cast<bool(__fastcall *)(msg_t *, char *, int)>(base_address + 0x1EF5A10);
+	const static auto LobbyMsgRW_PrepReadMsg = reinterpret_cast<bool(__fastcall *)(msg_t *, char *, int)>(base_address + 0x1EF5A10);
 	const static auto LiveUser_IsXUIDLocalPlayer = reinterpret_cast<bool(__fastcall*)(const std::uint64_t)>(base_address + 0x1EC61C0);
 	const static auto dwNetadrToCommonAddr = reinterpret_cast<bool(__fastcall*)(netadr_t, void*, const unsigned int, bdSecurityID*)>(base_address + 0x143CA60);
 	const static auto Com_Error = reinterpret_cast<void(__fastcall*)(const char*, int, errorCode, const char*)>(base_address + 0x20F7BD0);
 	const static auto Sys_GetTLS = reinterpret_cast<TLSData*(__fastcall*)()>(base_address + 0x2183210);
 	const static auto LobbyTypes_GetLobbyTypeName = reinterpret_cast<const char*(__fastcall*)(const LobbyType)>(base_address + 0x1EEACE0);
-	const static auto LobbyTypes_GetMsgTypeName = reinterpret_cast<const char*(__fastcall*)(const MsgType)>(base_address + 0x1EEAD60);
 	const static auto MSG_ReadData = reinterpret_cast<void(*)(msg_t*, void*, int)>(base_address + 0x2154F10); 
 	const static auto MSG_Init = reinterpret_cast<void(*)(msg_t*, char*, int)>(base_address + 0x21549E0);
 	const static auto MSG_InitReadOnly = reinterpret_cast<void(*)(msg_t*, std::uint8_t*, int)>(base_address + 0x2154A70);
 	const static auto MSG_BeginReading = reinterpret_cast<void(*)(msg_t*)>(base_address + 0x2154760);
-	const static auto MSG_ReadByte = reinterpret_cast<std::uint8_t(*)(msg_t *)>(base_address + 0x2154EB0);
-	const static auto MSG_WriteString = reinterpret_cast<void(*)(msg_t*, const char*)>(base_address + 0x2157C80);
-	const static auto MSG_WriteShort = reinterpret_cast<void(*)(msg_t*, int)>(base_address + 0x2172130);
-	const static auto MSG_WriteByte = reinterpret_cast<void(*)(msg_t*, int)>(base_address + 0x2157220);
-	const static auto MSG_WriteData = reinterpret_cast<void(*)(msg_t*, const void *, int)>(base_address + 0x2157240);
 	const static auto CG_BoldGameMessageCenter = reinterpret_cast<void(*)(LocalClientNum_t, const char *, int)>(base_address + 0x8C3C80);
 	const static auto LiveUser_GetClientName = reinterpret_cast<const char*(*)(const ControllerIndex_t)>(base_address + 0x1EC6370);
 	const static auto LiveUser_GetXuid = reinterpret_cast<std::uint64_t(*)(const ControllerIndex_t)>(base_address + 0x1EC63A0);
@@ -188,9 +181,6 @@ namespace game
 	const static auto Com_IsRunningUILevel = reinterpret_cast<bool(*)()>(base_address + 0x2147DB0);
 	const static auto CL_GetClientName = reinterpret_cast<bool(*)(LocalClientNum_t, int, char*, int, bool)>(base_address + 0x13E2140);
 	const static auto NET_CompareAdr = reinterpret_cast<bool(*)(const netadr_t, const netadr_t)>(base_address + 0x21722D0);
-	const static auto LiveSteam_GetFriends = reinterpret_cast<ISteamFriends*(*)(std::uintptr_t)>(base_address + 0x1DF99F0);
-	const static auto LiveSteam_GetUser = reinterpret_cast<ISteamUser*(*)(std::uintptr_t)>(base_address + 0x1D27800);
-	const static auto LiveSteam_GetApps = reinterpret_cast<ISteamApps*(*)(std::uintptr_t)>(base_address + 0x1EB04F0);
 	const static auto CL_GetLocalClientGlobals = *reinterpret_cast<clientActive_t*(*)(LocalClientNum_t)>(base_address + 0x70BD0);
 	const static auto CG_GetPredictedPlayerState = *reinterpret_cast<playerState_s*(*)(LocalClientNum_t)>(base_address + 0x8DE6A0);
 	const static auto LobbySession_GetSession_Internal = *reinterpret_cast<LobbySession*(*)(LobbyType)>(base_address + 0x1ECCAB0);
@@ -210,29 +200,21 @@ namespace game
 	const static auto Com_GameInfo_GetGameTypeNameForID = reinterpret_cast<const char*(*)(int)>(base_address + 0x20F2E60);
 	const static auto Com_GameInfo_GetGameTypeOnMapName = reinterpret_cast<void(*)(const char *, const char *, char *, int)>(base_address + 0x20F2F40);
 	const static auto TaskManager2_ClearTasks = reinterpret_cast<void(*)(const void*)>(base_address + 0x22AF610);
-	const static auto liveSessionTaskTimeoutSearch = *reinterpret_cast<dvar_t**>(base_address + 0x11419728);
 	const static auto TaskManager2_CreateTask = reinterpret_cast<TaskRecord*(*)(const void*, const ControllerIndex_t, TaskRecord*, int)>(base_address + 0x22AF770);
-	const static auto dwFindSessions = reinterpret_cast<void(*)(TaskRecord *, MatchMakingQuery* const)>(base_address + 0x1437DB0);
-	const static auto Live_SetupMatchmakingQuery = reinterpret_cast<void(*)(uintptr_t)>(base_address + 0x1EFB5D0);
+	const static auto Live_SetupMatchmakingQuery = reinterpret_cast<void(*)()>(base_address + 0x1EFB5D0);
 	const static auto UI_SafeTranslateString = reinterpret_cast<const char*(*)(const char *)>(base_address + 0x228E7B0);
 	const static auto FindColumnIndexFromName = reinterpret_cast<int(*)(const StructuredTable*, const char*)>(base_address + 0x22AE970);
 	const static auto StructuredTable_LoadAsset_FastFile = reinterpret_cast<void(*)(const char*, StructuredTable**)>(base_address + 0x22AF0C0);
 	const static auto FindCell = reinterpret_cast<StructuredTableCell*(*)(StructuredTable*, const char*, StructuredTableValue, StructuredTableValueType, const char*)>(base_address + 0x22AE8A0);
-	const static auto& s_lobbySearch = reinterpret_cast<LobbySearch*>(base_address + 0x15B9D600);
-	const static auto& task_lobbySearch = reinterpret_cast<void*>(base_address + 0x3022208);
+	const static auto& cls = reinterpret_cast<clientStatic_t*>(game::base_address + 0x53DD190);
 	const static auto& g_fHitLocDamageMult = reinterpret_cast<float*>(base_address + 0xA08C4D0);
 	const static auto& g_assetNames = reinterpret_cast<const char**>(base_address + 0x3329080);
 	const static auto& s_infoProbe = reinterpret_cast<InfoProbe*>(base_address + 0x1574B590);
 	const static auto& window = *reinterpret_cast<HWND*>(base_address + 0x17E773D0);
-	const static auto& swap_chain = reinterpret_cast<IDXGISwapChain**>(base_address + 0xF4B7858);
+	const static auto& lobbyMsgName = reinterpret_cast<const char**>(base_address + 0x34104A0);
 	const static auto& threadNames = reinterpret_cast<const char**>(base_address + 0x34393A0);
 	const static auto& threadIds = reinterpret_cast<unsigned int*>(base_address + 0x175BF5D0);
 	const static auto& s_presenceTaskData = reinterpret_cast<dwPresenceTask*>(base_address + 0x1140F0A8 + 0x14 * 0);
-	
-	inline MatchMakingInfo* get_session_result(const size_t server_num)
-	{
-		return reinterpret_cast<MatchMakingInfo*>(base_address + 0x99AB490 + sizeof(MatchMakingInfo) * server_num);
-	}
 	
 	inline LobbySession* get_host_session(const int lobby_type)
 	{
@@ -256,10 +238,10 @@ namespace game
 
 	inline LobbySession* session_data()
 	{
+		const auto party_session = game::get_client_session(game::LOBBY_TYPE_PRIVATE); 
 		const auto lobby_session = game::get_client_session(game::LOBBY_TYPE_GAME);
-		const auto party_session = game::get_client_session(game::LOBBY_TYPE_PRIVATE);
 
-		return party_session->active ? party_session : lobby_session;
+		return lobby_session->active ? lobby_session : party_session;
 	}
 
 	inline clientActive_t* cl() 

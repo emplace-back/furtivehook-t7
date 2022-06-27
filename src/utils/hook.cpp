@@ -1,6 +1,5 @@
 #include "dependencies/std_include.hpp"
 #include "hook.hpp"
-#include "dependencies/hooks/MinHook.h"
 
 namespace utils::hook
 {
@@ -82,94 +81,26 @@ namespace utils::hook
 		return this->original_;
 	}
 
-	void nop(void* place, size_t length)
+	void write_string(char* place, const std::string& string)
 	{
-		DWORD old_protection{ 0 };
-		VirtualProtect(place, length, PAGE_EXECUTE_READWRITE, &old_protection);
-
-		std::memset(place, static_cast<std::uint8_t>(instructions::nop), length);
-
-		VirtualProtect(place, length, old_protection, &old_protection);
-		FlushInstructionCache(GetCurrentProcess(), place, length);
-	}
-
-	void return_value(void* place, bool value)
-	{
-		return set(place, value ? instructions::mov_al_1_ret : instructions::xor_eax_eax_ret);
-	}
-
-	bool is_relatively_far(const void* pointer, const void* data, const int offset)
-	{
-		const int64_t diff = size_t(data) - (size_t(pointer) + offset);
-		const auto small_diff = int32_t(diff);
-		return diff != int64_t(small_diff);
-	}
-
-	void copy(void* place, const void* data, const size_t length)
-	{
-		DWORD old_protect{};
-		VirtualProtect(place, length, PAGE_EXECUTE_READWRITE, &old_protect);
-
-		std::memmove(place, data, length);
-
-		VirtualProtect(place, length, old_protect, &old_protect);
-		FlushInstructionCache(GetCurrentProcess(), place, length);
-	}
-
-	void copy(const size_t place, const void* data, const size_t length)
-	{
-		copy(reinterpret_cast<void*>(place), data, length);
+		std::strncpy(place, string.data(), string.size());
+		place[string.size()] = 0;
 	}
 	
-	void jump(void* pointer, void* data, const bool use_far)
+	void retn(const uintptr_t address)
 	{
-		static const unsigned char jump_data[] = {
-			0x48, 0xb8, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0xff, 0xe0
-		};
-
-		if (!use_far && is_relatively_far(pointer, data))
-		{
-			throw std::runtime_error("Too far away to create 32bit relative branch");
-		}
-
-		auto* patch_pointer = PBYTE(pointer);
-
-		if (use_far)
-		{
-			copy(patch_pointer, jump_data, sizeof(jump_data));
-			copy(patch_pointer + 2, &data, sizeof(data));
-		}
-		else
-		{
-			set<uint8_t>(patch_pointer, 0xE9);
-			set<int32_t>(patch_pointer + 1, int32_t(size_t(data) - (size_t(pointer) + 5)));
-		}
+		set(address, instr::ret);
 	}
-
-	void jump(const size_t pointer, void* data, const bool use_far)
+	
+	void nop(const uintptr_t address, const size_t size)
 	{
-		return jump(reinterpret_cast<void*>(pointer), data, use_far);
-	}
+		DWORD old_protect{ 0 };
+		VirtualProtect(reinterpret_cast<void*>(address), size, PAGE_EXECUTE_READWRITE, &old_protect);
 
-	void jump(const size_t pointer, const size_t data, const bool use_far)
-	{
-		return jump(pointer, reinterpret_cast<void*>(data), use_far);
-	}
+		std::memset(reinterpret_cast<void*>(address), std::uint8_t(instr::nop), size);
 
-	void call(void* pointer, void* data)
-	{
-		auto* patch_pointer = PBYTE(pointer);
-		set<std::uint8_t>(patch_pointer, std::uint8_t(instructions::call));
-		set<std::uint32_t>(patch_pointer + 1, std::uint32_t(size_t(data) - (size_t(pointer) + 5)));
-	}
+		VirtualProtect(reinterpret_cast<void*>(address), size, old_protect, &old_protect);
 
-	void call(const size_t pointer, void* data)
-	{
-		return call(reinterpret_cast<void*>(pointer), data);
-	}
-
-	void call(const size_t pointer, const size_t data)
-	{
-		return call(pointer, reinterpret_cast<void*>(data));
+		FlushInstructionCache(GetCurrentProcess(), reinterpret_cast<void*>(address), size);
 	}
 }

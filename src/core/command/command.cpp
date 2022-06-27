@@ -93,13 +93,22 @@ namespace command
 				{
 					PRINT_LOG("Listing assets in [%s] pool", game::g_assetNames[type]);
 
-					game::enum_assets(type, [=](const auto& header)
+					std::vector<std::string> asset_names{};
+					
+					game::enum_assets(type, [&](const auto& header)
 					{
 						const auto asset = game::XAsset{ type, header };
 						const auto asset_name = game::DB_GetXAssetName(&asset);
-
-						PRINT_LOG("%s", asset_name);
+						
+						asset_names.emplace_back(asset_name);
 					}, true);
+
+					std::sort(asset_names.begin(), asset_names.end(), [](const auto& a, const auto& b) { return a < b; });
+					
+					for (const auto& name : asset_names)
+					{
+						PRINT_LOG("%s", name.data());
+					}
 				}
 			}
 		});

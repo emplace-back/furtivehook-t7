@@ -1,8 +1,6 @@
 #pragma once
 #include "dependencies/std_include.hpp"
 
-IMGUI_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
 struct hotkey_t
 {
 	UINT key;

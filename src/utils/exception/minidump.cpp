@@ -18,7 +18,7 @@ namespace utils::exception::minidump
 
 	bool write(const LPEXCEPTION_POINTERS ex)
 	{
-		const auto file_path = utils::string::generate_log_filename("furtivehook/mindumps/", "dmp");
+		const auto file_path = utils::string::get_log_file("minidumps", "dmp");
 		if (!utils::io::write_file(file_path, "Creating minidump .."))
 		{
 			return false;

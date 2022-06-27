@@ -107,8 +107,8 @@ project "furtivehook-t7"
     }
 
     libdirs {
-        "thirdparty/minhook/lib/",
-        "thirdparty/steam_api/lib/",
+        "thirdparty/minhook/",
+        "thirdparty/steam_api/",
         "$(DXSDK_DIR)lib/x64/",
     }
 

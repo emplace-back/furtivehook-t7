@@ -74,7 +74,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>steam_api.lib;MinHook.lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\thirdparty\minhook\lib;..\thirdparty\steam_api\lib;$(DXSDK_DIR)lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\thirdparty\minhook;..\thirdparty\steam_api;$(DXSDK_DIR)lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ImportLibrary>bin\debug\furtivehook-t7-debug.lib</ImportLibrary>
     </Link>
     <BuildLog>
@@ -99,7 +99,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>steam_api.lib;MinHook.lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\thirdparty\minhook\lib;..\thirdparty\steam_api\lib;$(DXSDK_DIR)lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\thirdparty\minhook;..\thirdparty\steam_api;$(DXSDK_DIR)lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ImportLibrary>bin\release\furtivehook-t7-release.lib</ImportLibrary>
     </Link>
     <BuildLog>
@@ -123,21 +123,17 @@
     <ClInclude Include="..\src\core\exploit\exploit.hpp" />
     <ClInclude Include="..\src\core\friends\friends.hpp" />
     <ClInclude Include="..\src\core\input\input.hpp" />
-    <ClInclude Include="..\src\core\loader\loader.hpp" />
-    <ClInclude Include="..\src\core\logger\logger.hpp" />
     <ClInclude Include="..\src\core\menu\menu.hpp" />
     <ClInclude Include="..\src\core\misc\misc.hpp" />
     <ClInclude Include="..\src\core\nospread\nospread.hpp" />
     <ClInclude Include="..\src\core\rendering\dx.hpp" />
     <ClInclude Include="..\src\core\rendering\rendering.hpp" />
     <ClInclude Include="..\src\core\scheduler\scheduler.hpp" />
-    <ClInclude Include="..\src\core\security\iat\iat.hpp" />
     <ClInclude Include="..\src\core\security\security.hpp" />
     <ClInclude Include="..\src\core\session\session.hpp" />
     <ClInclude Include="..\src\dependencies\game\game.hpp" />
     <ClInclude Include="..\src\dependencies\game\offsets.hpp" />
     <ClInclude Include="..\src\dependencies\game\structs.hpp" />
-    <ClInclude Include="..\src\dependencies\hooks\MinHook.h" />
     <ClInclude Include="..\src\dependencies\math\math.hpp" />
     <ClInclude Include="..\src\dependencies\std_include.hpp" />
     <ClInclude Include="..\src\steam\steam.hpp" />
@@ -145,7 +141,6 @@
     <ClInclude Include="..\src\utils\exception\minidump.hpp" />
     <ClInclude Include="..\src\utils\hook.hpp" />
     <ClInclude Include="..\src\utils\io.hpp" />
-    <ClInclude Include="..\src\utils\json\nlohmann\json.hpp" />
     <ClInclude Include="..\src\utils\memory.hpp" />
     <ClInclude Include="..\src\utils\nt.hpp" />
     <ClInclude Include="..\src\utils\spoof_call\spoof_call.hpp" />
@@ -171,8 +166,6 @@
     <ClCompile Include="..\src\core\exploit\exploit.cpp" />
     <ClCompile Include="..\src\core\friends\friends.cpp" />
     <ClCompile Include="..\src\core\input\input.cpp" />
-    <ClCompile Include="..\src\core\loader\loader.cpp" />
-    <ClCompile Include="..\src\core\logger\logger.cpp" />
     <ClCompile Include="..\src\core\main.cpp" />
     <ClCompile Include="..\src\core\menu\menu.cpp" />
     <ClCompile Include="..\src\core\misc\misc.cpp" />
@@ -180,7 +173,6 @@
     <ClCompile Include="..\src\core\rendering\dx.cpp" />
     <ClCompile Include="..\src\core\rendering\rendering.cpp" />
     <ClCompile Include="..\src\core\scheduler\scheduler.cpp" />
-    <ClCompile Include="..\src\core\security\iat\iat.cpp" />
     <ClCompile Include="..\src\core\security\security.cpp" />
     <ClCompile Include="..\src\core\session\session.cpp" />
     <ClCompile Include="..\src\dependencies\game\game.cpp" />

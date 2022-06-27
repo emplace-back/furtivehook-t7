@@ -144,7 +144,7 @@
     <ClInclude Include="..\thirdparty\steam_api\steamuniverse.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\thirdparty\steam_api\lib\steam_api.lib" />
+    <None Include="..\thirdparty\steam_api\steam_api.lib" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

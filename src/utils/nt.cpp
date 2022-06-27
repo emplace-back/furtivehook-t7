@@ -34,39 +34,39 @@ namespace utils::nt
 		this->module_ = handle;
 	}
 
-	bool library::operator==(const library& obj) const noexcept
+	bool library::operator==(const library& obj) const
 	{
 		return this->module_ == obj.module_;
 	}
 
-	library::operator bool() const noexcept
+	library::operator bool() const
 	{
 		return this->is_valid();
 	}
 
-	library::operator HMODULE() const noexcept
+	library::operator HMODULE() const
 	{
 		return this->get_handle();
 	}
 
-	PIMAGE_NT_HEADERS library::get_nt_headers() const noexcept
+	PIMAGE_NT_HEADERS library::get_nt_headers() const
 	{
 		if (!this->is_valid()) return nullptr;
 		return reinterpret_cast<PIMAGE_NT_HEADERS>(this->get_ptr() + this->get_dos_header()->e_lfanew);
 	}
 
-	PIMAGE_DOS_HEADER library::get_dos_header() const noexcept
+	PIMAGE_DOS_HEADER library::get_dos_header() const
 	{
 		return reinterpret_cast<PIMAGE_DOS_HEADER>(this->get_ptr());
 	}
 
-	PIMAGE_OPTIONAL_HEADER library::get_optional_header() const noexcept
+	PIMAGE_OPTIONAL_HEADER library::get_optional_header() const
 	{
 		if (!this->is_valid()) return nullptr;
 		return &this->get_nt_headers()->OptionalHeader;
 	}
 
-	std::vector<PIMAGE_SECTION_HEADER> library::get_section_headers() const noexcept
+	std::vector<PIMAGE_SECTION_HEADER> library::get_section_headers() const
 	{
 		std::vector<PIMAGE_SECTION_HEADER> headers;
 
@@ -82,12 +82,12 @@ namespace utils::nt
 		return headers;
 	}
 
-	std::uint8_t* library::get_ptr() const noexcept
+	std::uint8_t* library::get_ptr() const
 	{
 		return reinterpret_cast<std::uint8_t*>(this->module_);
 	}
 
-	void library::unprotect() const noexcept
+	void library::unprotect() const
 	{
 		if (!this->is_valid()) return;
 
@@ -96,30 +96,24 @@ namespace utils::nt
 			&protection);
 	}
 
-	size_t library::get_base_address() const noexcept
-	{
-		if (!this->is_valid()) return 0;
-		return this->get_nt_headers()->OptionalHeader.ImageBase + this->get_nt_headers()->OptionalHeader.BaseOfCode;
-	}
-	
-	size_t library::get_relative_entry_point() const noexcept
+	size_t library::get_relative_entry_point() const
 	{
 		if (!this->is_valid()) return 0;
 		return this->get_nt_headers()->OptionalHeader.AddressOfEntryPoint;
 	}
 
-	void* library::get_entry_point() const noexcept
+	void* library::get_entry_point() const
 	{
 		if (!this->is_valid()) return nullptr;
 		return this->get_ptr() + this->get_relative_entry_point();
 	}
 
-	bool library::is_valid() const noexcept
+	bool library::is_valid() const
 	{
 		return this->module_ != nullptr && this->get_dos_header()->e_magic == IMAGE_DOS_SIGNATURE;
 	}
 
-	std::string library::get_name() const noexcept
+	std::string library::get_name() const
 	{
 		if (!this->is_valid()) return "";
 
@@ -130,7 +124,7 @@ namespace utils::nt
 		return path.substr(pos + 1);
 	}
 
-	std::string library::get_path() const noexcept
+	std::string library::get_path() const
 	{
 		if (!this->is_valid()) return "";
 
@@ -140,7 +134,7 @@ namespace utils::nt
 		return name;
 	}
 
-	std::string library::get_folder() const noexcept
+	std::string library::get_folder() const
 	{
 		if (!this->is_valid()) return "";
 
@@ -157,16 +151,16 @@ namespace utils::nt
 		}
 	}
 
-	HMODULE library::get_handle() const noexcept
+	HMODULE library::get_handle() const
 	{
 		return this->module_;
 	}
 
-	void** library::get_iat_entry(const std::string& module_name, const std::string& proc_name) const noexcept
+	uintptr_t** library::get_iat_entry(const std::string& mod_name, const std::string& proc_name) const
 	{
 		if (!this->is_valid()) return nullptr;
 
-		const library other_module(module_name);
+		const library other_module(mod_name);
 		if (!other_module.is_valid()) return nullptr;
 
 		auto* const target_function = other_module.get_proc<void*>(proc_name);
@@ -175,38 +169,31 @@ namespace utils::nt
 		auto* header = this->get_optional_header();
 		if (!header) return nullptr;
 
-		auto* import_descriptor = reinterpret_cast<PIMAGE_IMPORT_DESCRIPTOR>(this->get_ptr() + header->DataDirectory
+		auto* descriptor = reinterpret_cast<PIMAGE_IMPORT_DESCRIPTOR>(this->get_ptr() + header->DataDirectory
 			[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress);
 
-		while (import_descriptor->Name)
+		while (descriptor->Name)
 		{
-			if (!_stricmp(reinterpret_cast<char*>(this->get_ptr() + import_descriptor->Name), module_name.data()))
+			if (!_stricmp(reinterpret_cast<char*>(this->get_ptr() + descriptor->Name), mod_name.data()))
 			{
-				auto* original_thunk_data = reinterpret_cast<PIMAGE_THUNK_DATA>(import_descriptor->
-					OriginalFirstThunk + this->get_ptr());
-				auto* thunk_data = reinterpret_cast<PIMAGE_THUNK_DATA>(import_descriptor->FirstThunk + this->
-					get_ptr());
+				auto* original_thunk_data = reinterpret_cast<PIMAGE_THUNK_DATA>(this->get_ptr() + descriptor->OriginalFirstThunk);
+				auto* thunk_data = reinterpret_cast<PIMAGE_THUNK_DATA>(this->get_ptr() + descriptor->FirstThunk);
 
 				while (original_thunk_data->u1.AddressOfData)
 				{
-					const size_t ordinal_number = original_thunk_data->u1.AddressOfData & 0xFFFFFFF;
+					const auto name = PIMAGE_IMPORT_BY_NAME(this->get_ptr() + original_thunk_data->u1.AddressOfData)->Name;
 
-					if (ordinal_number > 0xFFFF) continue;
-
-					if (GetProcAddress(other_module.module_, reinterpret_cast<char*>(ordinal_number)) ==
-						target_function)
+					if (GetProcAddress(other_module.module_, name) == target_function)
 					{
-						return reinterpret_cast<void**>(&thunk_data->u1.Function);
+						return reinterpret_cast<uintptr_t**>(&thunk_data->u1.Function);
 					}
 
-					++original_thunk_data;
-					++thunk_data;
+					original_thunk_data++;
+					thunk_data++;
 				}
-
-				//break;
 			}
 
-			++import_descriptor;
+			++descriptor;
 		}
 
 		return nullptr;

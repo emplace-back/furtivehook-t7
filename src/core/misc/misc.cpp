@@ -23,7 +23,6 @@ namespace misc
 					aimbot::ignore_target[i] = false;
 				}
 			}
-		
 		}, scheduler::pipeline::main);
 
 		scheduler::loop(game::on_every_frame, scheduler::pipeline::renderer);

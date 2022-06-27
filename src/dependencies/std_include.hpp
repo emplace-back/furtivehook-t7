@@ -32,24 +32,33 @@
 #include <csetjmp>
 #include <sstream>
 #include <TlHelp32.h>
-#include <utils/json/nlohmann/json.hpp>
+
 #pragma comment(lib, "dbghelp.lib")
-#pragma comment(lib, "shlwapi.lib")
 
-using namespace std::chrono_literals;
-using namespace std::literals;
-using json = nlohmann::json;
-
+#include "../thirdparty/nlohmann/json.hpp"
+#include "../thirdparty/minhook/MinHook.h"
 #include "../thirdparty/steam_api/isteamuser.hpp"
 #include "../thirdparty/steam_api/isteamapps.hpp"
 #include "../thirdparty/steam_api/isteamfriends.hpp"
-#include "../thirdparty/steam_api/isteamgameserver.hpp"
-#include "../thirdparty/steam_api/isteamnetworking.hpp"
-
+#include "../thirdparty/steam_api/isteammatchmaking.hpp"
 #include "../thirdparty/imgui/imgui.h"
 #include "../thirdparty/imgui/imgui_internal.h"
 #include "../thirdparty/imgui/imgui_impl_dx11.h"
 #include "../thirdparty/imgui/imgui_impl_win32.h"
+
+#define LOG_PREFIX "[furtivehook]"
+
+#define PRINT_LOG_DETAILED(__FMT__, ...) utils::print_log(LOG_PREFIX "[" __FUNCTION__ "] " __FMT__, __VA_ARGS__)
+
+#define PRINT_LOG(__FMT__, ...)	utils::print_log(__FMT__, __VA_ARGS__)	
+
+#define PRINT_MESSAGE(title, __FMT__, ...) PRINT_LOG(__FMT__, __VA_ARGS__); utils::toast::add_toast(title, utils::string::va(__FMT__, __VA_ARGS__))
+
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
+
+using namespace std::literals;
+using namespace std::chrono_literals;
+using json = nlohmann::json;
 
 #include "game/game.hpp"
 #include "math/math.hpp"
@@ -77,8 +86,6 @@ using json = nlohmann::json;
 #include "core/events/instant_message/instant_message.hpp"
 #include "core/friends/friends.hpp"
 #include "core/scheduler/scheduler.hpp"
-#include "core/loader/loader.hpp"
-#include "core/security/iat/iat.hpp"
 #include "core/security/security.hpp"
 #include "core/session/session.hpp"
 #include "core/command/command.hpp"
@@ -90,7 +97,6 @@ using json = nlohmann::json;
 #include "core/exception/hwbp/hwbp.hpp"
 #include "core/exception/dvars/dvars.hpp"
 #include "core/exception/exception.hpp"
-#include "core/logger/logger.hpp"
 #include "core/events/server_command/server_command.hpp"
 #include "core/events/connectionless_packet/connectionless_packet.hpp"
 #include "core/events/lobby_msg/lobby_msg.hpp"

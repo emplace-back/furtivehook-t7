@@ -54,6 +54,9 @@ namespace exception::hwbp
 	
 	bool handle_exception(const LPEXCEPTION_POINTERS ex)
 	{
+		if (ex->ExceptionRecord->ExceptionCode != STATUS_SINGLE_STEP)
+			return false; 
+		
 		const auto& callbacks = get_callbacks();
 		const auto handler = callbacks.find(ex->ContextRecord->Rip);
 

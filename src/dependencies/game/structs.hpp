@@ -513,7 +513,7 @@ namespace game
 	
 	enum MsgType
 	{
-		MESSAGE_TYPE_NONE = -1,
+		MESSAGE_TYPE_NONE = 0xFFFFFFFF,
 		MESSAGE_TYPE_INFO_REQUEST = 0,
 		MESSAGE_TYPE_INFO_RESPONSE = 1,
 		MESSAGE_TYPE_LOBBY_STATE_PRIVATE = 2,
@@ -828,6 +828,72 @@ namespace game
 		MsgType type;
 		char encodeFlags;
 		PackageType packageType;
+
+		void init(char* buffer, const size_t buf_size)
+		{
+			*this = {};
+			
+			data = buffer;
+			maxsize = buf_size;
+		}
+
+		void write_data(const std::string& buffer)
+		{
+			const auto final_size = cursize + buffer.size();
+
+			if (final_size > maxsize)
+			{
+				overflowed = 1;
+			}
+			else
+			{
+				std::memcpy(&data[cursize], buffer.data(), buffer.size());
+				cursize = final_size;
+			}
+		}
+		
+		template<typename T> void write(T value)
+		{
+			const auto final_size = cursize + sizeof(value);
+			
+			if (final_size > maxsize)
+			{
+				overflowed = 1;
+			}
+			else
+			{
+				*reinterpret_cast<T*>(&data[cursize]) = value;
+				cursize = final_size;
+			}
+		}
+
+		template<typename T> T read()
+		{
+			auto result = static_cast<T>(0); 
+			
+			if (readcount >= splitSize + cursize)
+			{
+				overflowed = 1;
+			}
+			else
+			{
+				if (readcount < cursize)
+				{
+					result = data[readcount];
+				}
+				else
+				{
+					if (!splitData)
+						return result; 
+					
+					result = splitData[readcount - cursize];
+				}
+
+				readcount += sizeof(T);
+			}
+
+			return result;
+		}
 	};
 	
 	struct netadr_t
@@ -1035,6 +1101,22 @@ namespace game
 		std::uint64_t xuid;
 	};
 	
+	struct SessionMigrateData
+	{
+		uint8_t indexBits;
+		int startTime;
+	};
+	
+	struct LobbyData
+	{
+		bool dirty;
+		eGameModes gameMode;
+		uint64_t platformSessionID;
+		const LobbyType *type;
+		const LobbyMode *mode;
+		char pad[0x25D0];
+	};
+	
 	struct LobbySession
 	{
 		LobbyModule module;
@@ -1047,7 +1129,9 @@ namespace game
 		SessionLeader leader;
 		uint32_t joinCount;
 		SessionClient clients[18];
-		char pad3[0x2600];
+		bool inRecovery;
+		SessionMigrateData migrateData;
+		LobbyData lobbyData;
 	};
 	
 	struct playerState_s
@@ -1418,7 +1502,7 @@ namespace game
 	struct bdMatchMakingInfo
 	{
 		bdSecurityID sessionID;
-		std::uint8_t hostAddr[255];
+		uint8_t hostAddr[255];
 		uint32_t hostAddrSize;
 		uint32_t gameType;
 		uint32_t maxPlayers;
@@ -1453,6 +1537,11 @@ namespace game
 		int recreateSession;
 		int timeSinceUpdate;
 		char pad2[0x14];
+
+		bool operator<(const MatchMakingInfo& other) const
+		{
+			return info.numPlayers > other.info.numPlayers;
+		}
 	};
 
 	struct GfxDrawSurfFields
@@ -2267,33 +2356,6 @@ namespace game
 		BD_CODO_RESETTABLE_STATS_NOT_CONFIGURED = 0x4AA3,
 		BD_MAX_ERROR_CODE = 0x4AA4,
 	}; 
-	
-	struct SessionSearchThrottleData
-	{
-		int returnTimeMs;
-	};
-
-	struct SessionSearchPayloadData
-	{
-		bool(*abortCheckfunc)(void);
-		SessionSearchThrottleData *throttleData;
-	};
-
-	struct MatchMakingQuery
-	{
-		char pad[0xBC];
-	};
-
-	struct LobbySearch
-	{
-		SearchState state;
-		bdLobbyErrorCode errorCode;
-		int numResults;
-		char pad[0x4];
-		MatchMakingQuery info;
-		SessionSearchPayloadData results;
-		SessionSearchThrottleData throttle;
-	};
 
 	enum PresenceActivity
 	{
@@ -2492,7 +2554,7 @@ namespace game
 		void* payload;
 	};
 
-	using task_callback = bool(*)(TaskRecord*);
+	using task_callback = void(*)(TaskRecord*);
 
 	struct bdRichPresenceInfo
 	{
@@ -2507,7 +2569,7 @@ namespace game
 	{
 		int count;
 		const uint64_t *xuids;
-		bdRichPresenceInfo *info;
+		bdRichPresenceInfo *infos;
 		task_callback successCallback;
 		task_callback failureCallback;
 	};
@@ -2623,5 +2685,78 @@ namespace game
 		char pad[0x1F10];
 		int compressedBufferSize;
 		char compressedBuffer[0x100];
+		char pad2[0x1EC30];
+	};
+
+	struct gameState_t
+	{
+		int stringOffsets[3630];
+		unsigned int stringChecksums[3630];
+		char stringData[65536];
+		int dataCount;
+	};
+
+	struct clientStatic_t
+	{
+		char pad[0x346698];
+		gameState_t gameState;
+	};
+
+	enum LobbyMsgElementType
+	{
+		MESSAGE_ELEMENT_INT32 = 0x0,
+		MESSAGE_ELEMENT_UINT32 = 0x1,
+		MESSAGE_ELEMENT_INT16 = 0x2,
+		MESSAGE_ELEMENT_UINT16 = 0x3,
+		MESSAGE_ELEMENT_INT8 = 0x4,
+		MESSAGE_ELEMENT_UINT8 = 0x5,
+		MESSAGE_ELEMENT_INT64 = 0x6,
+		MESSAGE_ELEMENT_UINT64 = 0x7,
+		MESSAGE_ELEMENT_FLOAT = 0x8,
+		MESSAGE_ELEMENT_XUID = 0x9,
+		MESSAGE_ELEMENT_STRING = 0xA,
+		MESSAGE_ELEMENT_GLOB = 0xB,
+		MESSAGE_ELEMENT_ARRAY_BEGIN = 0xC,
+		MESSAGE_ELEMENT_ARRAY_ELEMENT = 0xD,
+		MESSAGE_ELEMENT_ARRAY_END = 0xE,
+		MESSAGE_ELEMENT_DEBUG_START = 0xF,
+		MESSAGE_ELEMENT_DEBUG_END = 0x10,
+		MESSAGE_ELEMENT_COUNT = 0x11,
+	};
+
+	struct TaskDefinition
+	{
+		const uint64_t category;
+		const char* const name;
+		const int payloadSize;
+		const task_callback completed_callback;
+		const task_callback failure_callback;
+	};
+
+	struct MatchMakingQuery
+	{
+		char pad[0xBC];
+	};
+
+	struct SessionSearchThrottleData
+	{
+		int returnTimeMs;
+	};
+
+	struct SessionSearchPayloadData
+	{
+		bool(*abortCheckfunc)(void);
+		SessionSearchThrottleData* throttleData;
+	};
+
+	struct LobbySearch
+	{
+		SearchState state;
+		bdLobbyErrorCode errorCode;
+		int numResults;
+		char pad[0x4];
+		MatchMakingQuery info;
+		SessionSearchPayloadData results;
+		SessionSearchThrottleData throttle;
 	};
 }

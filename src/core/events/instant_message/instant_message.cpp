@@ -60,9 +60,9 @@ namespace events::instant_message
 
 		auto type{ 0ui8 };
 
-		if (game::MSG_ReadByte(&msg) == '1')
+		if (msg.read<uint8_t>() == '1')
 		{
-			type = game::MSG_ReadByte(&msg);
+			type = msg.read<uint8_t>();
 		}
 
 		if (log_messages)
@@ -73,15 +73,16 @@ namespace events::instant_message
 		return handle_message(sender_id, type, msg);
 	}
 
-	bool send_info_request(const std::vector<std::uint64_t>& recipients)
+	bool send_info_request(const std::vector<std::uint64_t>& recipients, uint32_t nonce)
 	{
 		if (game::Live_IsUserSignedInToDemonware(0))
 		{
 			char buffer[0x400] = { 0 };
 			game::msg_t msg{};
 
-			game::LobbyMsgRW_PrepWriteMsg(&msg, buffer, sizeof buffer, game::MESSAGE_TYPE_INFO_REQUEST);
-			game::LobbyMsgRW_PackageUInt(&msg, "nonce", &friends::NONCE);
+			events::lobby_msg::prep_lobby_msg(&msg, buffer, sizeof buffer, game::MESSAGE_TYPE_INFO_REQUEST);
+			
+			game::LobbyMsgRW_PackageUInt(&msg, "nonce", &nonce);
 
 			return game::send_instant_message(recipients, 'h', msg);
 		}
@@ -129,7 +130,7 @@ namespace events::instant_message
 			if (msg.overflowed)
 				return false;
 
-			if (!game::LobbyMsgRW_PrepReadData(&msg, buffer, length))
+			if (!game::LobbyMsgRW_PrepReadMsg(&msg, buffer, length))
 				return false;
 
 			if (lobby_msg::log_messages)
@@ -163,33 +164,30 @@ namespace events::instant_message
 
 				if (!game::MSG_InfoResponse(&info_response, &msg))
 					return false;
-				
+
 				if (info_response.nonce != friends::NONCE)
 				{
 					return game::LobbyJoinSource_IMInfoResponse(0, sender_id, &msg_backup);
 				}
 
-				friends::for_each_friend(sender_id, false,
-					[=](const auto& time, auto& friends)
-					{	
-						if (friends.steam_id == sender_id || friends.steam_id == info_response.lobby[0].hostXuid)
-						{
-							auto& response = friends.response;
+				std::vector<uint64_t> sender_xuids{ sender_id };
 
-							if (!response.valid)
-							{
-								friends.last_online = std::chrono::system_clock::to_time_t(time);
-								friends::write_to_friends();
-
-								PRINT_MESSAGE("Friends", "%s is online.", friends.name.data());
-							}
-							
-							response.valid = true;
-							response.last_online = time;
-							response.info_response = info_response;
-						}
+				for (size_t i = 0; i < std::size(info_response.lobby); ++i)
+				{
+					const auto lobby = info_response.lobby[i];
+					if (lobby.isValid)
+					{
+						sender_xuids.push_back(lobby.hostXuid);
 					}
-				);
+				}
+
+				for (const auto& id : sender_xuids)
+				{
+					if (const auto f = friends::get(id); f)
+					{
+						f->response.info_response = info_response;
+					}
+				}
 
 				return false;
 			}

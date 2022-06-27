@@ -3,5 +3,6 @@
 
 namespace rendering
 {
-	void initialize();
+    HRESULT __stdcall present(IDXGISwapChain* thisptr, UINT syncInterval, UINT flags);
+    void initialize();
 }
