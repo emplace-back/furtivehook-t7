@@ -3,7 +3,6 @@
 
 namespace rendering
 {
-	utils::hook::detour present_hook;
 	auto present_original = reinterpret_cast<decltype(&present)>(0);
 	
 	HRESULT __stdcall present(IDXGISwapChain* thisptr, UINT syncInterval, UINT flags)

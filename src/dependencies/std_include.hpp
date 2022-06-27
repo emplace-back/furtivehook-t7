@@ -48,9 +48,9 @@
 
 #define LOG_PREFIX "[furtivehook]"
 
-#define PRINT_LOG_DETAILED(__FMT__, ...) utils::print_log(LOG_PREFIX "[" __FUNCTION__ "] " __FMT__, __VA_ARGS__)
+#define PRINT_LOG_DETAILED(__FMT__, ...) utils::print_log(LOG_PREFIX "[" __FUNCTION__ "] " __FMT__ "\n", __VA_ARGS__)
 
-#define PRINT_LOG(__FMT__, ...)	utils::print_log(__FMT__, __VA_ARGS__)	
+#define PRINT_LOG(__FMT__, ...)	utils::print_log(__FMT__ "\n", __VA_ARGS__)	
 
 #define PRINT_MESSAGE(title, __FMT__, ...) PRINT_LOG(__FMT__, __VA_ARGS__); utils::toast::add_toast(title, utils::string::va(__FMT__, __VA_ARGS__))
 

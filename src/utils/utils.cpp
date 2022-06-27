@@ -11,7 +11,7 @@ namespace utils
 		va_end(ap);
 
 		const static auto file = utils::string::get_log_file("logs");
-		utils::io::write_file(file, "[" + utils::string::data_time(0, false) + "] " + result + "\n", true);
+		utils::io::write_file(file, "[" + utils::string::data_time(0, false) + "] " + result, true);
 	}
 	
 	std::string get_sender_string(const game::netadr_t & from)

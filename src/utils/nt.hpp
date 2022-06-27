@@ -87,9 +87,5 @@ namespace utils::nt
 		HMODULE module_;
 	};
 
-	__declspec(noreturn) void raise_hard_exception();
-	std::string load_resource(int id);
-
-	void relaunch_self();
 	void terminate(const uint32_t code);
 }

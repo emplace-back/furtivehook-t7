@@ -107,7 +107,7 @@ namespace utils::hook
 	{
 		if (use_far)
 		{
-			static const uint8_t jump_data[] =
+			const static uint8_t jump_data[] =
 			{
 				0x48, 0xb8, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0xff, 0xe0
 			}; 
@@ -147,9 +147,9 @@ namespace utils::hook
 		return reinterpret_cast<T>(original);
 	}
 
-	template<typename T> T vtable(uintptr_t instance, const size_t index, T function)
+	template<typename T> T vtable(const uintptr_t address, const size_t index, T function)
 	{
-		auto table = *reinterpret_cast<uintptr_t**>(instance);
+		auto table = *reinterpret_cast<uintptr_t**>(address);
 
 		MEMORY_BASIC_INFORMATION mbi{};
 		VirtualQuery(reinterpret_cast<void*>(table), &mbi, sizeof(mbi));

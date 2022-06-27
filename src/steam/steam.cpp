@@ -5,9 +5,9 @@ namespace steam
 {
 	auto get_persona_name_original = reinterpret_cast<decltype(&get_persona_name)>(0);
 	auto get_lobby_chat_entry_original = reinterpret_cast<decltype(&get_lobby_chat_entry)>(0); 
-	utils::hook::detour live_steam_filter_persona_name_hook;
-	utils::hook::detour utf8safe_strncpyz_hook;
-	ISteamFriends* friends = nullptr; ISteamMatchmaking* matchmaking = nullptr; ISteamApps* apps = nullptr;
+	auto read_p2p_packet_original = reinterpret_cast<decltype(&read_p2p_packet)>(0);
+	auto read_p2p_packet_server_original = reinterpret_cast<decltype(&read_p2p_packet)>(0);
+	ISteamFriends* friends = nullptr; ISteamMatchmaking* matchmaking = nullptr;
 	std::string persona_name = "";
 
 	bool send_lobby_chat_message(const uint64_t lobby_id, const int type, const std::string& data, const bool add_null_terminator)
@@ -37,28 +37,19 @@ namespace steam
 
 		return "";
 	}
-	
-	void __fastcall live_steam_filter_persona_name(char*, int, bool)
-	{
-		live_steam_filter_persona_name_hook.clear();
-	}
-
-	void __fastcall utf8safe_strncpyz(const char *src, char *dest, int)
-	{
-		utf8safe_strncpyz_hook.invoke<void>(src, dest, 128);
-		utf8safe_strncpyz_hook.clear();
-	}
 
 	const char* __fastcall get_persona_name(ISteamFriends* thisptr)
 	{
 		if (!persona_name.empty())
 		{
-			live_steam_filter_persona_name_hook.create(game::base_address + 0x1EAF350, live_steam_filter_persona_name);
-			utf8safe_strncpyz_hook.create(game::base_address + 0x1EB06C0, utf8safe_strncpyz);
+			game::I_strncpyz(
+				reinterpret_cast<char*>(game::base_address + 0x114248E0), 
+				persona_name.data(), 
+				128);
 			
 			return persona_name.data();
 		}
-		
+
 		return get_persona_name_original(thisptr);
 	}
 
@@ -77,6 +68,34 @@ namespace steam
 		return count;
 	}
 
+	bool read_p2p_packet(ISteamNetworking* thisptr, void* dest, uint32_t dest_size, uint32* msg_size, uint64_t* steam_id, int channel)
+	{
+		const auto result = read_p2p_packet_original(thisptr, dest, dest_size, msg_size, steam_id, channel);
+
+		PRINT_LOG("Received P2P packet from (%llu) of size [%u]", *steam_id, *msg_size);
+
+		if (result)
+		{
+			return false;
+		}
+
+		return result;
+	}
+
+	bool read_p2p_packet_server(ISteamNetworking* thisptr, void* dest, uint32_t dest_size, uint32* msg_size, uint64_t* steam_id, int channel)
+	{
+		const auto result = read_p2p_packet_server_original(thisptr, dest, dest_size, msg_size, steam_id, channel);
+
+		PRINT_LOG("Received P2P packet from (%llu) of size [%u]", *steam_id, *msg_size);
+
+		if (result)
+		{
+			return false;
+		}
+
+		return result;
+	}
+
 	void initialize()
 	{
 		if (friends = *reinterpret_cast<ISteamFriends**>(game::base_address + 0x10BBDBA0))
@@ -89,10 +108,14 @@ namespace steam
 			get_lobby_chat_entry_original = utils::hook::vtable(matchmaking, 27, &get_lobby_chat_entry);
 		}
 
-		if (apps = *reinterpret_cast<ISteamApps**>(game::base_address + 0x10BBDBC0))
+		if (const auto networking = *reinterpret_cast<ISteamNetworking**>(game::base_address + 0x10BBDBD0))
 		{
-			//utils::hook::return_value((*reinterpret_cast<void***>(game::SteamApps))[6], true); // BIsSubscribedApp
-			//utils::hook::return_value((*reinterpret_cast<void***>(game::SteamApps))[7], true); // BIsAppInstalled
+			read_p2p_packet_original = utils::hook::vtable(networking, 2, read_p2p_packet);
+		}
+
+		if (const auto server_networking = *reinterpret_cast<ISteamNetworking**>(game::base_address + 0x1142F168))
+		{
+			read_p2p_packet_server_original = utils::hook::vtable(server_networking, 2, read_p2p_packet_server);
 		}
 	}
 }

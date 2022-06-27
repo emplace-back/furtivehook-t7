@@ -199,47 +199,6 @@ namespace utils::nt
 		return nullptr;
 	}
 
-	void raise_hard_exception()
-	{
-		int data = false;
-		const library ntdll("ntdll.dll");
-		ntdll.invoke_pascal<void>("RtlAdjustPrivilege", 19, true, false, &data);
-		ntdll.invoke_pascal<void>("NtRaiseHardError", 0xC000007B, 0, nullptr, nullptr, 6, &data);
-	}
-
-	std::string load_resource(const int id)
-	{
-		auto* const res = FindResource(library(), MAKEINTRESOURCE(id), RT_RCDATA);
-		if (!res) return {};
-
-		auto* const handle = LoadResource(nullptr, res);
-		if (!handle) return {};
-
-		return std::string(LPSTR(LockResource(handle)), SizeofResource(nullptr, res));
-	}
-
-	void relaunch_self()
-	{
-		const utils::nt::library self;
-
-		STARTUPINFOA startup_info;
-		PROCESS_INFORMATION process_info;
-
-		ZeroMemory(&startup_info, sizeof(startup_info));
-		ZeroMemory(&process_info, sizeof(process_info));
-		startup_info.cb = sizeof(startup_info);
-
-		char current_dir[MAX_PATH];
-		GetCurrentDirectoryA(sizeof(current_dir), current_dir);
-		auto* const command_line = GetCommandLineA();
-
-		CreateProcessA(self.get_path().data(), command_line, nullptr, nullptr, false, NULL, nullptr, current_dir,
-			&startup_info, &process_info);
-
-		if (process_info.hThread && process_info.hThread != INVALID_HANDLE_VALUE) CloseHandle(process_info.hThread);
-		if (process_info.hProcess && process_info.hProcess != INVALID_HANDLE_VALUE) CloseHandle(process_info.hProcess);
-	}
-
 	void terminate(const uint32_t code)
 	{
 		TerminateProcess(GetCurrentProcess(), code);

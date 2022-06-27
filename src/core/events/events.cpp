@@ -3,7 +3,7 @@
 
 namespace events
 {
-	bool prevent_join = false, no_presence = false;
+	bool prevent_join = true, no_presence = true;
 	
 	void cg_predict_playerstate()
 	{
