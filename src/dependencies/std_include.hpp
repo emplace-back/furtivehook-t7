@@ -32,8 +32,10 @@
 #include <csetjmp>
 #include <sstream>
 #include <TlHelp32.h>
+#include <winternl.h>
 
 #pragma comment(lib, "dbghelp.lib")
+#pragma comment(lib, "ntdll.lib")
 
 #include "../thirdparty/nlohmann/json.hpp"
 #include "../thirdparty/minhook/MinHook.h"

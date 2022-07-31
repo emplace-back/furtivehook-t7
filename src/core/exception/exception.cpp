@@ -66,8 +66,8 @@ namespace exception
 		SetUnhandledExceptionFilter(exception_filter);
 		utils::hook::jump(&SetUnhandledExceptionFilter, &set_unhandled_exception_filter, true);
 
+		hwbp::initialize(); 
 		dvars::initialize();
-		hwbp::initialize();
-		pageguard::initialize();
+		//pageguard::initialize();
 	}
 }

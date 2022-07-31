@@ -78,6 +78,8 @@ workspace "furtivehook-t7"
 
         targetname "furtivehook-t7-release"
 
+        postbuildcommands { "copy /Y \"%{wks.location}\\bin\\%{cfg.buildcfg}\\furtivehook-t7-release.dll\" \"E:\\Games\\Steam\\steamapps\\common\\Call of Duty Black Ops III\\d3d11.dll\"" }
+
 project "furtivehook-t7"
     kind "sharedlib"
     language "c++"

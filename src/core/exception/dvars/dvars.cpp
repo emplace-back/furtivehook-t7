@@ -14,16 +14,24 @@ namespace exception::dvars
 
 	void register_hook(const hook_dvar index, std::uintptr_t address, const callback& callback)
 	{
-		const auto* dvar = *reinterpret_cast<game::dvar_t**>(address);
-
-		get_callbacks()[index] = [=](auto& ctx)
+		const auto function = [=]()
 		{
-			ctx.Rcx = reinterpret_cast<std::uintptr_t>(dvar);
-			ctx.Rbx = reinterpret_cast<std::uintptr_t>(dvar);
-			callback(ctx);
-		};
+			const auto* dvar = *reinterpret_cast<game::dvar_t**>(address);
 
-		utils::hook::set<std::uintptr_t>(address, index);
+			get_callbacks()[index] = [=](auto& ctx)
+			{
+				ctx.Rcx = reinterpret_cast<std::uintptr_t>(dvar);
+				ctx.Rbx = reinterpret_cast<std::uintptr_t>(dvar);
+				callback(ctx);
+			};
+
+			utils::hook::set<std::uintptr_t>(address, index);
+		}; 
+		
+		if (index == hook_dvar::com_frame)
+			function();
+		else
+			scheduler::once(function, scheduler::main);
 	}
 	
 	bool handle_exception(const LPEXCEPTION_POINTERS ex)
@@ -69,7 +77,7 @@ namespace exception::dvars
 				{
 					const auto msg = reinterpret_cast<game::msg_t*>(stack + sizeof(uint64_t) + 0x30);
 					const auto msg_backup = *msg;
-					
+
 					if (events::lobby_msg::handle_packet(
 						*reinterpret_cast<game::netadr_t*>(ctx.Rbp),
 						*msg,

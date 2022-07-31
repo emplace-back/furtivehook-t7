@@ -11,7 +11,7 @@ namespace security
 		{
 			PRINT_LOG_DETAILED("Called at offset 0x%llX", reinterpret_cast<uintptr_t>(_ReturnAddress()) - game::base_address);
 		}
-		
+
 		return result;
 	}
 	

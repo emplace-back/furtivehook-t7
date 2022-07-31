@@ -47,6 +47,7 @@ namespace utils::toast
 	void draw_toast()
 	{
 		const auto size = ImGui::GetIO().DisplaySize;
+		const auto value = size.y - 65.0f;
 		auto height = 0.f;
 
 		for (size_t i = 0; i < toasts.size(); ++i)
@@ -61,7 +62,7 @@ namespace utils::toast
 			}
 
 			ImGui::SetNextWindowBgAlpha(opacity);
-			ImGui::SetNextWindowPos({ size.x - 20.0f, size.y - 1375.0f - height }, ImGuiCond_Always, { 1.0f, 1.0f });
+			ImGui::SetNextWindowPos({ size.x - 20.0f, size.y - value - height }, ImGuiCond_Always, { 1.0f, 1.0f });
 
 			if (!ImGui::Begin((window_title + "##"s + std::to_string(i)).data(), nullptr, window_flags))
 			{

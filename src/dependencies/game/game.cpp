@@ -61,7 +61,6 @@ namespace game
 		bone_tags[static_cast<std::uint32_t>(bone_tag::ball_right)] = GScr_AllocString("j_ball_ri");
 		bone_tags[static_cast<std::uint32_t>(bone_tag::mainroot)] = GScr_AllocString("j_mainroot"); 
 
-		rendering::initialize();
 		exception::initialize();
 		events::initialize();
 		security::initialize();

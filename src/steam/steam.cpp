@@ -108,7 +108,7 @@ namespace steam
 			get_lobby_chat_entry_original = utils::hook::vtable(matchmaking, 27, &get_lobby_chat_entry);
 		}
 
-		if (const auto networking = *reinterpret_cast<ISteamNetworking**>(game::base_address + 0x10BBDBD0))
+		/*if (const auto networking = *reinterpret_cast<ISteamNetworking**>(game::base_address + 0x10BBDBD0))
 		{
 			read_p2p_packet_original = utils::hook::vtable(networking, 2, read_p2p_packet);
 		}
@@ -116,6 +116,6 @@ namespace steam
 		if (const auto server_networking = *reinterpret_cast<ISteamNetworking**>(game::base_address + 0x1142F168))
 		{
 			read_p2p_packet_server_original = utils::hook::vtable(server_networking, 2, read_p2p_packet_server);
-		}
+		}*/
 	}
 }

@@ -12,6 +12,7 @@ namespace utils::hook
 		nop = 0x90,
 	};
 	
+
 	class detour
 	{
 	public:
@@ -33,9 +34,11 @@ namespace utils::hook
 
 				this->place_ = other.place_;
 				this->original_ = other.original_;
+				this->moved_data_ = other.moved_data_;
 
 				other.place_ = nullptr;
 				other.original_ = nullptr;
+				other.moved_data_ = {};
 			}
 
 			return *this;
@@ -44,12 +47,13 @@ namespace utils::hook
 		detour(const detour&) = delete;
 		detour& operator=(const detour&) = delete;
 
-		void enable() const;
-		void disable() const;
+		void enable();
+		void disable();
 
 		void create(void* place, void* target);
 		void create(size_t place, void* target);
 		void clear();
+		void move();
 
 		template <typename T>
 		T* get() const
@@ -58,21 +62,26 @@ namespace utils::hook
 		}
 
 		template <typename T = void, typename... Args>
-		T invoke(Args... args)
+		T invoke(Args ... args)
 		{
 			return static_cast<T(*)(Args ...)>(this->get_original())(args...);
 		}
 
 		[[nodiscard]] void* get_original() const;
-
 	private:
+		std::vector<uint8_t> moved_data_{};
 		void* place_{};
 		void* original_{};
+
+		void un_move();
 	};
 
+	void* follow_branch(void* address); 
 	void write_string(char* place, const std::string& string);
 	void retn(const uintptr_t address);
 	void nop(const uintptr_t address, const size_t size);
+	std::vector<uint8_t> move_hook(void* pointer);
+	std::vector<uint8_t> move_hook(size_t pointer);
 
 	template <typename T> void copy(const uintptr_t address, const T data, const size_t length)
 	{
@@ -84,6 +93,11 @@ namespace utils::hook
 		VirtualProtect(reinterpret_cast<void*>(address), length, old_protect, &old_protect);
 
 		FlushInstructionCache(GetCurrentProcess(), reinterpret_cast<void*>(address), length);
+	}
+	
+	template <typename T> void copy(const void* place, const T data, const size_t length)
+	{
+		copy<T>(uintptr_t(place), data, length);
 	}
 	
 	template <typename T> void set(const uintptr_t address, const T value)
@@ -100,10 +114,10 @@ namespace utils::hook
 
 	template <typename T> void set(const void* place, const T value)
 	{
-		set<T>(reinterpret_cast<uintptr_t>(place), value);
+		set<T>(uintptr_t(place), value);
 	}
 
-	template <typename T> void jump(const uintptr_t address, const T function, const bool use_far = false)
+	template <typename T> void jump(const uintptr_t address, const T function, const bool use_far = false, const bool use_safe = false)
 	{
 		if (use_far)
 		{
@@ -111,9 +125,22 @@ namespace utils::hook
 			{
 				0x48, 0xb8, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0xff, 0xe0
 			}; 
-			
-			copy(address, jump_data, sizeof(jump_data));
-			copy(address + 2, &function, sizeof(function));
+
+			const static uint8_t jump_data_safe[] =
+			{
+				0xFF, 0x25, 0x00, 0x00, 0x00, 0x00
+			};
+
+			if (use_safe)
+			{
+				copy(address, jump_data_safe, sizeof(jump_data_safe));
+				copy(address + sizeof(jump_data_safe), &function, sizeof(function));
+			}
+			else
+			{
+				copy(address, jump_data, sizeof(jump_data));
+				copy(address + 2, &function, sizeof(function));
+			}
 		}
 		else
 		{
@@ -122,9 +149,9 @@ namespace utils::hook
 		}
 	}
 
-	template <typename T> void jump(const void* place, const T function, const bool use_far = false)
+	template <typename T> void jump(const void* place, const T function, const bool use_far = false, const bool use_safe = false)
 	{
-		jump<T>(uintptr_t(place), function, use_far);
+		jump<T>(uintptr_t(place), function, use_far, use_safe);
 	}
 
 	template <typename T> void return_value(const uintptr_t address, const T value)
@@ -166,5 +193,13 @@ namespace utils::hook
 	template <typename T> T vtable(const void* place, const size_t index, T function)
 	{
 		return vtable<T>(uintptr_t(place), index, function);
+	}
+
+	template <typename T>
+	T extract(void* address)
+	{
+		auto* const data = static_cast<uint8_t*>(address);
+		const auto offset = *reinterpret_cast<int32_t*>(data);
+		return reinterpret_cast<T>(data + offset + 4);
 	}
 }
