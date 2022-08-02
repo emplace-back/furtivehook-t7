@@ -86,6 +86,8 @@ namespace utils::string
 	bool ends_with(const std::string & text, const std::string & substring);
 	std::string to_lower(std::string text);
 	std::string to_upper(std::string text);
+	std::string convert(const std::wstring& wstr);
+	std::wstring convert(const std::string& str);
 	std::string reverse_words(std::string_view s);
 	std::string generate_random_string(const size_t length);
 	std::string strip_colors(const std::string & string);

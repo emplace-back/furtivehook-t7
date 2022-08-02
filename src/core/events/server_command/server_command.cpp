@@ -47,13 +47,13 @@ namespace events::server_command
 
 			if (index == 3627)
 			{
-				const auto ignore_strings =
+				const auto ignore =
 				{
 					"mspreload"s,
 					"msload"s,
 				}; 
 				
-				const auto result = std::any_of(ignore_strings.begin(), ignore_strings.end(), [=](const auto& string) { return string == utils::string::to_lower(args[2]); });
+				const auto result = std::any_of(ignore.begin(), ignore.end(), [=](const auto& string) { return string == utils::string::to_lower(args[2]); });
 
 				if (!result)
 				{

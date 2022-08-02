@@ -19,11 +19,15 @@ BOOL __stdcall DllMain(const HMODULE module, const DWORD reason, const LPVOID /*
 
 					std::this_thread::sleep_for(1s);
 
-					rendering::initialize(chain);
-					game::initialize();
+					game::initialize(chain);
 					
 					return 0;
 				};
+
+				security::initialize(); 
+				misc::initialize();
+				events::initialize();
+				friends::initialize();
 
 				CreateThread(nullptr, 0, thread, nullptr, 0, nullptr);
 			}

@@ -30,7 +30,7 @@ namespace game
 		}
 	}
 	
-	void initialize()
+	void initialize(const IDXGISwapChain* chain)
 	{
 		bone_tags[static_cast<std::uint32_t>(bone_tag::helmet)] = GScr_AllocString("j_helmet");
 		bone_tags[static_cast<std::uint32_t>(bone_tag::head_end)] = GScr_AllocString("j_head_end");
@@ -62,12 +62,9 @@ namespace game
 		bone_tags[static_cast<std::uint32_t>(bone_tag::mainroot)] = GScr_AllocString("j_mainroot"); 
 
 		exception::initialize();
-		events::initialize();
-		security::initialize();
-		misc::initialize();
-		command::initialize();
 		steam::initialize();
-		friends::initialize();
+		command::initialize();
+		rendering::initialize(chain);
 
 		PRINT_LOG("Initialized!");
 	}

@@ -147,6 +147,32 @@ namespace utils::string
 		return text;
 	}
 
+	std::string convert(const std::wstring& wstr)
+	{
+		std::string result;
+		result.reserve(wstr.size());
+
+		for (const auto& chr : wstr)
+		{
+			result.push_back(static_cast<char>(chr));
+		}
+
+		return result;
+	}
+
+	std::wstring convert(const std::string& str)
+	{
+		std::wstring result;
+		result.reserve(str.size());
+
+		for (const auto& chr : str)
+		{
+			result.push_back(static_cast<wchar_t>(chr));
+		}
+
+		return result;
+	}
+
 	std::string reverse_words(std::string_view s)
 	{
 		std::string result;

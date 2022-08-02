@@ -53,7 +53,7 @@ namespace utils::hook
 		MH_DisableHook(this->place_);
 	}
 
-	void detour::create(void* place, void* target)
+	void detour::create(void* place, void* target, const bool move)
 	{
 		this->clear();
 		this->place_ = place;
@@ -64,11 +64,16 @@ namespace utils::hook
 		}
 
 		this->enable();
+
+		if (move)
+		{
+			this->move();
+		}
 	}
 
-	void detour::create(const size_t place, void* target)
+	void detour::create(const size_t place, void* target, const bool move)
 	{
-		this->create(reinterpret_cast<void*>(place), target);
+		this->create(reinterpret_cast<void*>(place), target, move);
 	}
 
 	void detour::clear()
