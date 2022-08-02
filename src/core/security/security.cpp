@@ -106,11 +106,13 @@ namespace security
 	{
 		create_mutex_hook.create(CreateMutexExA, create_mutex);
 
-		utils::hook::jump(GetWindowTextA, get_window_text, true, true, true);
+		utils::hook::jump(GetWindowTextA, get_window_text, true, true);
+		utils::hook::move_hook(GetWindowTextA);
 
 		utils::hook::iat("kernel32.dll", "IsProcessorFeaturePresent", is_processor_feature_present); 
 		
 		const utils::nt::library ntdll("ntdll.dll");
-		nt_query_system_information_hook.create(ntdll.get_proc<void*>("NtQuerySystemInformation"), nt_query_system_information, true);
+		nt_query_system_information_hook.create(ntdll.get_proc<void*>("NtQuerySystemInformation"), nt_query_system_information);
+		nt_query_system_information_hook.move();
 	}
 }

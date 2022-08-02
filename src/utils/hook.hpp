@@ -50,8 +50,8 @@ namespace utils::hook
 		void enable();
 		void disable();
 
-		void create(void* place, void* target, const bool move = false);
-		void create(size_t place, void* target, const bool move = false);
+		void create(void* place, void* target);
+		void create(size_t place, void* target);
 		void clear();
 		void move();
 
@@ -117,7 +117,7 @@ namespace utils::hook
 		set<T>(uintptr_t(place), value);
 	}
 
-	template <typename T> void jump(const uintptr_t address, const T function, const bool use_far = false, const bool use_safe = false, const bool move = false)
+	template <typename T> void jump(const uintptr_t address, const T function, const bool use_far = false, const bool use_safe = false)
 	{
 		if (use_far)
 		{
@@ -142,14 +142,11 @@ namespace utils::hook
 			set(address, instr::jmp);
 			set<uint32_t>(address + 1, uintptr_t(function) - address - 5);
 		}
-
-		if (move)
-			move_hook(address);
 	}
 
-	template <typename T> void jump(const void* place, const T function, const bool use_far = false, const bool use_safe = false, const bool move = false)
+	template <typename T> void jump(const void* place, const T function, const bool use_far = false, const bool use_safe = false)
 	{
-		jump<T>(uintptr_t(place), function, use_far, use_safe, move);
+		jump<T>(uintptr_t(place), function, use_far, use_safe);
 	}
 
 	template <typename T> void return_value(const uintptr_t address, const T value)
