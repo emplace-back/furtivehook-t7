@@ -4,11 +4,25 @@
 namespace misc
 {
 	bool no_recoil = true; 
+
+	int __stdcall message_box(HWND window, const char* text, const char* caption, int type)
+	{
+		const auto ret_address{ reinterpret_cast<uintptr_t>(_ReturnAddress()) };
+
+		if (ret_address == game::base_address + 0x231D53A) // Sys_CheckCrashOrRerun
+		{
+			return IDNO;
+		}
+
+		return MessageBoxA(window, text, caption, type);
+	}
 	
 	void initialize()
 	{
-		input::on_key(VK_F2, [] { command::execute("disconnect"); });
-		input::on_key(VK_F3, [] { command::execute("quit"); });
+		utils::hook::iat("user32.dll", "MessageBoxA", message_box);
+		
+		input::on_key(VK_F2, [] { command::execute("disconnect", true); });
+		input::on_key(VK_F3, [] { command::execute("quit", true); });
 		
 		scheduler::loop([]()
 		{
