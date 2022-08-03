@@ -23,8 +23,8 @@ BOOL __stdcall DllMain(const HMODULE module, const DWORD reason, const LPVOID /*
 					
 					return 0;
 				};
-
-				security::initialize(); 
+				
+				security::initialize();
 				misc::initialize();
 				events::initialize();
 				friends::initialize();
