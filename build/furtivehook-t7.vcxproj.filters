@@ -7,6 +7,9 @@
     <Filter Include="core\aimbot">
       <UniqueIdentifier>{D92A1B60-45E0-9355-CED4-8D2C3A898A59}</UniqueIdentifier>
     </Filter>
+    <Filter Include="core\arxan">
+      <UniqueIdentifier>{D70F8250-C3C7-C39D-2CCF-9CF918A65E8E}</UniqueIdentifier>
+    </Filter>
     <Filter Include="core\command">
       <UniqueIdentifier>{7CBF790B-6822-09B0-11A8-4166FDE9D432}</UniqueIdentifier>
     </Filter>
@@ -98,6 +101,9 @@
     </ClInclude>
     <ClInclude Include="..\src\core\aimbot\autowall.hpp">
       <Filter>core\aimbot</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\core\arxan\arxan.hpp">
+      <Filter>core\arxan</Filter>
     </ClInclude>
     <ClInclude Include="..\src\core\command\command.hpp">
       <Filter>core\command</Filter>
@@ -223,6 +229,9 @@
     </ClCompile>
     <ClCompile Include="..\src\core\aimbot\autowall.cpp">
       <Filter>core\aimbot</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\core\arxan\arxan.cpp">
+      <Filter>core\arxan</Filter>
     </ClCompile>
     <ClCompile Include="..\src\core\command\command.cpp">
       <Filter>core\command</Filter>

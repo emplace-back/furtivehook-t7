@@ -88,6 +88,7 @@ using json = nlohmann::json;
 #include "core/events/instant_message/instant_message.hpp"
 #include "core/friends/friends.hpp"
 #include "core/scheduler/scheduler.hpp"
+#include "core/arxan/arxan.hpp"
 #include "core/security/security.hpp"
 #include "core/session/session.hpp"
 #include "core/command/command.hpp"

@@ -112,6 +112,7 @@
   <ItemGroup>
     <ClInclude Include="..\src\core\aimbot\aimbot.hpp" />
     <ClInclude Include="..\src\core\aimbot\autowall.hpp" />
+    <ClInclude Include="..\src\core\arxan\arxan.hpp" />
     <ClInclude Include="..\src\core\command\command.hpp" />
     <ClInclude Include="..\src\core\esp\esp.hpp" />
     <ClInclude Include="..\src\core\events\connectionless_packet\connectionless_packet.hpp" />
@@ -155,6 +156,7 @@
   <ItemGroup>
     <ClCompile Include="..\src\core\aimbot\aimbot.cpp" />
     <ClCompile Include="..\src\core\aimbot\autowall.cpp" />
+    <ClCompile Include="..\src\core\arxan\arxan.cpp" />
     <ClCompile Include="..\src\core\command\command.cpp" />
     <ClCompile Include="..\src\core\esp\esp.cpp" />
     <ClCompile Include="..\src\core\events\connectionless_packet\connectionless_packet.cpp" />
