@@ -9,28 +9,13 @@ BOOL __stdcall DllMain(const HMODULE module, const DWORD reason, const LPVOID /*
 			try 
 			{
 				DisableThreadLibraryCalls(module);
-
-				const auto thread = [](LPVOID data) -> DWORD
-				{
-					static IDXGISwapChain* chain{ nullptr };
-					
-					while (!chain)
-						chain = *reinterpret_cast<IDXGISwapChain**>(game::base_address + 0xF4B7858);
-
-					std::this_thread::sleep_for(1s);
-
-					game::initialize(chain);
-					
-					return 0;
-				};
 				
 				arxan::initialize();
+				scheduler::initialize();
 				security::initialize();
 				misc::initialize();
 				events::initialize();
 				friends::initialize();
-
-				CreateThread(nullptr, 0, thread, nullptr, 0, nullptr);
 			}
 			catch (const std::exception& ex) 
 			{

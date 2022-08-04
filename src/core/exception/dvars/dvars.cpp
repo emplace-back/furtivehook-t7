@@ -14,24 +14,16 @@ namespace exception::dvars
 
 	void register_hook(const hook_dvar index, std::uintptr_t address, const callback& callback)
 	{
-		const auto function = [=]()
+		const auto* dvar = *reinterpret_cast<game::dvar_t**>(address);
+
+		get_callbacks()[index] = [=](auto& ctx)
 		{
-			const auto* dvar = *reinterpret_cast<game::dvar_t**>(address);
+			ctx.Rcx = reinterpret_cast<std::uintptr_t>(dvar);
+			ctx.Rbx = reinterpret_cast<std::uintptr_t>(dvar);
+			callback(ctx);
+		};
 
-			get_callbacks()[index] = [=](auto& ctx)
-			{
-				ctx.Rcx = reinterpret_cast<std::uintptr_t>(dvar);
-				ctx.Rbx = reinterpret_cast<std::uintptr_t>(dvar);
-				callback(ctx);
-			};
-
-			utils::hook::set<std::uintptr_t>(address, index);
-		}; 
-		
-		if (index == hook_dvar::com_frame)
-			function();
-		else
-			scheduler::once(function, scheduler::main);
+		utils::hook::set<std::uintptr_t>(address, index);
 	}
 	
 	bool handle_exception(const LPEXCEPTION_POINTERS ex)
@@ -53,13 +45,6 @@ namespace exception::dvars
 
 	void initialize()
 	{
-		dvars::register_hook(hook_dvar::com_frame, game::base_address + 0x168EEAC0, 
-			[](auto)
-			{
-				scheduler::execute(scheduler::pipeline::main);
-			}
-		);
-
 		dvars::register_hook(hook_dvar::scr_update_frame, game::base_address + 0x168EEC50, 
 			[](auto)
 			{

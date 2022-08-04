@@ -4,4 +4,5 @@
 namespace arxan
 {
 	void initialize();
+	void uninitialize();
 }

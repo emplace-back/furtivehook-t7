@@ -5,6 +5,12 @@ namespace misc
 {
 	bool no_recoil = true; 
 
+	__declspec(noreturn) void __stdcall exit_process(int code)
+	{
+		arxan::uninitialize();
+		exit(code);
+	}
+	
 	int __stdcall message_box(HWND window, const char* text, const char* caption, int type)
 	{
 		const auto ret_address{ reinterpret_cast<uintptr_t>(_ReturnAddress()) };
@@ -19,10 +25,13 @@ namespace misc
 	
 	void initialize()
 	{
+		utils::hook::iat("kernel32.dll", "ExitProcess", exit_process); 
 		utils::hook::iat("user32.dll", "MessageBoxA", message_box);
 		
-		input::on_key(VK_F2, [] { command::execute("disconnect", true); });
-		input::on_key(VK_F3, [] { command::execute("quit", true); });
+		input::on_key(VK_F2, [] { command::execute("disconnect"); });
+		input::on_key(VK_F3, [] { command::execute("quit"); });
+
+		scheduler::once(game::initialize, scheduler::pipeline::main);
 		
 		scheduler::loop([]()
 		{

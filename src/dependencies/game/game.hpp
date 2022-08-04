@@ -46,7 +46,7 @@ namespace game
 		bool register_remote_addr(const InfoResponseLobby & lobby, netadr_t * addr);
 	}
 	
-	void initialize(const IDXGISwapChain* chain);
+	void initialize();
 	bool in_game();
 	int find_target_from_addr(const LobbySession* session, const netadr_t& from);
 	bool can_connect_to_player(const LobbySession* session, const size_t client_num, const size_t target_xuid);

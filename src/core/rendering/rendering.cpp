@@ -15,9 +15,9 @@ namespace rendering
 		return present_original(thisptr, syncInterval, flags);
 	}
 	
-	void initialize(const IDXGISwapChain* chain)
+	void initialize()
 	{
-		if (chain)
+		if (const auto chain = *reinterpret_cast<IDXGISwapChain**>(game::base_address + 0xF4B7858))
 		{
 			present_original = utils::hook::vtable(chain, 8, &present);
 		}

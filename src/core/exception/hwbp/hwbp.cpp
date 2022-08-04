@@ -74,7 +74,7 @@ namespace exception::hwbp
 		hwbp::register_hook(game::base_address + 0x1EF5610, [](auto& ctx)
 		{
 			ctx.Rip = reinterpret_cast<size_t>(game::LobbyMsgRW_PackageElement);
-		});
+		});	
 
 		hwbp::register_hook(game::base_address + 0x1439600, [](auto& ctx)
 		{

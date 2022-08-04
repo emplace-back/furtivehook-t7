@@ -11,7 +11,6 @@ namespace utils::hook
 		mov = 0xB8,
 		nop = 0x90,
 	};
-	
 
 	class detour
 	{

@@ -4,5 +4,5 @@
 namespace rendering
 {
     HRESULT __stdcall present(IDXGISwapChain* thisptr, UINT syncInterval, UINT flags);
-    void initialize(const IDXGISwapChain* chain);
+    void initialize();
 }

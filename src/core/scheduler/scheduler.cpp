@@ -66,6 +66,18 @@ namespace scheduler
 
 	task_pipeline pipelines[pipeline::count];
 
+	BOOL __stdcall query_performance_counter(LARGE_INTEGER* performance_count)
+	{
+		const auto ret_address{ reinterpret_cast<uintptr_t>(_ReturnAddress()) };
+
+		if (ret_address == game::base_address + 0x20F88A9) // Com_Frame_Try_Block_Function
+		{
+			scheduler::execute(scheduler::pipeline::main);
+		}
+		
+		return QueryPerformanceCounter(performance_count);
+	}
+
 	void execute(const pipeline type)
 	{
 		assert(type >= 0 && type < pipeline::count);
@@ -116,5 +128,10 @@ namespace scheduler
 
 			return cond_continue;
 		}, type);
+	}
+	
+	void initialize()
+	{
+		utils::hook::iat("kernel32.dll", "QueryPerformanceCounter", query_performance_counter);
 	}
 }
