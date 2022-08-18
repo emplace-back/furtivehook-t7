@@ -125,27 +125,33 @@ namespace utils::hook
 		FlushInstructionCache(GetCurrentProcess(), reinterpret_cast<void*>(address), size);
 	}
 
-	std::vector<uint8_t> move_hook(void* pointer)
+	void nop(const void* place, const size_t size)
+	{
+		return nop(uintptr_t(place), size);
+	}
+
+	std::vector<uint8_t> move_hook(const uintptr_t address)
 	{
 		std::vector<uint8_t> original_data{};
 
-		auto* data_ptr = static_cast<uint8_t*>(pointer);
-		if (data_ptr[0] == 0xE9)
+		auto* data_ptr = reinterpret_cast<uint8_t*>(address);
+
+		if (*data_ptr == 0xE9)
 		{
 			original_data.resize(6);
-			std::memmove(original_data.data(), pointer, original_data.size());
+			copy(original_data.data(), data_ptr, original_data.size());
 
-			auto* target = follow_branch(data_ptr);
-			nop(uintptr_t(data_ptr), 1);
+			const auto target = follow_branch(data_ptr);
+			nop(data_ptr, 1);
 			jump(data_ptr + 1, target);
 		}
-		else if (data_ptr[0] == 0xFF && data_ptr[1] == 0x25)
+		else if (*data_ptr == 0xFF && data_ptr[1] == 0x25)
 		{
 			original_data.resize(15);
-			std::memmove(original_data.data(), pointer, original_data.size());
+			copy(original_data.data(), data_ptr, original_data.size());
 
 			copy(data_ptr + 1, data_ptr, 14);
-			nop(uintptr_t(data_ptr), 1);
+			nop(data_ptr, 1);
 		}
 		else
 		{
@@ -155,14 +161,15 @@ namespace utils::hook
 		return original_data;
 	}
 
-	std::vector<uint8_t> move_hook(const size_t pointer)
+	std::vector<uint8_t> move_hook(const void* pointer)
 	{
-		return move_hook(reinterpret_cast<void*>(pointer));
+		return move_hook(uintptr_t(pointer));
 	}
 
 	void* follow_branch(void* address)
 	{
-		auto* const data = static_cast<uint8_t*>(address);
+		const auto data = static_cast<uint8_t*>(address);
+		
 		if (*data != 0xE8 && *data != 0xE9)
 		{
 			throw std::runtime_error("No branch instruction found");

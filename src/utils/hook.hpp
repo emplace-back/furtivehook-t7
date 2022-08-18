@@ -75,12 +75,15 @@ namespace utils::hook
 		void un_move();
 	};
 
-	void* follow_branch(void* address); 
+	std::vector<uint8_t> move_hook(const void* pointer);
+
+	void* follow_branch(void* address);
 	void write_string(char* place, const std::string& string);
 	void retn(const uintptr_t address);
 	void nop(const uintptr_t address, const size_t size);
-	std::vector<uint8_t> move_hook(void* pointer);
-	std::vector<uint8_t> move_hook(size_t pointer);
+	void nop(const void* place, const size_t size);
+
+	std::vector<uint8_t> move_hook(const uintptr_t address);
 
 	template <typename T> void copy(const uintptr_t address, const T data, const size_t length)
 	{
@@ -122,7 +125,7 @@ namespace utils::hook
 		{
 			const static uint8_t jump_data[] =
 			{
-				0x48, 0xb8, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0xff, 0xe0
+				0x48, 0xB8, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0xFF, 0xE0
 			}; 
 
 			const static uint8_t jump_data_safe[] =
@@ -192,8 +195,9 @@ namespace utils::hook
 	template <typename T>
 	T extract(void* address)
 	{
-		auto* const data = static_cast<uint8_t*>(address);
-		const auto offset = *reinterpret_cast<int32_t*>(data);
+		const auto data = static_cast<uint8_t*>(address);
+		const auto offset = *reinterpret_cast<int*>(data);
+		
 		return reinterpret_cast<T>(data + offset + 4);
 	}
 }

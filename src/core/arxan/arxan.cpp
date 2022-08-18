@@ -9,16 +9,16 @@ namespace arxan
 
 	bool remove_keyword_from_string(const UNICODE_STRING& string)
 	{
-		const static auto keywords =
-		{
-			L"IDA"s,
-			L"ida"s,
-		};
-
 		if (!string.Buffer || !string.Length)
 		{
 			return false;
 		}
+
+		const auto keywords =
+		{
+			L"IDA"s,
+			L"ida"s,
+		};
 
 		const auto path = std::wstring_view{ string.Buffer, string.Length / sizeof(*string.Buffer) };
 
@@ -109,6 +109,7 @@ namespace arxan
 			if (system_information_class == SystemProcessInformation)
 			{
 				auto addr = static_cast<uint8_t*>(system_information);
+				
 				while (true)
 				{
 					const auto info = reinterpret_cast<SYSTEM_PROCESS_INFORMATION*>(addr);
@@ -132,6 +133,7 @@ namespace arxan
 		create_mutex_hook.create(CreateMutexExA, create_mutex);
 
 		const utils::nt::library ntdll("ntdll.dll");
+		
 		nt_query_system_information_hook.create(ntdll.get_proc<void*>("NtQuerySystemInformation"), nt_query_system_information);
 		nt_query_system_information_hook.move();
 
