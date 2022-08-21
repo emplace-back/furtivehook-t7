@@ -9,7 +9,7 @@ namespace exception::dvars
 		cg_predict_playerstate = 2,
 		handle_packet = 3,
 		draw_text = 4,
-		ui_get_num_text_lines = 5,
+		find_line_bounds = 5,
 		update_presence = 6,
 		loot_enabled = 7,
 	}; 

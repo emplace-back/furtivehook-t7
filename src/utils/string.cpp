@@ -218,4 +218,28 @@ namespace utils::string
 	{
 		return std::regex_replace(string, std::regex{ "\\^[HB]" }, "");
 	}
+
+	void clean_invalid_model_path(char* s)
+	{
+		size_t size{ 0 };
+
+		while (*s)
+		{
+			if (*s == '$' && s[1] == '(')
+			{
+				auto model_path = s + 2;
+
+				while (true)
+				{
+					if (++size >= 64)
+						*model_path = 0;
+
+					if (!model_path[size] || model_path[size] == ')')
+						break;
+				}
+			}
+
+			++s;
+		}
+	}
 }

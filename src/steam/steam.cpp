@@ -63,6 +63,8 @@ namespace steam
 			message = utils::get_chat_message(message.substr(2), *sender_id);
 
 			PRINT_LOG("%s", message.data());
+
+			utils::string::clean_invalid_model_path(static_cast<char*>(data));
 		}
 
 		return count;

@@ -512,8 +512,8 @@ namespace menu
 
 						if (ImGui::MenuItem("Send crash text", nullptr, nullptr, session))
 						{
-							steam::send_lobby_chat_message(session->lobbyData.platformSessionID, 0, "$(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)"); 
-							steam::send_lobby_chat_message(session->lobbyData.platformSessionID, 0, "^aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+							steam::send_lobby_chat_message(session->lobbyData.platformSessionID, 0, "$(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)"); 
+							steam::send_lobby_chat_message(session->lobbyData.platformSessionID, 0, "^Baaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 							steam::send_lobby_chat_message(session->lobbyData.platformSessionID, 0, "^B");
 							steam::send_lobby_chat_message(session->lobbyData.platformSessionID, 0, "^H");
 							steam::send_lobby_chat_message(session->lobbyData.platformSessionID, 0, "^H" "\xFF\xFF\xFF");

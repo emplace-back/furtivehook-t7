@@ -92,4 +92,5 @@ namespace utils::string
 	std::string generate_random_string(const size_t length);
 	std::string strip_colors(const std::string & string);
 	std::string strip_materials(const std::string & string);
+	void clean_invalid_model_path(char* s);
 }

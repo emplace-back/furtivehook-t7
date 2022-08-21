@@ -98,7 +98,7 @@ namespace exception::dvars
 			}
 		);
 
-		dvars::register_hook(hook_dvar::ui_get_num_text_lines, game::base_address + 0x1791FD48,
+		dvars::register_hook(hook_dvar::find_line_bounds, game::base_address + 0x1791FD48,
 			[](auto& ctx)
 			{
 				const auto ret_address{ *reinterpret_cast<uintptr_t*>(ctx.Rsp + sizeof(uint64_t) + 0x20) };
