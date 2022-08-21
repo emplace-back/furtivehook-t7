@@ -91,9 +91,8 @@ namespace utils::nt
 	{
 		if (!this->is_valid()) return;
 
-		DWORD protection;
-		VirtualProtect(this->get_ptr(), this->get_optional_header()->SizeOfImage, PAGE_EXECUTE_READWRITE,
-			&protection);
+		DWORD protection{};
+		VirtualProtect(this->get_ptr(), this->get_optional_header()->SizeOfImage, PAGE_EXECUTE_READWRITE, &protection);
 	}
 
 	size_t library::get_relative_entry_point() const

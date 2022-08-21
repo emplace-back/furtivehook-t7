@@ -63,7 +63,7 @@ namespace arxan
 			return nullptr;
 		}
 
-		return create_mutex_hook.invoke<HANDLE>(attributes, name, flags, access);
+		return create_mutex_hook.call<HANDLE>(attributes, name, flags, access);
 	}
 
 	int __stdcall get_window_text(HWND window, char* string, size_t max_count)
@@ -87,7 +87,7 @@ namespace arxan
 
 	NTSTATUS __stdcall nt_query_information_process_stub(HANDLE handle, PROCESSINFOCLASS info_class, void* info, uint32_t info_length, uint32_t* return_length)
 	{
-		const auto status = nt_query_information_process_hook.invoke<NTSTATUS>(handle, info_class, info, info_length, return_length);
+		const auto status = nt_query_information_process_hook.call<NTSTATUS>(handle, info_class, info, info_length, return_length);
 
 		if (NT_SUCCESS(status))
 		{
@@ -102,7 +102,7 @@ namespace arxan
 	
 	NTSTATUS __stdcall nt_query_system_information(SYSTEM_INFORMATION_CLASS system_information_class, void* system_information, uint32_t system_information_length, uint32_t* return_length)
 	{
-		const auto status = nt_query_system_information_hook.invoke<NTSTATUS>(system_information_class, system_information, system_information_length, return_length);
+		const auto status = nt_query_system_information_hook.call<NTSTATUS>(system_information_class, system_information, system_information_length, return_length);
 
 		if (NT_SUCCESS(status))
 		{
@@ -127,7 +127,7 @@ namespace arxan
 
 		return status;
 	}
-	
+
 	void initialize()
 	{
 		create_mutex_hook.create(CreateMutexExA, create_mutex);

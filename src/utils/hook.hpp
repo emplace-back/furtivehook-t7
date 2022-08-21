@@ -31,13 +31,13 @@ namespace utils::hook
 			{
 				this->~detour();
 
-				this->place_ = other.place_;
-				this->original_ = other.original_;
-				this->moved_data_ = other.moved_data_;
+				this->place = other.place;
+				this->original = other.original;
+				this->moved_data = other.moved_data;
 
-				other.place_ = nullptr;
-				other.original_ = nullptr;
-				other.moved_data_ = {};
+				other.place = nullptr;
+				other.original = nullptr;
+				other.moved_data = {};
 			}
 
 			return *this;
@@ -57,33 +57,27 @@ namespace utils::hook
 		template <typename T>
 		T* get() const
 		{
-			return static_cast<T*>(this->get_original());
+			return static_cast<T*>(this->original);
 		}
 
 		template <typename T = void, typename... Args>
-		T invoke(Args ... args)
+		T call(Args ... args)
 		{
-			return static_cast<T(*)(Args ...)>(this->get_original())(args...);
+			return static_cast<T(*)(Args ...)>(this->original)(args...);
 		}
-
-		[[nodiscard]] void* get_original() const;
 	private:
-		std::vector<uint8_t> moved_data_{};
-		void* place_{};
-		void* original_{};
+		std::vector<uint8_t> moved_data{};
+		void* place{};
+		void* original{};
 
 		void un_move();
 	};
 
-	std::vector<uint8_t> move_hook(const void* pointer);
-
-	void* follow_branch(void* address);
-	void write_string(char* place, const std::string& string);
-	void retn(const uintptr_t address);
+	void write(char* place, const std::string& string);
 	void nop(const uintptr_t address, const size_t size);
 	void nop(const void* place, const size_t size);
-
 	std::vector<uint8_t> move_hook(const uintptr_t address);
+	std::vector<uint8_t> move_hook(const void* pointer);
 
 	template <typename T> void copy(const uintptr_t address, const T data, const size_t length)
 	{
@@ -160,14 +154,14 @@ namespace utils::hook
 
 	template <typename T> auto iat(const std::string& mod_name, const std::string& proc_name, T function)
 	{
-		const nt::library main;
+		const nt::library main{};
 		if (!main.is_valid()) return T();
 
 		auto ptr = main.get_iat_entry(mod_name, proc_name);
 		if (!ptr) return T();
 
 		auto original = *ptr;
-		set(ptr, reinterpret_cast<uintptr_t*>(function));
+		set(ptr, uintptr_t(function));
 		return reinterpret_cast<T>(original);
 	}
 
@@ -192,10 +186,9 @@ namespace utils::hook
 		return vtable<T>(uintptr_t(place), index, function);
 	}
 
-	template <typename T>
-	T extract(void* address)
+	template <typename T> T extract(void* place)
 	{
-		const auto data = static_cast<uint8_t*>(address);
+		const auto data = static_cast<uint8_t*>(place);
 		const auto offset = *reinterpret_cast<int*>(data);
 		
 		return reinterpret_cast<T>(data + offset + 4);

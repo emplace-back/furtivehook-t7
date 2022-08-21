@@ -52,25 +52,9 @@ namespace utils::nt
 		}
 
 		template <typename T, typename... Args>
-		T invoke(const std::string& process, Args ... args) const
+		T call(const std::string& process, Args ... args) const
 		{
 			auto method = this->get<T(__cdecl)(Args ...)>(process);
-			if (method) return method(args...);
-			return T();
-		}
-
-		template <typename T, typename... Args>
-		T invoke_pascal(const std::string& process, Args ... args) const
-		{
-			auto method = this->get<T(__stdcall)(Args ...)>(process);
-			if (method) return method(args...);
-			return T();
-		}
-
-		template <typename T, typename... Args>
-		T invoke_this(const std::string& process, void* this_ptr, Args ... args) const
-		{
-			auto method = this->get<T(__thiscall)(void*, Args ...)>(this_ptr, process);
 			if (method) return method(args...);
 			return T();
 		}
