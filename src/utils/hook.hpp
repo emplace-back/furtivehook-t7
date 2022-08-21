@@ -1,6 +1,11 @@
 #pragma once
 #include "dependencies/std_include.hpp"
 
+#include <utils/asmjit/core/jitruntime.h>
+#include <utils/asmjit/x86/x86assembler.h>
+
+using namespace asmjit::x86;
+
 namespace utils::hook
 {
 	enum class instr : uint8_t
@@ -12,6 +17,31 @@ namespace utils::hook
 		nop = 0x90,
 	};
 
+	class assembler : public Assembler
+	{
+	public:
+		using Assembler::Assembler;
+		using Assembler::call;
+		using Assembler::jmp;
+
+		void pushad64();
+		void popad64();
+
+		void prepare_stack_for_call();
+		void restore_stack_after_call();
+
+		template <typename T>
+		void call_aligned(T&& target)
+		{
+			this->prepare_stack_for_call();
+			this->call(std::forward<T>(target));
+			this->restore_stack_after_call();
+		}
+
+		asmjit::Error call(void* target);
+		asmjit::Error jmp(void* target);
+	};
+	
 	class detour
 	{
 	public:
@@ -78,6 +108,7 @@ namespace utils::hook
 	void nop(const void* place, const size_t size);
 	std::vector<uint8_t> move_hook(const uintptr_t address);
 	std::vector<uint8_t> move_hook(const void* pointer);
+	void* assemble(const std::function<void(assembler&)>& asm_function);
 
 	template <typename T> void copy(const uintptr_t address, const T data, const size_t length)
 	{

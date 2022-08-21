@@ -63,8 +63,9 @@ namespace exception
 
 	void initialize()
 	{
-		SetUnhandledExceptionFilter(exception_filter);
-		utils::hook::jump(&SetUnhandledExceptionFilter, &set_unhandled_exception_filter, true);
+		SetUnhandledExceptionFilter(0);
+		AddVectoredExceptionHandler(1, exception_filter);
+		//utils::hook::jump(&SetUnhandledExceptionFilter, &set_unhandled_exception_filter, true);
 
 		hwbp::initialize(); 
 		dvars::initialize();

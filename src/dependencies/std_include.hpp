@@ -37,6 +37,8 @@
 #pragma comment(lib, "dbghelp.lib")
 #pragma comment(lib, "ntdll.lib")
 
+#include <utils/asmjit/core/jitruntime.h>
+#include <utils/asmjit/x86/x86assembler.h>
 #include "../thirdparty/nlohmann/json.hpp"
 #include "../thirdparty/minhook/MinHook.h"
 #include "../thirdparty/steam_api/isteamuser.hpp"

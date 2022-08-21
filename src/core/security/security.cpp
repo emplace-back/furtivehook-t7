@@ -3,20 +3,26 @@
 
 namespace security
 {
-	BOOL __stdcall is_processor_feature_present(DWORD processor_feature)
+	BOOL __stdcall is_processor_feature_present(DWORD feature)
 	{
-		const auto result = IsProcessorFeaturePresent(processor_feature);
-
-		if (result)
+		if (feature == PF_FASTFAIL_AVAILABLE)
 		{
-			PRINT_LOG_DETAILED("Called at offset 0x%llX", reinterpret_cast<uintptr_t>(_ReturnAddress()) - game::base_address);
+			return FALSE;
 		}
 
-		return result;
+		return IsProcessorFeaturePresent(feature);
+	}
+
+	LONG __stdcall unhandled_exception_filter(PEXCEPTION_POINTERS ex)
+	{
+		auto ctx = reinterpret_cast<PCONTEXT>(game::base_address + 0x1A8A5910);
+		RaiseException(STATUS_STACK_BUFFER_OVERRUN, 0, 1, reinterpret_cast<ULONG_PTR*>(&ctx));
+		return FALSE;
 	}
 	
 	void initialize()
 	{
-		utils::hook::iat("kernel32.dll", "IsProcessorFeaturePresent", is_processor_feature_present); 
+		utils::hook::iat("kernel32.dll", "IsProcessorFeaturePresent", is_processor_feature_present);
+		utils::hook::iat("kernel32.dll", "UnhandledExceptionFilter", unhandled_exception_filter);
 	}
 }
