@@ -91,6 +91,6 @@ namespace utils::string
 	std::string reverse_words(std::string_view s);
 	std::string generate_random_string(const size_t length);
 	std::string strip_colors(const std::string & string);
-	std::string strip_materials(const std::string & string);
-	void clean_invalid_model_path(char* s);
+	void strip_materials(char* string);
+	void clean_invalid_model_path(char* string);
 }

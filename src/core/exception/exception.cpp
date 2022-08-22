@@ -37,7 +37,7 @@ namespace exception
 
 				PRINT_LOG("%s", message.data());
 
-				if (code == STATUS_ACCESS_VIOLATION)
+				if (code == STATUS_ACCESS_VIOLATION || code == STATUS_STACK_BUFFER_OVERRUN)
 				{
 					MessageBoxA(nullptr, message.data(), "Exception", MB_ICONERROR);
 

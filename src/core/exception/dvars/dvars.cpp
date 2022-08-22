@@ -85,15 +85,11 @@ namespace exception::dvars
 				
 				if (ret_address == game::base_address + 0x1F342F7)
 				{
-					const auto text = reinterpret_cast<char*>(ctx.R12);
-					const auto cleaned_text = utils::string::strip_materials(text);
-					utils::hook::write(text, cleaned_text);
+					utils::string::strip_materials(reinterpret_cast<char*>(ctx.R12));
 				}
 				else if (ret_address == game::base_address + 0x22785E2)
 				{
-					const auto text = reinterpret_cast<char*>(ctx.R15);
-					const auto cleaned_text = utils::string::strip_materials(text);
-					utils::hook::write(text, cleaned_text);
+					utils::string::strip_materials(reinterpret_cast<char*>(ctx.R15));
 				}
 			}
 		);
@@ -105,9 +101,7 @@ namespace exception::dvars
 
 				if (ret_address == game::base_address + 0x1F34843 || ret_address == game::base_address + 0x1F34A2B)
 				{
-					const auto text = reinterpret_cast<char*>(ctx.Rdi);
-					const auto cleaned_text = utils::string::strip_materials(text);
-					utils::hook::write(text, cleaned_text);
+					utils::string::strip_materials(reinterpret_cast<char*>(ctx.Rdi));
 				}
 			}
 		);

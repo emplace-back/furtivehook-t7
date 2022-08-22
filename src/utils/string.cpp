@@ -214,20 +214,32 @@ namespace utils::string
 		return std::regex_replace(string, std::regex{ "\\^[\\d;HIBF]" }, "");
 	}
 
-	std::string strip_materials(const std::string& string)
+	void strip_materials(char* string)
 	{
-		return std::regex_replace(string, std::regex{ "\\^[HB]" }, "");
+		for (size_t i = 0; i < std::strlen(string); ++i)
+		{
+			if (string[i] == '^')
+			{
+				const auto material_char{ &string[i + 1] };
+				
+				if (*material_char == 'H' || *material_char == 'I' || *material_char == 'B')
+				{
+					string[i] = '.';
+					++i;
+				}
+			}
+		}
 	}
 
-	void clean_invalid_model_path(char* s)
+	void clean_invalid_model_path(char* string)
 	{
-		size_t size{ 0 };
+		/*size_t size{0};
 
-		while (*s)
+		while (*string)
 		{
-			if (*s == '$' && s[1] == '(')
+			if (*string == '$' && string[1] == '(')
 			{
-				auto model_path = s + 2;
+				auto model_path = string + 2;
 
 				while (true)
 				{
@@ -239,7 +251,24 @@ namespace utils::string
 				}
 			}
 
-			++s;
+			++string;
+		}*/
+		
+		for (size_t i = 0; i < std::strlen(string); ++i)
+		{
+			if (string[i] == '$' && string[i + 1] == '(')
+			{
+				size_t j{ 0 };
+
+				for (; j <= 64; j++)
+				{
+					if (!string[i + j] || string[i + j] == ')')
+						break;
+				}
+
+				if (j >= 64)
+					string[i + j] = ')';
+			}
 		}
 	}
 }
