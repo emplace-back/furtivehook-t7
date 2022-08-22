@@ -68,6 +68,7 @@ using json = nlohmann::json;
 #include "math/math.hpp"
 
 #include "utils/utils.hpp"
+#include "utils/signature.hpp"
 #include "utils/io.hpp"
 #include "utils/hook.hpp"
 #include "utils/memory.hpp"

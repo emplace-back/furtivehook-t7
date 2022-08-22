@@ -103,12 +103,12 @@ namespace utils::hook
 		void un_move();
 	};
 
-	void write(char* place, const std::string& string);
 	void nop(const uintptr_t address, const size_t size);
 	void nop(const void* place, const size_t size);
 	std::vector<uint8_t> move_hook(const uintptr_t address);
 	std::vector<uint8_t> move_hook(const void* pointer);
 	void* assemble(const std::function<void(assembler&)>& asm_function);
+	void* follow_branch(void* address);
 
 	template <typename T> void copy(const uintptr_t address, const T data, const size_t length)
 	{

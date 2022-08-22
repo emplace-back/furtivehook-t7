@@ -110,7 +110,6 @@ namespace game
 	const static auto BG_GetDepth = reinterpret_cast<float(*)(BulletHitInfo*, const BulletTraceResults*, const BulletFireParams*, const BulletTraceResults*)>(base_address + 0xA1CF0);
 	const static auto BG_GetMinDamageRangeScaled = reinterpret_cast<float(*)(Weapon)>(base_address + 0x26F0960);
 	const static auto BG_GetMultishotBaseMinDamageRangeScaled = reinterpret_cast<float(*)(Weapon)>(base_address + 0x26F0550);
-	const static auto liveSessionTaskTimeoutSearch = *reinterpret_cast<dvar_t**>(base_address + 0x11419728);
 	const static auto sv_bullet_range = *reinterpret_cast<dvar_t**>(base_address + 0x176F96C0);
 	const static auto ui_mapname = *reinterpret_cast<dvar_t**>(base_address + 0x179E0AC0);
 	const static auto BG_GetSpreadForWeapon = reinterpret_cast<void(*)(playerState_s const*, const Weapon, float*, float*)>(base_address + 0x26D0310);

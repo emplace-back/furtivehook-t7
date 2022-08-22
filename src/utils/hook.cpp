@@ -21,18 +21,6 @@ namespace utils::hook
 				MH_Uninitialize();
 			}
 		} __;
-
-		void* follow_branch(void* address)
-		{
-			const auto data = static_cast<uint8_t*>(address);
-
-			if (*data != 0xE8 && *data != 0xE9)
-			{
-				throw std::runtime_error("No branch instruction found");
-			}
-
-			return extract<void*>(data + 1);
-		}
 	}
 
 	void assembler::pushad64()
@@ -178,12 +166,6 @@ namespace utils::hook
 			copy(this->place, this->moved_data.data(), this->moved_data.size());
 		}
 	}
-
-	void write(char* place, const std::string& string)
-	{
-		std::strncpy(place, string.data(), string.size());
-		place[string.size()] = 0;
-	}
 	
 	void nop(const uintptr_t address, const size_t size)
 	{
@@ -251,5 +233,17 @@ namespace utils::hook
 		runtime.add(&result, &code);
 
 		return result;
+	}
+
+	void* follow_branch(void* address)
+	{
+		const auto data = static_cast<uint8_t*>(address);
+
+		if (*data != 0xE8 && *data != 0xE9)
+		{
+			throw std::runtime_error("No branch instruction found");
+		}
+
+		return extract<void*>(data + 1);
 	}
 }

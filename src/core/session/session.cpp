@@ -57,7 +57,7 @@ namespace session
 				&task_lobby_search,
 				0,
 				nullptr,
-				game::liveSessionTaskTimeoutSearch->current.integer))
+				15000))
 			{
 				auto payload = *reinterpret_cast<game::SessionSearchPayloadData**>(&task->payload);
 				*payload = {};

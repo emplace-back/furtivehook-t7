@@ -236,6 +236,7 @@
     <ClInclude Include="..\src\utils\io.hpp" />
     <ClInclude Include="..\src\utils\memory.hpp" />
     <ClInclude Include="..\src\utils\nt.hpp" />
+    <ClInclude Include="..\src\utils\signature.hpp" />
     <ClInclude Include="..\src\utils\spoof_call\spoof_call.hpp" />
     <ClInclude Include="..\src\utils\string.hpp" />
     <ClInclude Include="..\src\utils\thread.hpp" />
@@ -335,6 +336,7 @@
     <ClCompile Include="..\src\utils\io.cpp" />
     <ClCompile Include="..\src\utils\memory.cpp" />
     <ClCompile Include="..\src\utils\nt.cpp" />
+    <ClCompile Include="..\src\utils\signature.cpp" />
     <ClCompile Include="..\src\utils\string.cpp">
       <ObjectFileName>$(IntDir)\string1.obj</ObjectFileName>
     </ClCompile>

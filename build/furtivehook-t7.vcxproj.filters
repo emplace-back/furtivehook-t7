@@ -486,6 +486,9 @@
     <ClInclude Include="..\src\utils\nt.hpp">
       <Filter>utils</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\utils\signature.hpp">
+      <Filter>utils</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\utils\spoof_call\spoof_call.hpp">
       <Filter>utils\spoof_call</Filter>
     </ClInclude>
@@ -777,6 +780,9 @@
       <Filter>utils</Filter>
     </ClCompile>
     <ClCompile Include="..\src\utils\nt.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\utils\signature.cpp">
       <Filter>utils</Filter>
     </ClCompile>
     <ClCompile Include="..\src\utils\string.cpp">
