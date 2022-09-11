@@ -5,9 +5,8 @@ namespace utils::thread
 {
 	std::vector<DWORD> get_thread_ids()
 	{
-		const auto handle{ CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0) };
-
-		if (handle == INVALID_HANDLE_VALUE)
+		nt::handle<INVALID_HANDLE_VALUE> h = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, GetCurrentProcessId());
+		if (!h)
 		{
 			return {};
 		}
@@ -15,56 +14,21 @@ namespace utils::thread
 		THREADENTRY32 entry{};
 		entry.dwSize = sizeof(entry);
 
+		if (!Thread32First(h, &entry))
+		{
+			return {};
+		}
+
 		std::vector<DWORD> ids{};
 
-		if (Thread32First(handle, &entry))
+		do
 		{
-			do
-			{
-				if (entry.th32OwnerProcessID != GetCurrentProcessId() || entry.th32ThreadID == GetCurrentThreadId())
-					continue;
+			if (entry.th32OwnerProcessID != GetCurrentProcessId() || entry.th32ThreadID == GetCurrentThreadId())
+				continue;
 
-				ids.emplace_back(entry.th32ThreadID);
-			} 
-			while (Thread32Next(handle, &entry));
-		}
+			ids.emplace_back(entry.th32ThreadID);
+		} while (Thread32Next(h, &entry));
 
-		CloseHandle(handle);
 		return ids;
-	}
-	
-	void for_each_thread(const std::function<void(HANDLE)>& callback)
-	{
-		const auto ids{ get_thread_ids() };
-
-		for (const auto& id : ids)
-		{
-			const auto thread{ OpenThread(THREAD_ALL_ACCESS, FALSE, id) };
-
-			if (thread != nullptr)
-			{
-				callback(thread);
-			}
-
-			CloseHandle(thread);
-		}
-	}
-
-	void set_registers_for_each_thread(const std::function<void(CONTEXT&)>& callback)
-	{
-		for_each_thread([=](const HANDLE thread)
-		{
-			CONTEXT ctx{};
-			ctx.ContextFlags = CONTEXT_DEBUG_REGISTERS;
-
-			if (!GetThreadContext(thread, &ctx))
-			{
-				return;
-			}
-
-			callback(ctx);
-
-			SetThreadContext(thread, &ctx);
-		});
 	}
 }

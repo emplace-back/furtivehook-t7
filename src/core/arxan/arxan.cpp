@@ -3,10 +3,11 @@
 
 namespace arxan
 {
+	utils::hook::detour get_thread_context_hook; 
 	utils::hook::detour create_mutex_hook;
 	utils::hook::detour nt_query_system_information_hook;
 	utils::hook::detour nt_query_information_process_hook;
-
+	
 	bool remove_keyword_from_string(const UNICODE_STRING& string)
 	{
 		if (!string.Buffer || !string.Length)
@@ -54,6 +55,24 @@ namespace arxan
 		unicode_string.MaximumLength = unicode_string.Length;
 
 		return remove_keyword_from_string(unicode_string);
+	}
+
+	BOOL WINAPI get_thread_context_stub(const HANDLE thread_handle, const LPCONTEXT context)
+	{
+		constexpr auto debug_registers_flag = (CONTEXT_DEBUG_REGISTERS & ~CONTEXT_AMD64);
+		if (context->ContextFlags & debug_registers_flag)
+		{
+			auto* source = _ReturnAddress();
+			const auto game = utils::nt::library{};
+			const auto source_module = utils::nt::library::get_by_address(source);
+
+			if (source_module == game)
+			{
+				context->ContextFlags &= ~debug_registers_flag;
+			}
+		}
+
+		return get_thread_context_hook.call<BOOL>(thread_handle, context);
 	}
 	
 	HANDLE __stdcall create_mutex(LPSECURITY_ATTRIBUTES attributes, const char* name, DWORD flags, DWORD access)
@@ -127,17 +146,18 @@ namespace arxan
 
 		return status;
 	}
-
+	
 	void initialize()
 	{
 		create_mutex_hook.create(CreateMutexExA, create_mutex);
 
-		const utils::nt::library ntdll("ntdll.dll");
-		
+		const utils::nt::library ntdll("ntdll.dll"); 
+		nt_query_information_process_hook.create(ntdll.get_proc<void*>("NtQueryInformationProcess"), nt_query_information_process_stub);
 		nt_query_system_information_hook.create(ntdll.get_proc<void*>("NtQuerySystemInformation"), nt_query_system_information);
 		nt_query_system_information_hook.move();
 
-		nt_query_information_process_hook.create(ntdll.get_proc<void*>("NtQueryInformationProcess"), nt_query_information_process_stub);
+		auto* get_thread_context_func = utils::nt::library("kernelbase.dll").get_proc<void*>("GetThreadContext");
+		get_thread_context_hook.create(get_thread_context_func, get_thread_context_stub);
 		
 		utils::hook::jump(GetWindowTextA, get_window_text, true, true);
 		utils::hook::move_hook(GetWindowTextA);

@@ -5,48 +5,89 @@ namespace exception::hwbp
 {
 	namespace
 	{
-		using callback = std::function<void(CONTEXT&)>; 
+		class debug_context
+		{
+		public:
+			debug_context(uint32_t thread_id)
+				: handle_(thread_id, THREAD_SET_CONTEXT | THREAD_GET_CONTEXT)
+			{
+				if (!this->handle_)
+				{
+					throw std::runtime_error("Unable to access thread");
+				}
+
+				this->context_.ContextFlags = CONTEXT_DEBUG_REGISTERS;
+
+				if (!GetThreadContext(this->handle_, &this->context_))
+				{
+					throw std::runtime_error("Unable to get thread context");
+				}
+			}
+
+			~debug_context()
+			{
+				SetThreadContext(this->handle_, &this->context_);
+			}
+
+			debug_context(const debug_context&) = delete;
+			debug_context& operator=(const debug_context&) = delete;
+
+			debug_context(debug_context&& obj) noexcept = delete;
+			debug_context& operator=(debug_context&& obj) noexcept = delete;
+
+			CONTEXT* operator->()
+			{
+				return &this->context_;
+			}
+
+		private:
+			utils::thread::handle handle_;
+			CONTEXT context_{};
+		}; 
+		
+		using callback = std::function<void(CONTEXT&)>;
 		
 		std::unordered_map<std::uintptr_t, callback>& get_callbacks()
 		{
 			static std::unordered_map<std::uintptr_t, callback> callbacks{};
 			return callbacks;
 		}
-
-		int get_register_index(const CONTEXT& ctx)
+		
+		void set_bits(uint64_t& value, const uint32_t bit_index, const uint32_t bits, const uint64_t new_value)
 		{
-			for (size_t i = 0; i < sizeof(std::uint32_t); ++i)
+			const auto range_mask = (1ull << bits) - 1ull;
+			const auto full_mask = ~(range_mask << bit_index);
+			value = (value & full_mask) | (new_value << bit_index);
+		}
+		
+		uint32_t find_free_index(debug_context& ctx)
+		{
+			for (auto i = 0; i < sizeof(uint32_t); ++i)
 			{
-				const auto x = i * sizeof(std::uint16_t);
-				const auto has_index = (ctx.Dr7 & (1 << x)) == 0;
-
-				if (has_index)
+				if ((ctx->Dr7 & (1ull << (i << 1ull))) == 0)
 				{
 					return i;
 				}
 			}
 
-			return -1;
+			throw std::runtime_error("No free index");
 		}
 
-		void register_hook(const std::uintptr_t address, const callback& callback)
+		void register_hook(const std::uintptr_t address, const callback& callback, const condition cond = condition::execute, size_t length = sizeof uint8_t)
 		{
-			utils::thread::set_registers_for_each_thread([=](auto& ctx)
+			const auto ids{ utils::thread::get_thread_ids() };
+
+			for (const auto& id : ids)
 			{
-				const auto index{ hwbp::get_register_index(ctx) };
+				debug_context ctx(id);
 
-				if (index < 0 || index >= 4)
-				{
-					return;
-				}
+				const auto index = hwbp::find_free_index(ctx);
+				(&ctx->Dr0)[index] = address;
 
-				auto* debug_register = reinterpret_cast<size_t*>(&ctx.Dr0);
-				debug_register[index] = address;
-
-				ctx.Dr7 |= (1 << index * 2);
-				ctx.Dr7 |= (0 << (16 + (index * 2) - 1)); // set condition type (16-17, 21-20, 24-25, 28-29)
-				ctx.Dr7 &= ~(1 << 18 + (index * 2)); // set size (18-19, 22-23, 26-27, 30-31)
-			});
+				hwbp::set_bits(ctx->Dr7, index << 1ull, 1, 1);
+				hwbp::set_bits(ctx->Dr7, 16 + (index << 2ull), 2, cond);
+				hwbp::set_bits(ctx->Dr7, 18 + (index << 2ull), 2, length - 1);
+			}
 
 			get_callbacks()[address] = callback;
 		}
@@ -74,7 +115,7 @@ namespace exception::hwbp
 		hwbp::register_hook(game::base_address + 0x1EF5610, [](auto& ctx)
 		{
 			ctx.Rip = reinterpret_cast<size_t>(game::LobbyMsgRW_PackageElement);
-		});	
+		});
 
 		hwbp::register_hook(game::base_address + 0x1439600, [](auto& ctx)
 		{

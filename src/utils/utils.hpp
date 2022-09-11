@@ -23,3 +23,7 @@ namespace utils
 	std::string get_sender_string(const game::netadr_t & from);
 	std::string get_chat_message(const std::string& data, const uint64_t sender_id);
 }
+
+uintptr_t operator"" _g(const uintptr_t address);
+uintptr_t reverse_g(const uintptr_t address);
+uintptr_t reverse_g(const void* address);

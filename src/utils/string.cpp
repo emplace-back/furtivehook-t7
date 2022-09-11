@@ -260,7 +260,7 @@ namespace utils::string
 			{
 				size_t j{ 0 };
 
-				for (; j <= 64; j++)
+				for (; j <= 64; ++j)
 				{
 					if (!string[i + j] || string[i + j] == ')')
 						break;
