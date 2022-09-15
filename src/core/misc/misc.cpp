@@ -25,7 +25,7 @@ namespace misc
 	
 	void initialize()
 	{
-		utils::hook::iat("kernel32.dll", "ExitProcess", exit_process); 
+		utils::hook::iat("kernel32.dll", "ExitProcess", exit_process);
 		utils::hook::iat("user32.dll", "MessageBoxA", message_box);
 		
 		input::on_key(VK_F2, [] { command::execute("disconnect"); });

@@ -35,18 +35,17 @@ namespace exception::hwbp
 			debug_context(debug_context&& obj) noexcept = delete;
 			debug_context& operator=(debug_context&& obj) noexcept = delete;
 
-			CONTEXT* operator->()
+			operator CONTEXT&()
 			{
-				return &this->context_;
+				return this->context_;
 			}
 
 		private:
 			utils::thread::handle handle_;
 			CONTEXT context_{};
-		}; 
+		};
 		
 		using callback = std::function<void(CONTEXT&)>;
-		
 		std::unordered_map<std::uintptr_t, callback>& get_callbacks()
 		{
 			static std::unordered_map<std::uintptr_t, callback> callbacks{};
@@ -60,11 +59,11 @@ namespace exception::hwbp
 			value = (value & full_mask) | (new_value << bit_index);
 		}
 		
-		uint32_t find_free_index(debug_context& ctx)
+		uint32_t find_free_index(const CONTEXT& ctx)
 		{
-			for (auto i = 0; i < sizeof(uint32_t); ++i)
+			for (auto i = 0u; i < sizeof(uint32_t); ++i)
 			{
-				if ((ctx->Dr7 & (1ull << (i << 1ull))) == 0)
+				if ((ctx.Dr7 & (1ull << (i << 1ull))) == 0)
 				{
 					return i;
 				}
@@ -72,24 +71,46 @@ namespace exception::hwbp
 
 			throw std::runtime_error("No free index");
 		}
-
-		void register_hook(const std::uintptr_t address, const callback& callback, const condition cond = condition::execute, size_t length = sizeof uint8_t)
+		
+		void activate(CONTEXT& ctx, const uintptr_t address, const condition cond = condition::execute, const size_t length = sizeof uint8_t)
 		{
-			const auto ids{ utils::thread::get_thread_ids() };
+			const auto index = hwbp::find_free_index(ctx);
+			(&ctx.Dr0)[index] = address;
 
-			for (const auto& id : ids)
-			{
-				debug_context ctx(id);
+			hwbp::set_bits(ctx.Dr7, index << 1ull, 1, 1);
+			hwbp::set_bits(ctx.Dr7, 16 + (index << 2ull), 2, cond);
+			hwbp::set_bits(ctx.Dr7, 18 + (index << 2ull), 2, length - 1);
+		}
+		
+		void activate(const uintptr_t address, const callback& callback, const condition cond = condition::execute, const size_t length = sizeof uint8_t)
+		{
+			const auto thread_ids{ utils::thread::get_thread_ids() }; 
 
-				const auto index = hwbp::find_free_index(ctx);
-				(&ctx->Dr0)[index] = address;
+			for (const auto& thread_id : thread_ids)
+				hwbp::activate(debug_context{ thread_id }, address, cond, length);
 
-				hwbp::set_bits(ctx->Dr7, index << 1ull, 1, 1);
-				hwbp::set_bits(ctx->Dr7, 16 + (index << 2ull), 2, cond);
-				hwbp::set_bits(ctx->Dr7, 18 + (index << 2ull), 2, length - 1);
-			}
+			hwbp::get_callbacks()[address] = callback;
+		}
 
-			get_callbacks()[address] = callback;
+		void activate(const uintptr_t address, const uint32_t thread_id, const callback& callback, const condition cond = condition::execute, const size_t length = sizeof uint8_t)
+		{
+			hwbp::activate(debug_context{ thread_id }, address, cond, length);
+			hwbp::get_callbacks()[address] = callback;
+		}
+
+		void deactivate(const uint32_t index, const uint32_t thread_id)
+		{
+			if (index >= 4) 
+				throw std::runtime_error("Invalid index");
+			
+			CONTEXT& ctx = debug_context{ thread_id };
+			hwbp::set_bits(ctx.Dr7, index << 1ull, 1, 0);
+		}
+
+		void deactivate_all(const uint32_t thread_id)
+		{
+			CONTEXT& ctx = debug_context{ thread_id };
+			ctx.Dr7 = 0;
 		}
 	}
 	
@@ -112,17 +133,17 @@ namespace exception::hwbp
 	
 	void initialize()
 	{
-		hwbp::register_hook(game::base_address + 0x1EF5610, [](auto& ctx)
+		hwbp::activate(game::base_address + 0x1EF5610, [](auto& ctx)
 		{
 			ctx.Rip = reinterpret_cast<size_t>(game::LobbyMsgRW_PackageElement);
 		});
 
-		hwbp::register_hook(game::base_address + 0x1439600, [](auto& ctx)
+		hwbp::activate(game::base_address + 0x1439600, [](auto& ctx)
 		{
 			ctx.Rip = reinterpret_cast<size_t>(events::instant_message::dispatch_message);
 		});
 
-		hwbp::register_hook(game::base_address + 0x134BDAD, [](auto& ctx)
+		hwbp::activate(game::base_address + 0x134BDAD, [](auto& ctx)
 		{
 			if (events::connectionless_packet::handle_command(*reinterpret_cast<game::netadr_t*>(ctx.R15)))
 			{
@@ -135,7 +156,7 @@ namespace exception::hwbp
 			}
 		});
 
-		hwbp::register_hook(game::base_address + 0x131ED33, [](auto& ctx)
+		hwbp::activate(game::base_address + 0x131ED33, [](auto& ctx)
 		{
 			if (events::server_command::handle_command())
 			{

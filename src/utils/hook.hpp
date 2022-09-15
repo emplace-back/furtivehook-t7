@@ -47,7 +47,7 @@ namespace utils::hook
 	public:
 		detour() = default;
 		detour(void* place, void* target);
-		detour(size_t place, void* target);
+		detour(uintptr_t place, void* target);
 		~detour();
 
 		detour(detour&& other) noexcept
@@ -80,7 +80,7 @@ namespace utils::hook
 		void disable();
 
 		void create(void* place, void* target);
-		void create(size_t place, void* target);
+		void create(uintptr_t place, void* target);
 		void clear();
 		void move();
 

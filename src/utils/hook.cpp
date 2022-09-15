@@ -85,15 +85,15 @@ namespace utils::hook
 
 	asmjit::Error assembler::call(void* target)
 	{
-		return Assembler::call(size_t(target));
+		return Assembler::call(uintptr_t(target));
 	}
 
 	asmjit::Error assembler::jmp(void* target)
 	{
-		return Assembler::jmp(size_t(target));
+		return Assembler::jmp(uintptr_t(target));
 	}
 
-	detour::detour(const size_t place, void* target) : detour(reinterpret_cast<void*>(place), target)
+	detour::detour(const uintptr_t place, void* target) : detour(reinterpret_cast<void*>(place), target)
 	{
 	}
 
@@ -136,7 +136,7 @@ namespace utils::hook
 		this->enable();
 	}
 
-	void detour::create(const size_t place, void* target)
+	void detour::create(const uintptr_t place, void* target)
 	{
 		this->create(reinterpret_cast<void*>(place), target);
 	}
