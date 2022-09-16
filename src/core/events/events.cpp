@@ -5,7 +5,7 @@ namespace events
 {
 	bool prevent_join = true, no_presence = true;
 	
-	void cg_predict_playerstate()
+	void __cdecl cg_predict_playerstate(LocalClientNum_t localClientNum)
 	{
 		if(!game::in_game())
 			return;
@@ -67,6 +67,8 @@ namespace events
 		{
 			game::adjust_user_cmd_movement(cmd_cur, cmd_old, SHORT2ANGLE(cmd_old->angles[1]));
 		}
+
+		return reinterpret_cast<decltype(&cg_predict_playerstate)>(game::base_address + 0x9C2AF0)(localClientNum);
 	}
 	
 	void initialize()
@@ -75,5 +77,7 @@ namespace events
 		instant_message::initialize();
 		lobby_msg::initialize();
 		server_command::initialize();
+		
+		//call(game::base_address + 0x10BA99D, &cg_predict_playerstate);
 	}
 }

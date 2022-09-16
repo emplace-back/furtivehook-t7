@@ -103,6 +103,8 @@ namespace utils::hook
 		void un_move();
 	};
 
+	void* get_memory_near(const uintptr_t address, const size_t size);
+	uint8_t* allocate_somewhere_near(const uintptr_t base_address, const size_t size);
 	void nop(const uintptr_t address, const size_t size);
 	void nop(const void* place, const size_t size);
 	std::vector<uint8_t> move_hook(const uintptr_t address);
@@ -144,8 +146,28 @@ namespace utils::hook
 		set<T>(uintptr_t(place), value);
 	}
 
+	template <typename T> bool is_relatively_far(const uintptr_t address, const T function, const int offset =  5)
+	{
+		const int64_t diff = uintptr_t(function) - address - offset;
+		const auto small_diff = int32_t(diff);
+		return diff != int64_t(small_diff);
+	}
+
 	template <typename T> void jump(const uintptr_t address, const T function, const bool use_far = false, const bool use_safe = false)
 	{
+		if (!use_far && is_relatively_far(address, function))
+		{
+			auto* trampoline = get_memory_near(address, 14);
+			if (!trampoline)
+			{
+				throw std::runtime_error("Too far away to create 32bit relative branch");
+			}
+			
+			jump(address, trampoline, false, false);
+			jump(trampoline, function, true, true);
+			return;
+		}
+		
 		if (use_far)
 		{
 			const static uint8_t jump_data[] =
@@ -176,10 +198,29 @@ namespace utils::hook
 		jump<T>(uintptr_t(place), function, use_far, use_safe);
 	}
 
+	template <typename T> void call(const uintptr_t address, const T function)
+	{
+		if (is_relatively_far(address, function))
+		{
+			auto* trampoline = get_memory_near(address, 14);
+			if (!trampoline)
+			{
+				throw std::runtime_error("Too far away to create 32bit relative branch");
+			}
+
+			call(address, trampoline);
+			jump(trampoline, function, true, true);
+			return;
+		}
+		
+		set(address, instr::call);
+		set<uint32_t>(address + 1, uintptr_t(function) - address - 5);
+	}
+
 	template <typename T> void return_value(const uintptr_t address, const T value)
 	{
 		set(address, instr::mov);
-		set(address + 1, uintptr_t(value));
+		set(address + 1, uint32_t(value));
 		set(address + 5, instr::ret);
 	}
 

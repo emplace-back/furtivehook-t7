@@ -66,6 +66,7 @@ namespace game
 		steam::initialize();
 		command::initialize();
 		rendering::initialize();
+		events::initialize();
 
 		PRINT_LOG("Initialized!");
 	}

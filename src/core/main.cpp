@@ -14,7 +14,6 @@ BOOL __stdcall DllMain(const HMODULE module, const DWORD reason, const LPVOID /*
 				scheduler::initialize();
 				security::initialize();
 				misc::initialize();
-				events::initialize();
 				friends::initialize();
 			}
 			catch (const std::exception& ex) 

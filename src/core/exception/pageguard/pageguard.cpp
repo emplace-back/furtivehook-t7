@@ -53,6 +53,6 @@ namespace exception::pageguard
 	
 	void initialize()
 	{
-		pageguard::register_hook(dvars::hook_dvar::cg_predict_playerstate, game::base_address + 0x53DD170, game::base_address + 0x9C2AF0, events::cg_predict_playerstate);
+		//pageguard::register_hook(dvars::hook_dvar::cg_predict_playerstate, game::base_address + 0x53DD170, game::base_address + 0x9C2AF0, events::cg_predict_playerstate);
 	}
 }

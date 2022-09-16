@@ -167,6 +167,129 @@ namespace utils::hook
 		}
 	}
 	
+	class memory
+	{
+	public:
+		memory() = default;
+
+		memory(const uintptr_t address) : memory()
+		{
+			this->length_ = 0x1000;
+			this->buffer_ = allocate_somewhere_near(address, this->length_);
+			
+			if (!this->buffer_)
+			{
+				throw std::runtime_error("Failed to allocate");
+			}
+		}
+
+		~memory()
+		{
+			if (this->buffer_)
+			{
+				VirtualFree(this->buffer_, 0, MEM_RELEASE);
+			}
+		}
+
+		memory(memory&& obj) noexcept : memory()
+		{
+			this->operator=(std::move(obj));
+		}
+
+		memory& operator=(memory&& obj) noexcept
+		{
+			if (this != &obj)
+			{
+				this->~memory();
+				this->buffer_ = obj.buffer_;
+				this->length_ = obj.length_;
+				this->offset_ = obj.offset_;
+
+				obj.buffer_ = nullptr;
+				obj.length_ = 0;
+				obj.offset_ = 0;
+			}
+
+			return *this;
+		}
+
+		void* allocate(const size_t length)
+		{
+			if (!this->buffer_)
+			{
+				return nullptr;
+			}
+
+			if (this->offset_ + length > this->length_)
+			{
+				return nullptr;
+			}
+
+			const auto ptr = this->get_ptr();
+			this->offset_ += length;
+			return ptr;
+		}
+
+		void* get_ptr() const
+		{
+			return this->buffer_ + this->offset_;
+		}
+
+	private:
+		uint8_t* buffer_{};
+		size_t length_{};
+		size_t offset_{};
+	};
+	
+	void* get_memory_near(const uintptr_t address, const size_t size)
+	{
+		static concurrency::container<std::vector<memory>> memory_container{};
+
+		return memory_container.access<void*>([&](std::vector<memory>& memories)
+		{
+			for (auto& memory : memories)
+			{
+				if (is_relatively_far(address, memory.get_ptr()))
+					continue;
+				
+				const auto buffer = memory.allocate(size);
+				if (buffer)
+				{
+					return buffer;
+				}
+			}
+
+			memories.emplace_back(address);
+			return memories.back().allocate(size);
+		});
+	}
+	
+	uint8_t* allocate_somewhere_near(const uintptr_t base_address, const size_t size)
+	{
+		size_t offset{ 0 };
+		
+		while (true)
+		{
+			offset += size;
+			
+			const auto* target_address = reinterpret_cast<const uint8_t*>(base_address) - offset;
+			
+			if (is_relatively_far(base_address, target_address))
+				return nullptr;
+
+			const auto result = VirtualAlloc(const_cast<uint8_t*>(target_address), size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+			
+			if (result)
+			{
+				if (!is_relatively_far(base_address, target_address))
+					return static_cast<uint8_t*>(result); 
+
+				VirtualFree(result, 0, MEM_RELEASE);
+				return nullptr;
+			}
+		}
+	}
+	
 	void nop(const uintptr_t address, const size_t size)
 	{
 		DWORD old_protect{ 0 };
