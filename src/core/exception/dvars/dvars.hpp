@@ -5,13 +5,10 @@ namespace exception::dvars
 {
 	enum hook_dvar
 	{
-		scr_update_frame = 1,
-		cg_predict_playerstate = 2,
 		handle_packet = 3,
 		draw_text = 4,
 		find_line_bounds = 5,
 		update_presence = 6,
-		loot_enabled = 7,
 	}; 
 	
 	using callback = std::function<void(CONTEXT&)>; 

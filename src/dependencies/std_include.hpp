@@ -99,7 +99,6 @@ using json = nlohmann::json;
 #include "core/aimbot/aimbot.hpp"
 #include "core/aimbot/autowall.hpp"
 #include "core/rendering/rendering.hpp"
-#include "core/exception/pageguard/pageguard.hpp"
 #include "core/exception/hwbp/hwbp.hpp"
 #include "core/exception/dvars/dvars.hpp"
 #include "core/exception/exception.hpp"

@@ -123,7 +123,6 @@
     <ClInclude Include="..\src\core\exception\dvars\dvars.hpp" />
     <ClInclude Include="..\src\core\exception\exception.hpp" />
     <ClInclude Include="..\src\core\exception\hwbp\hwbp.hpp" />
-    <ClInclude Include="..\src\core\exception\pageguard\pageguard.hpp" />
     <ClInclude Include="..\src\core\exploit\exploit.hpp" />
     <ClInclude Include="..\src\core\friends\friends.hpp" />
     <ClInclude Include="..\src\core\input\input.hpp" />
@@ -257,7 +256,6 @@
     <ClCompile Include="..\src\core\exception\dvars\dvars.cpp" />
     <ClCompile Include="..\src\core\exception\exception.cpp" />
     <ClCompile Include="..\src\core\exception\hwbp\hwbp.cpp" />
-    <ClCompile Include="..\src\core\exception\pageguard\pageguard.cpp" />
     <ClCompile Include="..\src\core\exploit\exploit.cpp" />
     <ClCompile Include="..\src\core\friends\friends.cpp" />
     <ClCompile Include="..\src\core\input\input.cpp" />

@@ -1242,9 +1242,9 @@ namespace game
 		{
 			Vec3 result{};
 
-			for (size_t i = 0; i < std::size(angles); ++i)
+			for (size_t i = 0; i < std::size(this->angles); ++i)
 			{
-				result[i] = SHORT2ANGLE(angles[i]);
+				result[i] = SHORT2ANGLE(this->angles[i]);
 			}
 
 			return result;
@@ -1252,9 +1252,9 @@ namespace game
 
 		void set_angles(const Vec3& value)
 		{
-			for (size_t i = 0; i < std::size(angles); ++i)
+			for (size_t i = 0; i < std::size(this->angles); ++i)
 			{
-				angles[i] = ANGLE2SHORT(value[i]);
+				this->angles[i] = ANGLE2SHORT(value[i]);
 			}
 		}
 	};

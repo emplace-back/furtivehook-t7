@@ -46,7 +46,7 @@ namespace events::instant_message
 		}
 	}
 
-	bool __fastcall dispatch_message(std::uint64_t sender_id, ControllerIndex_t controller_index, std::uint8_t* message, std::uint32_t message_size)
+	bool __fastcall dw_instant_dispatch_message_stub(std::uint64_t sender_id, ControllerIndex_t controller_index, std::uint8_t* message, std::uint32_t message_size)
 	{
 		if (message_size >= 0x1000)
 		{
@@ -92,6 +92,8 @@ namespace events::instant_message
 	
 	void initialize()
 	{
+		utils::hook::jump(game::base_address + 0x1439600, instant_message::dw_instant_dispatch_message_stub);
+		
 		instant_message::on_message('f', [=](auto& msg, const auto& sender_id)
 		{
 			game::JoinSessionMessage message{};

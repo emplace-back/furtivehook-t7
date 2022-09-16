@@ -10,6 +10,4 @@ namespace exception::hwbp
 		read_write = 3
 	}; 
 	
-	bool handle_exception(const LPEXCEPTION_POINTERS ex);
-	void initialize();
-}
+	bool handle_exception(const LPEXCEPTION_POINTERS ex);}

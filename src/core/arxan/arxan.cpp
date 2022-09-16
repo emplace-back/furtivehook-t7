@@ -313,8 +313,7 @@ namespace arxan
 		nt_query_system_information_hook.create(ntdll.get_proc<void*>("NtQuerySystemInformation"), nt_query_system_information);
 		nt_query_system_information_hook.move();
 
-		auto* get_thread_context_func = utils::nt::library("kernelbase.dll").get_proc<void*>("GetThreadContext");
-		get_thread_context_hook.create(get_thread_context_func, get_thread_context_stub);
+		get_thread_context_hook.create(utils::nt::library("kernelbase.dll").get_proc<void*>("GetThreadContext"), get_thread_context_stub);
 		
 		utils::hook::jump(GetWindowTextA, get_window_text, true, true);
 		utils::hook::move_hook(GetWindowTextA);

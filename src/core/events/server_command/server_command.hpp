@@ -3,7 +3,6 @@
 
 namespace events::server_command
 {
-	bool __fastcall handle_command();
 	void initialize();
 
 	extern bool log_commands;

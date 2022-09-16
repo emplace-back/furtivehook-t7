@@ -65,6 +65,7 @@ namespace scheduler
 	};
 
 	task_pipeline pipelines[pipeline::count];
+	utils::hook::detour r_end_frame_hook;
 
 	BOOL __stdcall query_performance_counter(LARGE_INTEGER* performance_count)
 	{
@@ -76,6 +77,12 @@ namespace scheduler
 		}
 		
 		return QueryPerformanceCounter(performance_count);
+	}
+
+	void r_end_frame_stub()
+	{
+		scheduler::execute(scheduler::pipeline::renderer); 
+		return r_end_frame_hook.call<void>();
 	}
 
 	void execute(const pipeline type)
@@ -133,5 +140,10 @@ namespace scheduler
 	void initialize()
 	{
 		utils::hook::iat("kernel32.dll", "QueryPerformanceCounter", query_performance_counter);
+
+		scheduler::once([]()
+		{
+			r_end_frame_hook.create(game::base_address + 0x1CD9E90, r_end_frame_stub);
+		}, scheduler::pipeline::main);
 	}
 }

@@ -21,8 +21,10 @@ namespace events::server_command
 		}
 	}
 
-	bool __fastcall handle_command()
+	bool handle_command(char* buffer)
 	{
+		game::Cmd_TokenizeStringNoEval(buffer);
+		
 		const command::args args{}; 
 
 		if (log_commands)
@@ -41,6 +43,27 @@ namespace events::server_command
 
 	void initialize()
 	{
+		const auto cl_cgame_needs_server_command_stub = utils::hook::assemble([](utils::hook::assembler& a)
+		{
+			const auto return_unhandled = a.newLabel(); 
+			
+			a.push(rcx);
+			a.mov(rcx, rdi);
+			a.call_aligned(server_command::handle_command);
+			a.test(al, al);
+			a.jz(return_unhandled);
+			
+			// Command handled
+			a.pop(rcx);
+			a.jmp(game::base_address + 0x131EEDB);
+
+			a.bind(return_unhandled);
+			a.pop(rcx);
+			a.jmp(game::base_address + 0x131ED18);
+		});
+
+		utils::hook::jump(game::base_address + 0x131ED0B, cl_cgame_needs_server_command_stub);
+		
 		server_command::on_command('2', [=](const auto& args)
 		{
 			const auto index = utils::atoi(args[1]);

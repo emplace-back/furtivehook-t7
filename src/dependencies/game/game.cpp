@@ -261,17 +261,12 @@ namespace game
 	{
 		const auto weapon_def{ BG_GetWeaponDef(weapon) };
 
-		if (weapon_def == nullptr)
-		{
-			return sv_bullet_range->current.value;
-		}
-
 		if (weapon_def->weapClass == WEAPCLASS_SPREAD || weapon_def->weapClass == WEAPCLASS_PISTOL_SPREAD)
 		{
 			return BG_GetMinDamageRangeScaled(weapon) * BG_GetMultishotBaseMinDamageRangeScaled(weapon);
 		}
 
-		return sv_bullet_range->current.value;
+		return 8192.0f;
 	}
 
 	bool CG_BulletTrace(BulletTraceResults* br, BulletFireParams* bp, const int attacker_entity_num, int lastSurfaceType)

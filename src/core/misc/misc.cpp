@@ -31,6 +31,11 @@ namespace misc
 		input::on_key(VK_F2, [] { command::execute("disconnect"); });
 		input::on_key(VK_F3, [] { command::execute("quit"); });
 
+		scheduler::once([]()
+		{
+			utils::hook::return_value(game::base_address + 0x1E81CC8, std::numeric_limits<int>::max()); // Loot_GetItemQuantity
+		}, scheduler::pipeline::main);
+
 		scheduler::once(game::initialize, scheduler::pipeline::main);
 		
 		scheduler::loop([]()

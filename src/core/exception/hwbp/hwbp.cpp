@@ -130,43 +130,4 @@ namespace exception::hwbp
 		handler->second(*ex->ContextRecord);
 		return true;
 	}
-	
-	void initialize()
-	{
-		hwbp::activate(game::base_address + 0x1EF5610, [](auto& ctx)
-		{
-			ctx.Rip = reinterpret_cast<size_t>(game::LobbyMsgRW_PackageElement);
-		});
-
-		hwbp::activate(game::base_address + 0x1439600, [](auto& ctx)
-		{
-			ctx.Rip = reinterpret_cast<size_t>(events::instant_message::dispatch_message);
-		});
-
-		hwbp::activate(game::base_address + 0x134BDAD, [](auto& ctx)
-		{
-			if (events::connectionless_packet::handle_command(*reinterpret_cast<game::netadr_t*>(ctx.R15)))
-			{
-				ctx.Rip = game::base_address + 0x134C43F;
-			}
-			else
-			{
-				ctx.Rdx = ctx.R12;
-				ctx.Rip += 0x3;
-			}
-		});
-
-		hwbp::activate(game::base_address + 0x131ED33, [](auto& ctx)
-		{
-			if (events::server_command::handle_command())
-			{
-				ctx.Rip = game::base_address + 0x131EEDB;
-			}
-			else
-			{
-				ctx.Rbx = *reinterpret_cast<uint64_t*>(ctx.Rax);
-				ctx.Rip += 0x3;
-			}
-		});
-	}
 }

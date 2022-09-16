@@ -500,16 +500,6 @@ namespace menu
 							command::execute("mr " + std::to_string(game::cl()->serverId) + " 0 endround");
 						}
 
-						if (ImGui::MenuItem("Crash all (loadside)"))
-						{
-							command::execute("loadside 0 "s + game::ui_mapname->current.string + " 0 0");
-						}
-
-						if (ImGui::MenuItem("Crash all 2 (loadside)"))
-						{
-							command::execute("loadside 0 cum 0 0");
-						}
-
 						if (ImGui::MenuItem("Send crash text", nullptr, nullptr, session))
 						{
 							steam::send_lobby_chat_message(session->lobbyData.platformSessionID, 0, "$(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)"); 

@@ -40,9 +40,6 @@
     <Filter Include="core\exception\hwbp">
       <UniqueIdentifier>{8C1FF8FC-F880-D50A-81EE-1BBDED4E0CCA}</UniqueIdentifier>
     </Filter>
-    <Filter Include="core\exception\pageguard">
-      <UniqueIdentifier>{8B147533-7739-C4B3-A084-A9438C08C3D1}</UniqueIdentifier>
-    </Filter>
     <Filter Include="core\exploit">
       <UniqueIdentifier>{C29EA2BA-AE01-325F-5787-6A1543C9FDE1}</UniqueIdentifier>
     </Filter>
@@ -146,9 +143,6 @@
     </ClInclude>
     <ClInclude Include="..\src\core\exception\hwbp\hwbp.hpp">
       <Filter>core\exception\hwbp</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\core\exception\pageguard\pageguard.hpp">
-      <Filter>core\exception\pageguard</Filter>
     </ClInclude>
     <ClInclude Include="..\src\core\exploit\exploit.hpp">
       <Filter>core\exploit</Filter>
@@ -544,9 +538,6 @@
     </ClCompile>
     <ClCompile Include="..\src\core\exception\hwbp\hwbp.cpp">
       <Filter>core\exception\hwbp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\core\exception\pageguard\pageguard.cpp">
-      <Filter>core\exception\pageguard</Filter>
     </ClCompile>
     <ClCompile Include="..\src\core\exploit\exploit.cpp">
       <Filter>core\exploit</Filter>

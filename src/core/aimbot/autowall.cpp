@@ -93,7 +93,7 @@ namespace autowall
 		constexpr auto perk_bulletPenetrationMultiplier = 2.0f;
 		const auto has_fmj = game::CG_ClientHasPerk(0, ps->clientNum, 9);
 
-		for (size_t i = 0; i < game::sv_penetrationCount->current.integer; ++i)
+		for (size_t i = 0; i < 5; ++i)
 		{
 			auto max_depth = game::BG_GetSurfacePenetrationDepth(penetrate_type, br.depthSurfaceType);
 
@@ -183,7 +183,9 @@ namespace autowall
 
 			if (!rev_trace_hit && !all_solid)
 			{
-				if (game::bg_bulletPenetrationTreatVoidsAsSolid->current.integer & 8)
+				const static auto bg_bulletPenetrationTreatVoidsAsSolid = *reinterpret_cast<game::dvar_t**>(game::base_address + 0x19C2BA30);
+				
+				if (bg_bulletPenetrationTreatVoidsAsSolid->current.integer & 8)
 				{
 					depth = get_bullet_depth(br, br, bp, last_hit_pos, all_solid);
 				}

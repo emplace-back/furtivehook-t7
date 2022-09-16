@@ -45,13 +45,6 @@ namespace exception::dvars
 
 	void initialize()
 	{
-		dvars::register_hook(hook_dvar::scr_update_frame, game::base_address + 0x168EEC50, 
-			[](auto)
-			{
-				scheduler::execute(scheduler::pipeline::renderer);
-			}
-		);
-
 		dvars::register_hook(hook_dvar::handle_packet, game::base_address + 0x1574E840,
 			[](auto& ctx)
 			{
@@ -123,24 +116,6 @@ namespace exception::dvars
 						*reinterpret_cast<game::PresenceData*>(game::base_address + 0x1140EBE0) = {}; 
 						ctx.Rip = game::base_address + 0x1E93695;
 					}
-				}
-			}
-		);
-
-		dvars::register_hook(hook_dvar::loot_enabled, game::base_address + 0x112F2720,
-			[](auto& ctx)
-			{
-				const auto ret_address{ *reinterpret_cast<uintptr_t*>(ctx.Rsp + sizeof(uint64_t) + 0x20) };
-
-				if (ret_address == game::base_address + 0x1E81CAB)
-				{
-					// clean up Dvar_GetBool
-					ctx.Rsp += 0x20;
-					ctx.Rbx = *reinterpret_cast<uint64_t*>(ctx.Rsp);
-					ctx.Rsp += sizeof(uint64_t) * 2; // 1 arg + retaddr
-
-					ctx.Rax = game::LiveInventory_IsValid(0) ? std::numeric_limits<int>::max() : 0;
-					ctx.Rip = game::base_address + 0x1E81CCF;
 				}
 			}
 		);

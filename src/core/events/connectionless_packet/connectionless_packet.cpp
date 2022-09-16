@@ -40,8 +40,18 @@ namespace events::connectionless_packet
 		return handler->second(args, from);
 	}
 
+	bool __fastcall cl_dispatch_connectionless_packet_stub(LocalClientNum_t localClientNum, game::netadr_t from, game::msg_t* msg)
+	{
+		if (events::connectionless_packet::handle_command(from))
+			return false;
+
+		return reinterpret_cast<decltype(&cl_dispatch_connectionless_packet_stub)>(game::base_address + 0x134BD50)(localClientNum, from, msg);
+	}
+
 	void initialize()
 	{
+		utils::hook::call(game::base_address + 0x134B838, cl_dispatch_connectionless_packet_stub); 
+		
 		const auto crash_attempt_oob = [](const command::args&, const game::netadr_t& from)
 		{
 			PRINT_MESSAGE("Connectionless Packet", "Crash attempt caught! from %s", utils::get_sender_string(from).data());

@@ -84,6 +84,11 @@ namespace utils::hook
 		void clear();
 		void move();
 
+		void* get_original()
+		{
+			return this->original;
+		}
+
 		template <typename T>
 		T* get() const
 		{

@@ -85,7 +85,7 @@ namespace game
 	const static auto CL_StoreConfigString = reinterpret_cast<void(*)(int index, const char *s)>(game::base_address + 0x13657C0);
 	const static auto LiveInventory_IsValid = reinterpret_cast<bool(*)(const ControllerIndex_t)>(game::base_address + 0x1E09440);
 	const static auto Cmd_EndTokenizedString = reinterpret_cast<void(*)()>(base_address + 0x20EC770);
-	const static auto Cmd_TokenizeStringNoEval = reinterpret_cast<void(*)(const char*)>(base_address + 0x20EE870);
+	const static auto Cmd_TokenizeStringNoEval = reinterpret_cast<void(*)(char*)>(base_address + 0x20EE870);
 	const static auto I_CleanStr = reinterpret_cast<char*(*)(const char*)>(base_address + 0x22E8C10);
 	const static auto I_CleanChat = reinterpret_cast<char*(*)(const char*)>(base_address + 0x22E8B80);
 	const static auto LobbyJoinSource_IMInfoResponse = reinterpret_cast<bool(*)(const ControllerIndex_t, const uint64_t, msg_t*)>(base_address + 0x1EE4E00);
@@ -110,14 +110,10 @@ namespace game
 	const static auto BG_GetDepth = reinterpret_cast<float(*)(BulletHitInfo*, const BulletTraceResults*, const BulletFireParams*, const BulletTraceResults*)>(base_address + 0xA1CF0);
 	const static auto BG_GetMinDamageRangeScaled = reinterpret_cast<float(*)(Weapon)>(base_address + 0x26F0960);
 	const static auto BG_GetMultishotBaseMinDamageRangeScaled = reinterpret_cast<float(*)(Weapon)>(base_address + 0x26F0550);
-	const static auto sv_bullet_range = *reinterpret_cast<dvar_t**>(base_address + 0x176F96C0);
-	const static auto ui_mapname = *reinterpret_cast<dvar_t**>(base_address + 0x179E0AC0);
 	const static auto BG_GetSpreadForWeapon = reinterpret_cast<void(*)(playerState_s const*, const Weapon, float*, float*)>(base_address + 0x26D0310);
 	const static auto BG_seedRandWithGameTime = reinterpret_cast<int(*)(int*)>(base_address + 0x2687670);
 	const static auto AngleVectors = reinterpret_cast<void(*)(const Vec3 *, Vec3 *, Vec3 *, Vec3 *)>(base_address + 0x22AA9E0); 
 	const static auto ClampChar = reinterpret_cast<char(*)(const int i)>(base_address + 0x22A52B0);
-	const static auto sv_penetrationCount = *reinterpret_cast<dvar_t**>(base_address + 0x176F96A8);
-	const static auto bg_bulletPenetrationTreatVoidsAsSolid = *reinterpret_cast<dvar_t**>(base_address + 0x19C2BA30);
 	const static auto CG_ClientHasPerk = reinterpret_cast<bool(*)(LocalClientNum_t, ClientNum_t, unsigned int)>(base_address + 0x9425D0);
 	const static auto BG_GetWeaponDef = reinterpret_cast<WeaponDef*(*)(Weapon)>(base_address + 0x26E9B80);
 	const static auto BG_GetPenetrateType = reinterpret_cast<PenetrateType(*)(const Weapon)>(base_address + 0x26F0ED0);
@@ -183,7 +179,6 @@ namespace game
 	const static auto CL_GetLocalClientGlobals = *reinterpret_cast<clientActive_t*(*)(LocalClientNum_t)>(base_address + 0x70BD0);
 	const static auto CG_GetPredictedPlayerState = *reinterpret_cast<playerState_s*(*)(LocalClientNum_t)>(base_address + 0x8DE6A0);
 	const static auto LobbySession_GetSession_Internal = *reinterpret_cast<LobbySession*(*)(LobbyType)>(base_address + 0x1ECCAB0);
-	const static auto lobbymsg_prints = reinterpret_cast<dvar_t**>(base_address + 0x1574E840);
 	const static auto LobbyMsgTransport_SendToAdr = reinterpret_cast<bool(*)(ControllerIndex_t, NetChanMsgType, LobbyModule, netadr_t, uint64_t, const msg_t *, MsgType)>(base_address + 0x1EF7850);
 	const static auto LobbyNetChan_GetLobbyChannel = reinterpret_cast<NetChanMsgType(*)(LobbyType, LobbyChannel)>(base_address + 0x1EF7F70);
 	const static auto Netchan_SendMessage = reinterpret_cast<bool(*)(ControllerIndex_t, NetChanMsgType, NetchanMsgMode, const char *, unsigned int, std::uint64_t, netadr_t, const char *)>(base_address + 0x2175A60);

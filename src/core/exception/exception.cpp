@@ -21,8 +21,7 @@ namespace exception
 			if (code != STATUS_INTEGER_OVERFLOW
 				&& code != STATUS_FLOAT_OVERFLOW
 				&& !dvars::handle_exception(ex)
-				&& !hwbp::handle_exception(ex)
-				&& !pageguard::handle_exception(ex))
+				&& !hwbp::handle_exception(ex))
 			{
 				std::string message;
 
@@ -67,8 +66,6 @@ namespace exception
 		AddVectoredExceptionHandler(1, exception_filter);
 		//utils::hook::jump(&SetUnhandledExceptionFilter, &set_unhandled_exception_filter, true);
 
-		hwbp::initialize(); 
 		dvars::initialize();
-		//pageguard::initialize();
 	}
 }

@@ -326,6 +326,8 @@ namespace events::lobby_msg
 
 	void initialize()
 	{
+		utils::hook::jump(game::base_address + 0x1EF5610, game::LobbyMsgRW_PackageElement);
+		
 		lobby_msg::on_message(game::LOBBY_MODULE_HOST, game::MESSAGE_TYPE_PEER_TO_PEER_INFO, lobby_msg::handle_lobby_type);
 		lobby_msg::on_message(game::LOBBY_MODULE_HOST, game::MESSAGE_TYPE_LOBBY_CLIENT_DISCONNECT, lobby_msg::handle_lobby_type);
 		lobby_msg::on_message(game::LOBBY_MODULE_HOST, game::MESSAGE_TYPE_LOBBY_CLIENT_HEARTBEAT, lobby_msg::handle_lobby_type);
