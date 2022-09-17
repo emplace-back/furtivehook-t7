@@ -54,17 +54,21 @@ namespace exception
 			return EXCEPTION_CONTINUE_EXECUTION;
 		}
 
-		LPTOP_LEVEL_EXCEPTION_FILTER __stdcall set_unhandled_exception_filter(LPTOP_LEVEL_EXCEPTION_FILTER)
+		void __stdcall set_unhandled_exception_filter_stub(LPTOP_LEVEL_EXCEPTION_FILTER)
 		{
-			return &exception_filter;
+			// Don't register anything here...
 		}
 	}
 
 	void initialize()
 	{
-		SetUnhandledExceptionFilter(0);
-		AddVectoredExceptionHandler(1, exception_filter);
-		//utils::hook::jump(&SetUnhandledExceptionFilter, &set_unhandled_exception_filter, true);
+		SetUnhandledExceptionFilter(exception_filter);
+
+		const utils::nt::library ntdll("ntdll.dll");
+		auto* set_filter = ntdll.get_proc<void(*)(LPTOP_LEVEL_EXCEPTION_FILTER)>("RtlSetUnhandledExceptionFilter");
+		
+		set_filter(exception_filter);
+		utils::hook::jump(set_filter, set_unhandled_exception_filter_stub);
 
 		dvars::initialize();
 	}

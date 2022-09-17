@@ -85,7 +85,7 @@ namespace game
 	const static auto CL_StoreConfigString = reinterpret_cast<void(*)(int index, const char *s)>(game::base_address + 0x13657C0);
 	const static auto LiveInventory_IsValid = reinterpret_cast<bool(*)(const ControllerIndex_t)>(game::base_address + 0x1E09440);
 	const static auto Cmd_EndTokenizedString = reinterpret_cast<void(*)()>(base_address + 0x20EC770);
-	const static auto Cmd_TokenizeStringNoEval = reinterpret_cast<void(*)(char*)>(base_address + 0x20EE870);
+	const static auto Cmd_TokenizeStringNoEval = reinterpret_cast<void(*)(const char*)>(base_address + 0x20EE870);
 	const static auto I_CleanStr = reinterpret_cast<char*(*)(const char*)>(base_address + 0x22E8C10);
 	const static auto I_CleanChat = reinterpret_cast<char*(*)(const char*)>(base_address + 0x22E8B80);
 	const static auto LobbyJoinSource_IMInfoResponse = reinterpret_cast<bool(*)(const ControllerIndex_t, const uint64_t, msg_t*)>(base_address + 0x1EE4E00);

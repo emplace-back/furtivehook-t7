@@ -21,7 +21,7 @@ namespace events::server_command
 		}
 	}
 
-	bool handle_command(char* buffer)
+	bool handle_command(const char* buffer)
 	{
 		game::Cmd_TokenizeStringNoEval(buffer);
 		
@@ -38,27 +38,26 @@ namespace events::server_command
 		if (handler == handlers.end())
 			return false;
 
-		return handler->second(args);
+		const auto handled = handler->second(args);
+		
+		if (handled)
+		{
+			game::Cmd_EndTokenizedString();
+			game::Cmd_TokenizeStringNoEval("");
+		}
+
+		return handled;
 	}
 
 	void initialize()
 	{
 		const auto cl_cgame_needs_server_command_stub = utils::hook::assemble([](utils::hook::assembler& a)
 		{
-			const auto return_unhandled = a.newLabel(); 
-			
 			a.push(rcx);
 			a.mov(rcx, rdi);
 			a.call_aligned(server_command::handle_command);
-			a.test(al, al);
-			a.jz(return_unhandled);
+			a.pop(rcx);
 			
-			// Command handled
-			a.pop(rcx);
-			a.jmp(game::base_address + 0x131EEDB);
-
-			a.bind(return_unhandled);
-			a.pop(rcx);
 			a.jmp(game::base_address + 0x131ED18);
 		});
 

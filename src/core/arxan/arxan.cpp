@@ -60,9 +60,10 @@ namespace arxan
 	BOOL WINAPI get_thread_context_stub(const HANDLE thread_handle, const LPCONTEXT context)
 	{
 		constexpr auto debug_registers_flag = (CONTEXT_DEBUG_REGISTERS & ~CONTEXT_AMD64);
+		
 		if (context->ContextFlags & debug_registers_flag)
 		{
-			auto* source = _ReturnAddress();
+			const auto source = _ReturnAddress();
 			const auto game = utils::nt::library{};
 			const auto source_module = utils::nt::library::get_by_address(source);
 
@@ -125,7 +126,7 @@ namespace arxan
 
 		if (NT_SUCCESS(status))
 		{
-			if (system_information_class == SystemProcessInformation)
+			if (system_information_class == SystemProcessInformation && !utils::nt::is_shutdown_in_progress())
 			{
 				auto addr = static_cast<uint8_t*>(system_information);
 				
@@ -178,16 +179,24 @@ namespace arxan
 
 	uint32_t adjust_integrity_checksum(const uint64_t return_address, uint8_t* stack_frame, const uint32_t current_checksum)
 	{
+		const auto handler_address = (return_address - 5) - game::base_address; 
 		const auto* context = search_handler_context(stack_frame, current_checksum);
 
 		if (!context)
 		{
-			PRINT_LOG_DETAILED("Unable to find frame offset for: %llX", return_address);
+			MessageBoxA(nullptr, utils::string::va("No frame offset for: %llX", handler_address).data(), "Error", MB_ICONERROR);
+			utils::nt::terminate(0xBAD);
 			return current_checksum;
 		}
 
 		const auto correct_checksum = *context->original_checksum;
 		*context->computed_checksum = correct_checksum;
+
+		if (current_checksum != correct_checksum)
+		{
+			PRINT_LOG_DETAILED("Adjusting checksum (%llX): %X -> %X", handler_address, current_checksum, correct_checksum);
+		}
+
 		return correct_checksum;
 	}
 
@@ -306,6 +315,12 @@ namespace arxan
 
 	void initialize()
 	{
+#ifndef NDEBUG
+		auto* dll_characteristics = &utils::nt::library().get_optional_header()->DllCharacteristics;
+		utils::hook::set<uint16_t>(dll_characteristics, *dll_characteristics | IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE);
+
+		get_thread_context_hook.create(utils::nt::library("kernelbase.dll").get_proc<void*>("GetThreadContext"), get_thread_context_stub);
+#endif
 		create_mutex_hook.create(CreateMutexExA, create_mutex);
 
 		const utils::nt::library ntdll("ntdll.dll"); 
@@ -313,16 +328,9 @@ namespace arxan
 		nt_query_system_information_hook.create(ntdll.get_proc<void*>("NtQuerySystemInformation"), nt_query_system_information);
 		nt_query_system_information_hook.move();
 
-		get_thread_context_hook.create(utils::nt::library("kernelbase.dll").get_proc<void*>("GetThreadContext"), get_thread_context_stub);
-		
 		utils::hook::jump(GetWindowTextA, get_window_text, true, true);
 		utils::hook::move_hook(GetWindowTextA);
 
 		scheduler::once(search_and_patch_integrity_checks, scheduler::pipeline::main);
-	}
-
-	void uninitialize()
-	{
-		nt_query_system_information_hook.clear();
 	}
 }

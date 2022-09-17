@@ -13,7 +13,7 @@ namespace utils::nt
 		return library::load(path.generic_string());
 	}
 
-	library library::get_by_address(void* address)
+	library library::get_by_address(const void* address)
 	{
 		HMODULE handle = nullptr;
 		GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, static_cast<LPCSTR>(address), &handle);
@@ -169,8 +169,7 @@ namespace utils::nt
 		auto* header = this->get_optional_header();
 		if (!header) return nullptr;
 
-		auto* descriptor = reinterpret_cast<PIMAGE_IMPORT_DESCRIPTOR>(this->get_ptr() + header->DataDirectory
-			[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress);
+		auto* descriptor = reinterpret_cast<PIMAGE_IMPORT_DESCRIPTOR>(this->get_ptr() + header->DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress);
 
 		while (descriptor->Name)
 		{
@@ -181,15 +180,19 @@ namespace utils::nt
 
 				while (original_thunk_data->u1.AddressOfData)
 				{
-					const auto name = PIMAGE_IMPORT_BY_NAME(this->get_ptr() + original_thunk_data->u1.AddressOfData)->Name;
-
-					if (GetProcAddress(other_module.module_, name) == target_function)
-					{
+					if (thunk_data->u1.Function == uintptr_t(target_function))
 						return reinterpret_cast<uintptr_t**>(&thunk_data->u1.Function);
+					
+					const auto ordinal_number = original_thunk_data->u1.AddressOfData & 0xFFFFFFF;
+
+					if (ordinal_number <= 0xFFFF)
+					{
+						if (GetProcAddress(other_module.module_, reinterpret_cast<char*>(ordinal_number)) == target_function)
+							return reinterpret_cast<uintptr_t**>(&thunk_data->u1.Function);
 					}
 
-					original_thunk_data++;
-					thunk_data++;
+					++original_thunk_data;
+					++thunk_data;
 				}
 			}
 
@@ -197,6 +200,12 @@ namespace utils::nt
 		}
 
 		return nullptr;
+	}
+
+	bool is_shutdown_in_progress()
+	{
+		const library ntdll("ntdll.dll");
+		return ntdll.get_proc<BOOLEAN(*)()>("RtlDllShutdownInProgress");
 	}
 
 	void terminate(const uint32_t code)
