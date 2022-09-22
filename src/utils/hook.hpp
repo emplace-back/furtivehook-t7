@@ -110,6 +110,7 @@ namespace utils::hook
 
 	void* get_memory_near(const uintptr_t address, const size_t size);
 	uint8_t* allocate_somewhere_near(const uintptr_t base_address, const size_t size);
+	void retn(const uintptr_t address);
 	void nop(const uintptr_t address, const size_t size);
 	void nop(const void* place, const size_t size);
 	std::vector<uint8_t> move_hook(const uintptr_t address);

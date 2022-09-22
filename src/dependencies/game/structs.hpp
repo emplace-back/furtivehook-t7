@@ -2759,4 +2759,9 @@ namespace game
 		SessionSearchPayloadData results;
 		SessionSearchThrottleData throttle;
 	};
+
+	struct GfxRenderCommandExecState
+	{
+		void* cmd;
+	};
 }

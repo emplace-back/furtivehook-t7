@@ -12,7 +12,6 @@ BOOL __stdcall DllMain(const HMODULE module, const DWORD reason, const LPVOID /*
 				
 				arxan::initialize();
 				scheduler::initialize();
-				security::initialize();
 				misc::initialize();
 				friends::initialize();
 			}

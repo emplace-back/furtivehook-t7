@@ -77,6 +77,9 @@
       <AdditionalLibraryDirectories>..\thirdparty\minhook;..\thirdparty\steam_api;$(DXSDK_DIR)lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ImportLibrary>bin\debug\furtivehook-t7-debug.lib</ImportLibrary>
     </Link>
+    <PostBuildEvent>
+      <Command>copy /Y "$(SolutionDir)\bin\debug\furtivehook-t7-debug.dll" "E:\Games\Steam\steamapps\common\Call of Duty Black Ops III\d3d11.dll"</Command>
+    </PostBuildEvent>
     <BuildLog>
       <Path>$(SolutionDir)\obj\debug\$(ProjectName).log</Path>
     </BuildLog>

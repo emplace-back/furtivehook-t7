@@ -21,7 +21,7 @@ namespace events::server_command
 		}
 	}
 
-	bool handle_command(const char* buffer)
+	bool __fastcall handle_command(const char* buffer)
 	{
 		game::Cmd_TokenizeStringNoEval(buffer);
 		

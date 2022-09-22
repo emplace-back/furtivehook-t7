@@ -148,25 +148,73 @@ namespace arxan
 		return status;
 	}
 
+	const std::vector<std::pair<uint8_t*, size_t>>& get_text_sections()
+	{
+		static const std::vector<std::pair<uint8_t*, size_t>> text = []
+		{
+			std::vector<std::pair<uint8_t*, size_t>> texts{};
+
+			const utils::nt::library game{};
+			for (const auto& section : game.get_section_headers())
+			{
+				if (section->Characteristics & IMAGE_SCN_MEM_EXECUTE)
+				{
+					texts.emplace_back(game.get_ptr() + section->VirtualAddress, section->Misc.VirtualSize);
+				}
+			}
+
+			return texts;
+		}();
+
+		return text;
+	}
+
+	bool is_in_texts(const uint64_t addr)
+	{
+		const auto& texts = get_text_sections();
+		for (const auto& text : texts)
+		{
+			const auto start = reinterpret_cast<ULONG_PTR>(text.first);
+			if (addr >= start && addr <= (start + text.second))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	bool is_in_texts(const void* addr)
+	{
+		return is_in_texts(reinterpret_cast<uint64_t>(addr));
+	}
+
 	struct integrity_handler_context
 	{
 		uint32_t* computed_checksum;
 		uint32_t* original_checksum;
 	};
 
+	bool is_on_stack(uint8_t* stack_frame, const void* pointer)
+	{
+		const auto stack_value = reinterpret_cast<uint64_t>(stack_frame);
+		const auto pointer_value = reinterpret_cast<uint64_t>(pointer);
+
+		const auto diff = static_cast<int64_t>(stack_value - pointer_value);
+		return std::abs(diff) < 0x1000;
+	}
+
 	bool is_handler_context(uint8_t* stack_frame, const uint32_t computed_checksum, const uint32_t frame_offset)
 	{
-		auto* potential_address = *reinterpret_cast<uint32_t**>(stack_frame + frame_offset);
-
-		int64_t diff = reinterpret_cast<uint64_t>(stack_frame) - reinterpret_cast<uint64_t>(potential_address);
-		diff = std::abs(diff);
-
-		return diff < 0x1000 && *potential_address == computed_checksum;
+		const auto* potential_context = reinterpret_cast<integrity_handler_context*>(stack_frame + frame_offset);
+		return is_on_stack(stack_frame, potential_context->computed_checksum)
+			&& *potential_context->computed_checksum == computed_checksum
+			&& is_in_texts(potential_context->original_checksum);
 	}
 
 	integrity_handler_context* search_handler_context(uint8_t* stack_frame, const uint32_t computed_checksum)
 	{
-		for (uint32_t frame_offset = 0x38; frame_offset < 0x90; frame_offset += 8)
+		for (uint32_t frame_offset = 0; frame_offset < 0x90; frame_offset += 8)
 		{
 			if (is_handler_context(stack_frame, computed_checksum, frame_offset))
 			{
@@ -186,6 +234,7 @@ namespace arxan
 		{
 			MessageBoxA(nullptr, utils::string::va("No frame offset for: %llX", handler_address).data(), "Error", MB_ICONERROR);
 			utils::nt::terminate(0xBAD);
+			
 			return current_checksum;
 		}
 
@@ -194,7 +243,7 @@ namespace arxan
 
 		if (current_checksum != correct_checksum)
 		{
-			PRINT_LOG_DETAILED("Adjusting checksum (%llX): %X -> %X", handler_address, current_checksum, correct_checksum);
+			DEBUG_LOG("Adjusting checksum (%llX): %X -> %X", handler_address, current_checksum, correct_checksum);
 		}
 
 		return correct_checksum;
@@ -203,9 +252,7 @@ namespace arxan
 	void patch_intact_basic_block_integrity_check(void* address)
 	{
 		const auto game_address = reinterpret_cast<uint64_t>(address);
-		constexpr auto inst_len = 3;
-
-		const auto next_inst_addr = game_address + inst_len;
+		const auto next_inst_addr = game_address + 3;
 		const auto next_inst = *reinterpret_cast<uint32_t*>(next_inst_addr);
 
 		if ((next_inst & 0xFF00FFFF) != 0xFF004583)
@@ -256,9 +303,7 @@ namespace arxan
 	void patch_split_basic_block_integrity_check(void* address)
 	{
 		const auto game_address = reinterpret_cast<uint64_t>(address);
-		constexpr auto inst_len = 3;
-
-		const auto next_inst_addr = game_address + inst_len;
+		const auto next_inst_addr = game_address + 3;
 
 		if (*reinterpret_cast<uint8_t*>(next_inst_addr) != 0xE9)
 		{

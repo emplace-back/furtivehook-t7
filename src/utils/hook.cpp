@@ -290,6 +290,11 @@ namespace utils::hook
 		}
 	}
 	
+	void retn(const uintptr_t address)
+	{
+		set(address, instr::ret);
+	}
+	
 	void nop(const uintptr_t address, const size_t size)
 	{
 		DWORD old_protect{ 0 };

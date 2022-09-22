@@ -63,6 +63,7 @@ namespace game
 
 		std::thread{ exception::initialize }.detach();
 
+		security::initialize(); 
 		steam::initialize();
 		command::initialize();
 		rendering::initialize();

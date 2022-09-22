@@ -71,34 +71,6 @@ namespace exception::dvars
 			}
 		);
 
-		dvars::register_hook(hook_dvar::draw_text, game::base_address + 0x1791FD70,
-			[](auto& ctx)
-			{
-				const auto ret_address{ *reinterpret_cast<uintptr_t*>(ctx.Rsp + sizeof(uint64_t) + 0x20) };
-				
-				if (ret_address == game::base_address + 0x1F342F7)
-				{
-					utils::string::strip_materials(reinterpret_cast<char*>(ctx.R12));
-				}
-				else if (ret_address == game::base_address + 0x22785E2)
-				{
-					utils::string::strip_materials(reinterpret_cast<char*>(ctx.R15));
-				}
-			}
-		);
-
-		dvars::register_hook(hook_dvar::find_line_bounds, game::base_address + 0x1791FD48,
-			[](auto& ctx)
-			{
-				const auto ret_address{ *reinterpret_cast<uintptr_t*>(ctx.Rsp + sizeof(uint64_t) + 0x20) };
-
-				if (ret_address == game::base_address + 0x1F34843 || ret_address == game::base_address + 0x1F34A2B)
-				{
-					utils::string::strip_materials(reinterpret_cast<char*>(ctx.Rdi));
-				}
-			}
-		);
-
 		dvars::register_hook(hook_dvar::update_presence, game::base_address + 0x1140EBB8,
 			[](auto& ctx)
 			{
