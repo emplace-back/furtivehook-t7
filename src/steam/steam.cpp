@@ -3,7 +3,6 @@
 
 namespace steam
 {
-	auto get_persona_name_original = reinterpret_cast<decltype(&get_persona_name)>(0);
 	auto get_lobby_chat_entry_original = reinterpret_cast<decltype(&get_lobby_chat_entry)>(0); 
 	auto read_p2p_packet_original = reinterpret_cast<decltype(&read_p2p_packet)>(0);
 	auto read_p2p_packet_server_original = reinterpret_cast<decltype(&read_p2p_packet)>(0);
@@ -103,6 +102,11 @@ namespace steam
 		utils::hook::jump(game::base_address + 0x1EAFE7C, write_persona_name_stub);
 		utils::hook::nop(game::base_address + 0x1EAFE7C + 5, 2);
 
+		if (friends = *reinterpret_cast<ISteamFriends**>(game::base_address + 0x10BBDBA0))
+		{
+			
+		}
+		
 		if (matchmaking = *reinterpret_cast<ISteamMatchmaking**>(game::base_address + 0x10BBDBB0))
 		{
 			get_lobby_chat_entry_original = utils::hook::vtable(matchmaking, 27, &get_lobby_chat_entry);

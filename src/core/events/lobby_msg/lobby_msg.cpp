@@ -256,10 +256,10 @@ namespace events::lobby_msg
 		}
 	}
 
-	bool __fastcall handle_packet(const game::netadr_t& from, game::msg_t& msg, game::LobbyModule module)
+	bool __fastcall handle_packet(const game::LobbyModule module, const game::netadr_t& from, game::msg_t* msg)
 	{
 		const auto ip_str{ utils::get_sender_string(from) };
-		const auto type_name{ game::LobbyTypes_GetMsgTypeName(msg.type) };
+		const auto type_name{ game::LobbyTypes_GetMsgTypeName(msg->type) };
 
 		if (log_messages)
 		{
@@ -267,14 +267,24 @@ namespace events::lobby_msg
 		}
 
 		const auto& callbacks = get_callbacks();
-		const auto handler = callbacks.find({ module, msg.type });
+		const auto handler = callbacks.find({ module, msg->type });
 
 		if (handler == callbacks.end())
-		{
 			return false;
+
+		const auto msg_backup = *msg;
+		const auto handled = handler->second(from, *msg, module);
+
+		if (handled)
+		{
+			msg->type = static_cast<game::MsgType>(game::MESSAGE_TYPE_NONE);
+		}
+		else
+		{
+			*msg = msg_backup;
 		}
 
-		return handler->second(from, msg, module);
+		return handled;
 	}
 
 	void prep_lobby_msg(game::msg_t* msg, char* buffer, const size_t buf_size, const game::MsgType msg_type)
@@ -326,6 +336,22 @@ namespace events::lobby_msg
 
 	void initialize()
 	{
+		const auto handle_packet_internal_stub = utils::hook::assemble([](utils::hook::assembler& a)
+		{
+			a.lea(r8, qword_ptr(rsp, 0x30));
+			a.mov(ecx, dword_ptr(rsp, 0xB0));
+
+			a.pushad64();
+			a.mov(rdx, rbp);
+			a.call_aligned(lobby_msg::handle_packet);
+			a.popad64();
+
+			a.jmp(game::base_address + 0x1EF709B);
+		}); 
+		
+		utils::hook::jump(game::base_address + 0x1EF7094, handle_packet_internal_stub);
+		utils::hook::nop(game::base_address + 0x1EF7094 + 5, 2);
+
 		utils::hook::jump(game::base_address + 0x1EF5610, game::LobbyMsgRW_PackageElement);
 		
 		lobby_msg::on_message(game::LOBBY_MODULE_HOST, game::MESSAGE_TYPE_PEER_TO_PEER_INFO, lobby_msg::handle_lobby_type);

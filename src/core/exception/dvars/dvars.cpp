@@ -45,32 +45,6 @@ namespace exception::dvars
 
 	void initialize()
 	{
-		dvars::register_hook(hook_dvar::handle_packet, game::base_address + 0x1574E840,
-			[](auto& ctx)
-			{
-				const auto stack{ ctx.Rsp + sizeof(uint64_t) + 0x20 };
-				const auto ret_address{ *reinterpret_cast<uintptr_t*>(stack) };
-
-				if (ret_address == game::base_address + 0x1EF7084)
-				{
-					const auto msg = reinterpret_cast<game::msg_t*>(stack + sizeof(uint64_t) + 0x30);
-					const auto msg_backup = *msg;
-
-					if (events::lobby_msg::handle_packet(
-						*reinterpret_cast<game::netadr_t*>(ctx.Rbp),
-						*msg,
-						*reinterpret_cast<game::LobbyModule*>(stack + sizeof(uint64_t) + 0xB0)))
-					{
-						msg->type = static_cast<game::MsgType>(game::MESSAGE_TYPE_NONE);
-					}
-					else
-					{
-						*msg = msg_backup;
-					}
-				}
-			}
-		);
-
 		dvars::register_hook(hook_dvar::update_presence, game::base_address + 0x1140EBB8,
 			[](auto& ctx)
 			{
