@@ -81,7 +81,9 @@ namespace game
 
 	const static auto base_address = reinterpret_cast<std::uintptr_t>(GetModuleHandleA(nullptr)) + 0x1000;
 
-	const static auto dwFindSessions = reinterpret_cast<void(*)(game::TaskRecord*, game::MatchMakingQuery* const)>(game::base_address + 0x1437DB0); 
+	const static auto StructuredTable_LookupNumberByString = reinterpret_cast<bool(*)(const StructuredTable*, const char*, const char*, const char*, int*)>(game::base_address + 0x22AF340);
+	const static auto StructuredTable_LookupStringByString = reinterpret_cast<bool(*)(const StructuredTable*, const char*, const char*, const char*, const char**)>(game::base_address + 0x22AF3F0);
+	const static auto dwFindSessions = reinterpret_cast<void(*)(game::TaskRecord*, game::MatchMakingQuery* const)>(game::base_address + 0x1437DB0);
 	const static auto CL_StoreConfigString = reinterpret_cast<void(*)(int index, const char *s)>(game::base_address + 0x13657C0);
 	const static auto LiveInventory_IsValid = reinterpret_cast<bool(*)(const ControllerIndex_t)>(game::base_address + 0x1E09440);
 	const static auto Cmd_EndTokenizedString = reinterpret_cast<void(*)()>(base_address + 0x20EC770);
@@ -200,6 +202,7 @@ namespace game
 	const static auto FindColumnIndexFromName = reinterpret_cast<int(*)(const StructuredTable*, const char*)>(base_address + 0x22AE970);
 	const static auto StructuredTable_LoadAsset_FastFile = reinterpret_cast<void(*)(const char*, StructuredTable**)>(base_address + 0x22AF0C0);
 	const static auto FindCell = reinterpret_cast<StructuredTableCell*(*)(StructuredTable*, const char*, StructuredTableValue, StructuredTableValueType, const char*)>(base_address + 0x22AE8A0);
+	const static auto& s_presenceTable = reinterpret_cast<StructuredTable*>(game::base_address + 0x1140F060);
 	const static auto& cls = reinterpret_cast<clientStatic_t*>(game::base_address + 0x53DD190);
 	const static auto& g_fHitLocDamageMult = reinterpret_cast<float*>(base_address + 0xA08C4D0);
 	const static auto& g_assetNames = reinterpret_cast<const char**>(base_address + 0x3329080);
@@ -209,6 +212,11 @@ namespace game
 	const static auto& threadNames = reinterpret_cast<const char**>(base_address + 0x34393A0);
 	const static auto& threadIds = reinterpret_cast<unsigned int*>(base_address + 0x175BF5D0);
 	const static auto& s_presenceTaskData = reinterpret_cast<dwPresenceTask*>(base_address + 0x1140F0A8 + 0x14 * 0);
+	
+	inline PresenceData* get_presence_data()
+	{
+		return reinterpret_cast<PresenceData*>(base_address + 0x1140EBE0);
+	}
 	
 	inline LobbySession* get_host_session(const int lobby_type)
 	{

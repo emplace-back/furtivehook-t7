@@ -123,9 +123,7 @@
     <ClInclude Include="..\src\core\events\instant_message\instant_message.hpp" />
     <ClInclude Include="..\src\core\events\lobby_msg\lobby_msg.hpp" />
     <ClInclude Include="..\src\core\events\server_command\server_command.hpp" />
-    <ClInclude Include="..\src\core\exception\dvars\dvars.hpp" />
     <ClInclude Include="..\src\core\exception\exception.hpp" />
-    <ClInclude Include="..\src\core\exception\hwbp\hwbp.hpp" />
     <ClInclude Include="..\src\core\exploit\exploit.hpp" />
     <ClInclude Include="..\src\core\friends\friends.hpp" />
     <ClInclude Include="..\src\core\input\input.hpp" />
@@ -235,6 +233,7 @@
     <ClInclude Include="..\src\utils\concurrency.hpp" />
     <ClInclude Include="..\src\utils\exception\minidump.hpp" />
     <ClInclude Include="..\src\utils\hook.hpp" />
+    <ClInclude Include="..\src\utils\hwbp.hpp" />
     <ClInclude Include="..\src\utils\io.hpp" />
     <ClInclude Include="..\src\utils\memory.hpp" />
     <ClInclude Include="..\src\utils\nt.hpp" />
@@ -256,9 +255,7 @@
     <ClCompile Include="..\src\core\events\instant_message\instant_message.cpp" />
     <ClCompile Include="..\src\core\events\lobby_msg\lobby_msg.cpp" />
     <ClCompile Include="..\src\core\events\server_command\server_command.cpp" />
-    <ClCompile Include="..\src\core\exception\dvars\dvars.cpp" />
     <ClCompile Include="..\src\core\exception\exception.cpp" />
-    <ClCompile Include="..\src\core\exception\hwbp\hwbp.cpp" />
     <ClCompile Include="..\src\core\exploit\exploit.cpp" />
     <ClCompile Include="..\src\core\friends\friends.cpp" />
     <ClCompile Include="..\src\core\input\input.cpp" />
@@ -334,6 +331,7 @@
     <ClCompile Include="..\src\utils\asmjit\x86\x86rapass.cpp" />
     <ClCompile Include="..\src\utils\exception\minidump.cpp" />
     <ClCompile Include="..\src\utils\hook.cpp" />
+    <ClCompile Include="..\src\utils\hwbp.cpp" />
     <ClCompile Include="..\src\utils\io.cpp" />
     <ClCompile Include="..\src\utils\memory.cpp" />
     <ClCompile Include="..\src\utils\nt.cpp" />

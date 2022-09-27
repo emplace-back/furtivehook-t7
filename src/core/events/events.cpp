@@ -3,7 +3,7 @@
 
 namespace events
 {
-	bool prevent_join = true, no_presence = true;
+	bool prevent_join = true, no_presence = false;
 	
 	void __fastcall cg_predict_playerstate()
 	{
@@ -68,6 +68,25 @@ namespace events
 			game::adjust_user_cmd_movement(cmd_cur, cmd_old, SHORT2ANGLE(cmd_old->angles[1]));
 		}
 	}
+
+	bool __fastcall live_presence_update()
+	{
+		const auto no_update = events::no_presence;
+		auto data = reinterpret_cast<game::PresenceData*>(game::base_address + 0x1140EBE0);
+
+		if (no_update)
+		{
+			*data = {};
+			data->isInitialzied = true;
+		}
+		else
+		{
+			if (data->version != 2)
+				data->init();
+		}
+
+		return no_update;
+	}
 	
 	void initialize()
 	{
@@ -80,7 +99,26 @@ namespace events
 			a.jmp(game::base_address + 0x9C2AF0);
 		});
 
+		const auto live_presence_update_stub = utils::hook::assemble([](utils::hook::assembler& a)
+		{
+			const auto return_unhandled = a.newLabel();
+
+			a.pushad64();
+			a.call_aligned(events::live_presence_update);
+			a.test(al, al);
+			a.jz(return_unhandled);
+
+			a.popad64();
+			a.mov(al, 1);
+			a.ret();
+
+			a.bind(return_unhandled);
+			a.popad64();
+			a.jmp(game::base_address + 0x1E93490);
+		});
+
 		utils::hook::call(game::base_address + 0x10BA99D, cg_predict_playerstate_stub);
+		utils::hook::call(game::base_address + 0x1E93708, live_presence_update_stub);
 		
 		connectionless_packet::initialize();
 		instant_message::initialize();

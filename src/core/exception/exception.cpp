@@ -20,8 +20,7 @@ namespace exception
 			
 			if (code != STATUS_INTEGER_OVERFLOW
 				&& code != STATUS_FLOAT_OVERFLOW
-				&& !dvars::handle_exception(ex)
-				&& !hwbp::handle_exception(ex))
+				&& code != STATUS_SINGLE_STEP)
 			{
 				std::string message;
 
@@ -69,7 +68,5 @@ namespace exception
 		
 		set_filter(exception_filter);
 		utils::hook::jump(set_filter, set_unhandled_exception_filter_stub);
-
-		dvars::initialize();
 	}
 }

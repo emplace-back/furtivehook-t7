@@ -2507,6 +2507,15 @@ namespace game
 		int state;
 		PresenceTitleData title;
 		PresencePlatformData platform;
+
+		void init()
+		{
+			*this = {};
+			this->version = 2;
+			this->isInitialzied = true;
+			this->id = -1;
+			this->state = 1;
+		}
 	};
 
 	enum TaskState

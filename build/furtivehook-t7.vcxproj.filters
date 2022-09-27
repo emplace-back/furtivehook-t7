@@ -34,12 +34,6 @@
     <Filter Include="core\exception">
       <UniqueIdentifier>{AC25D4F4-98F3-C7FA-8187-38216DF4A35F}</UniqueIdentifier>
     </Filter>
-    <Filter Include="core\exception\dvars">
-      <UniqueIdentifier>{1B1FB39B-07AE-3C65-B0CC-50609C3A4D0B}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="core\exception\hwbp">
-      <UniqueIdentifier>{8C1FF8FC-F880-D50A-81EE-1BBDED4E0CCA}</UniqueIdentifier>
-    </Filter>
     <Filter Include="core\exploit">
       <UniqueIdentifier>{C29EA2BA-AE01-325F-5787-6A1543C9FDE1}</UniqueIdentifier>
     </Filter>
@@ -135,14 +129,8 @@
     <ClInclude Include="..\src\core\events\server_command\server_command.hpp">
       <Filter>core\events\server_command</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\core\exception\dvars\dvars.hpp">
-      <Filter>core\exception\dvars</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\core\exception\exception.hpp">
       <Filter>core\exception</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\core\exception\hwbp\hwbp.hpp">
-      <Filter>core\exception\hwbp</Filter>
     </ClInclude>
     <ClInclude Include="..\src\core\exploit\exploit.hpp">
       <Filter>core\exploit</Filter>
@@ -471,6 +459,9 @@
     <ClInclude Include="..\src\utils\hook.hpp">
       <Filter>utils</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\utils\hwbp.hpp">
+      <Filter>utils</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\utils\io.hpp">
       <Filter>utils</Filter>
     </ClInclude>
@@ -530,14 +521,8 @@
     <ClCompile Include="..\src\core\events\server_command\server_command.cpp">
       <Filter>core\events\server_command</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\core\exception\dvars\dvars.cpp">
-      <Filter>core\exception\dvars</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\core\exception\exception.cpp">
       <Filter>core\exception</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\core\exception\hwbp\hwbp.cpp">
-      <Filter>core\exception\hwbp</Filter>
     </ClCompile>
     <ClCompile Include="..\src\core\exploit\exploit.cpp">
       <Filter>core\exploit</Filter>
@@ -762,6 +747,9 @@
       <Filter>utils\exception</Filter>
     </ClCompile>
     <ClCompile Include="..\src\utils\hook.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\utils\hwbp.cpp">
       <Filter>utils</Filter>
     </ClCompile>
     <ClCompile Include="..\src\utils\io.cpp">
