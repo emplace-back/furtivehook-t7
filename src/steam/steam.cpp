@@ -102,10 +102,7 @@ namespace steam
 		utils::hook::jump(game::base_address + 0x1EAFE7C, write_persona_name_stub);
 		utils::hook::nop(game::base_address + 0x1EAFE7C + 5, 2);
 
-		if (friends = *reinterpret_cast<ISteamFriends**>(game::base_address + 0x10BBDBA0))
-		{
-			
-		}
+		friends = *reinterpret_cast<ISteamFriends**>(game::base_address + 0x10BBDBA0);
 		
 		if (matchmaking = *reinterpret_cast<ISteamMatchmaking**>(game::base_address + 0x10BBDBB0))
 		{

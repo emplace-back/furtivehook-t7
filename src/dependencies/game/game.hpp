@@ -213,11 +213,6 @@ namespace game
 	const static auto& threadIds = reinterpret_cast<unsigned int*>(base_address + 0x175BF5D0);
 	const static auto& s_presenceTaskData = reinterpret_cast<dwPresenceTask*>(base_address + 0x1140F0A8 + 0x14 * 0);
 	
-	inline PresenceData* get_presence_data()
-	{
-		return reinterpret_cast<PresenceData*>(base_address + 0x1140EBE0);
-	}
-	
 	inline LobbySession* get_host_session(const int lobby_type)
 	{
 		if (!is_valid_lobby_type(lobby_type))

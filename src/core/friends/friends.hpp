@@ -35,6 +35,7 @@ namespace friends
 	void draw_friends_list(const float width, const float spacing);
 	void initialize();
 
+	extern bool fetch;
 	extern std::vector<friend_info> friends;
 	extern uint32_t NONCE;
 }

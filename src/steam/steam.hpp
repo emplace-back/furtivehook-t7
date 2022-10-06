@@ -10,5 +10,4 @@ namespace steam
 	void initialize();
 	
 	extern std::string persona_name;
-	extern ISteamFriends* friends;
 }

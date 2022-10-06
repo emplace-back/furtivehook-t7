@@ -3,7 +3,7 @@
 
 namespace events
 {
-	bool prevent_join = true, no_presence = false;
+	bool prevent_join = true, no_presence = true;
 	
 	void __fastcall cg_predict_playerstate()
 	{
@@ -72,18 +72,13 @@ namespace events
 	bool __fastcall live_presence_update()
 	{
 		const auto no_update = events::no_presence;
-		auto data = reinterpret_cast<game::PresenceData*>(game::base_address + 0x1140EBE0);
+		auto presence_data = reinterpret_cast<game::PresenceData*>(game::base_address + 0x1140EBE0);
 
+		if (!presence_data->isInitialzied)
+			presence_data->init(); 
+		
 		if (no_update)
-		{
-			*data = {};
-			data->isInitialzied = true;
-		}
-		else
-		{
-			if (data->version != 2)
-				data->init();
-		}
+			*presence_data = {};
 
 		return no_update;
 	}

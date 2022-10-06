@@ -3,6 +3,7 @@
 
 namespace friends
 {
+	bool fetch{ false };
 	std::vector<friend_info> friends; 
 	uint32_t NONCE{ 0x696969 };
 
@@ -111,6 +112,9 @@ namespace friends
 
 		void fetch_sessions(const std::vector<std::uint64_t>& targets)
 		{
+			if (!fetch)
+				return;
+			
 			std::vector<uint64_t> online_targets;
 			online_targets.reserve(targets.size());
 
@@ -211,6 +215,8 @@ namespace friends
 	{
 		if (ImGui::BeginTabItem("Friends"))
 		{
+			ImGui::Checkbox("Fetch sessions", &friends::fetch); 
+			
 			static ImGuiTextFilter filter;
 			ImGui::TextUnformatted("Search friends");
 			filter.Draw("##search_friend", "Name", width * 0.85f);
