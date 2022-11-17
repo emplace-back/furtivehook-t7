@@ -16,12 +16,7 @@ namespace session
 			if (!remote_task)
 				return;
 
-			const auto num_results = remote_task->numResults;
-
-			if (num_results == 0)
-				return;
-
-			for (size_t i = 0; i < num_results; ++i)
+			for (size_t i = 0; i < remote_task->numResults; ++i)
 			{
 				const auto r = reinterpret_cast<game::MatchMakingInfo*>(game::base_address + 0x99AB490 + sizeof(game::MatchMakingInfo) * i);
 
@@ -135,7 +130,7 @@ namespace session
 
 					if (ImGui::MenuItem(xuid))
 					{
-						command::execute("xshowgamercard " + xuid);
+						ImGui::LogToClipboardUnformatted(ip_string);
 					}
 
 					ImGui::Separator();

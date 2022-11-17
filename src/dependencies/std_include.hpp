@@ -52,11 +52,13 @@
 
 #define LOG_PREFIX "[furtivehook]"
 
-#ifndef NDEBUG
+/*
+	#ifndef NDEBUG
+	#define DEBUG_LOG(__FMT__, ...) utils::print_log(LOG_PREFIX "[" __FUNCTION__ "] " __FMT__ "\n", __VA_ARGS__)
+	#endif
+*/
+
 #define DEBUG_LOG(__FMT__, ...) utils::print_log(LOG_PREFIX "[" __FUNCTION__ "] " __FMT__ "\n", __VA_ARGS__)
-#else
-#define DEBUG_LOG(__FMT__, ...)
-#endif
 
 #define PRINT_LOG(__FMT__, ...)	utils::print_log(__FMT__ "\n", __VA_ARGS__)	
 

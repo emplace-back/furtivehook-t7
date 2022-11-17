@@ -89,6 +89,19 @@ namespace events::server_command
 			return false;
 		});
 
+		server_command::on_command('t', [](const auto& args)
+		{
+			const auto team = utils::atoi<uint32_t>(args[2]);
+
+			if (team >= 21)
+			{
+				PRINT_MESSAGE("Server", "Exploit attempt caught!");
+				return true;
+			}
+
+			return false;
+		});
+
 		server_command::on_command('v', [](const auto& args)
 		{
 			if (args.size() != 2)

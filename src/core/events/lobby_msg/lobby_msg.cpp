@@ -350,8 +350,8 @@ namespace events::lobby_msg
 		}); 
 		
 		utils::hook::jump(game::base_address + 0x1EF7094, handle_packet_internal_stub);
-		utils::hook::nop(game::base_address + 0x1EF7094 + 5, 2);
-
+		utils::hook::nop(game::base_address + 0x1EF7094 + 5, 2); 
+		
 		utils::hook::jump(game::base_address + 0x1EF5610, game::LobbyMsgRW_PackageElement);
 		
 		lobby_msg::on_message(game::LOBBY_MODULE_HOST, game::MESSAGE_TYPE_PEER_TO_PEER_INFO, lobby_msg::handle_lobby_type);

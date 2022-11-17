@@ -75,7 +75,6 @@ namespace game
 	netadr_t get_session_netadr(const LobbySession* session, const ActiveClient* client);
 	int I_stricmp(const std::string & a, const std::string & b);
 	char * I_strncpyz(char * place, const std::string & string, const size_t length);
-	std::string get_gametype_on_mapname(const int map_id, const int gametype_id);
 	
 	extern std::array<scr_string_t, static_cast<std::uint32_t>(bone_tag::num_tags)> bone_tags;
 

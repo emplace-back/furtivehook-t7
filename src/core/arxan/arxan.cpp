@@ -1,6 +1,8 @@
 #include "dependencies/std_include.hpp"
 #include "arxan.hpp"
 
+#define ProcessImageFileNameWin32 43
+
 namespace arxan
 {
 	utils::hook::detour get_thread_context_hook; 
@@ -111,7 +113,7 @@ namespace arxan
 
 		if (NT_SUCCESS(status))
 		{
-			if (info_class == ProcessImageFileName || static_cast<int>(info_class) == 43)
+			if (info_class == ProcessImageFileName || static_cast<int>(info_class) == ProcessImageFileNameWin32)
 			{
 				remove_keyword_from_string(*static_cast<UNICODE_STRING*>(info));
 			}
@@ -243,7 +245,7 @@ namespace arxan
 
 		if (current_checksum != correct_checksum)
 		{
-			DEBUG_LOG("Adjusting checksum (%llX): %X -> %X", handler_address, current_checksum, correct_checksum);
+			//DEBUG_LOG("Adjusting checksum (%llX): %X -> %X", handler_address, current_checksum, correct_checksum);
 		}
 
 		return correct_checksum;

@@ -411,25 +411,4 @@ namespace game
 		place[length - 1] = 0;
 		return result;
 	}
-
-	std::string get_gametype_on_mapname(const int map_id, const int gametype_id)
-	{
-		const auto entry = Com_GameInfo_GetMapForIndex(map_id);
-		const auto gametype_name = Com_GameInfo_GetGameTypeNameForID(gametype_id);
-
-		if (entry
-			&& gametype_name 
-			&& *gametype_name)
-		{
-			char buffer[0x100] = { 0 };
-			Com_GameInfo_GetGameTypeOnMapName(gametype_name, entry->name, buffer, sizeof buffer);
-
-			if (buffer)
-			{
-				return { buffer, sizeof buffer };
-			}
-		}
-
-		return "";
-	}
 }

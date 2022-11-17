@@ -4,8 +4,6 @@
 namespace steam
 {
 	auto get_lobby_chat_entry_original = reinterpret_cast<decltype(&get_lobby_chat_entry)>(0); 
-	auto read_p2p_packet_original = reinterpret_cast<decltype(&read_p2p_packet)>(0);
-	auto read_p2p_packet_server_original = reinterpret_cast<decltype(&read_p2p_packet)>(0);
 	ISteamFriends* friends = nullptr; ISteamMatchmaking* matchmaking = nullptr;
 	std::string persona_name = "";
 
@@ -56,34 +54,6 @@ namespace steam
 		}
 
 		return count;
-	}
-
-	bool __fastcall read_p2p_packet(ISteamNetworking* thisptr, void* dest, uint32_t dest_size, uint32* msg_size, uint64_t* steam_id, int channel)
-	{
-		const auto result = read_p2p_packet_original(thisptr, dest, dest_size, msg_size, steam_id, channel);
-
-		PRINT_LOG("Received P2P packet from (%llu) of size [%u]", *steam_id, *msg_size);
-
-		if (result)
-		{
-			return false;
-		}
-
-		return result;
-	}
-
-	bool __fastcall read_p2p_packet_server(ISteamNetworking* thisptr, void* dest, uint32_t dest_size, uint32* msg_size, uint64_t* steam_id, int channel)
-	{
-		const auto result = read_p2p_packet_server_original(thisptr, dest, dest_size, msg_size, steam_id, channel);
-
-		PRINT_LOG("Received P2P packet from (%llu) of size [%u]", *steam_id, *msg_size);
-
-		if (result)
-		{
-			return false;
-		}
-
-		return result;
 	}
 
 	void initialize()
