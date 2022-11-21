@@ -230,45 +230,4 @@ namespace utils::string
 			}
 		}
 	}
-
-	void clean_invalid_model_path(char* string)
-	{
-		/*size_t size{0};
-
-		while (*string)
-		{
-			if (*string == '$' && string[1] == '(')
-			{
-				auto model_path = string + 2;
-
-				while (true)
-				{
-					if (++size >= 64)
-						*model_path = 0;
-
-					if (!model_path[size] || model_path[size] == ')')
-						break;
-				}
-			}
-
-			++string;
-		}*/
-		
-		for (size_t i = 0; i < std::strlen(string); ++i)
-		{
-			if (string[i] == '$' && string[i + 1] == '(')
-			{
-				size_t j{ 0 };
-
-				for (; j <= 64; ++j)
-				{
-					if (!string[i + j] || string[i + j] == ')')
-						break;
-				}
-
-				if (j >= 64)
-					string[i + j] = ')';
-			}
-		}
-	}
 }

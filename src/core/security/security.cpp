@@ -48,17 +48,19 @@ namespace security
 	{
 		if (*argc == 1)
 		{
-			PRINT_LOG("Lua_CmdParseArgs called with the VM %s for function %s. (text: %s | %s args: %s)", *argv, function, textIn, *textIn, command::args{}.join(0).data());
+			PRINT_LOG("Lua_CmdParseArgs called with the VM '%s' for function %s.\nText: %s\nArgs: %s", *argv, function, *textIn, command::args{}.join(0).data());
 		}
 		else
 		{
-			PRINT_LOG("Lua_CmdParseArgs called without a VM specified for function %s. (text: %s | %s args: %s)", function, textIn, *textIn, command::args{}.join(0).data());
+			PRINT_LOG("Lua_CmdParseArgs called without a VM specified for function %s.\nText: %s\nArgs: %s", function, *textIn, command::args{}.join(0).data());
 		}
+
+		//return lua_cmd_parse_args_hook.call<void>(function, textIn, argsPriv, argc, argv);
 	}
 
 	const char* __fastcall cl_rank_get_paragon_icon_name(game::eModes mode, const int iconId)
 	{
-		return cl_rank_get_paragon_icon_name_hook.call<const char*>(mode, std::min(static_cast<uint32_t>(iconId), 64u));
+		return cl_rank_get_paragon_icon_name_hook.call<const char*>(mode, std::min(static_cast<uint32_t>(iconId), 63u));
 	}
 	
 	void initialize()
@@ -76,7 +78,7 @@ namespace security
 
 			a.bind(ret);
 			a.jmp(game::base_address + 0x2018F8B);
-		}); 
+		});
 		
 		rb_draw_text_2d_cmd_hook.create(game::base_address + 0x1C5E5A0, rb_draw_text_2d_cmd);
 		r_read_char_from_string_hook.create(game::base_address + 0x1CAFF30, r_read_char_from_string);

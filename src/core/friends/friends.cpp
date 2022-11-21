@@ -114,27 +114,25 @@ namespace friends
 		{
 			if (!fetch)
 				return;
-			
-			std::vector<uint64_t> online_targets;
-			online_targets.reserve(targets.size());
 
 			for (const auto& id : targets)
-			{
-				if (const auto f = friends::get(id); f && f->is_online())
-				{
-					online_targets.emplace_back(id);
-				}
-			}
-
-			events::instant_message::send_info_request(online_targets, friends::NONCE);
+				events::instant_message::send_info_request(id, friends::NONCE);
 		}
 
 		void update_online_status()
 		{
-			static std::vector<std::uint64_t> recipients{};
+			std::vector<std::uint64_t> recipients{};
 			
-			if (recipients.empty())
-				for (const auto& f : friends) recipients.emplace_back(f.steam_id);
+			for (auto& f : friends)
+			{
+				if (f.is_online() && std::time(nullptr) - f.last_online > 30)
+				{
+					f.response = {};
+					friends::write();
+				}
+
+				recipients.emplace_back(f.steam_id);
+			}
 
 			if (recipients.empty())
 				return;
@@ -277,7 +275,7 @@ namespace friends
 					continue;
 				
 				const auto response = f.response;
-				const auto xuid = std::to_string(f.steam_id);
+				const auto xuid = std::to_string(static_cast<int64_t>(f.steam_id));
 				const auto label = f.name + "##friend" + xuid;
 				
 				ImGui::AlignTextToFramePadding(); 

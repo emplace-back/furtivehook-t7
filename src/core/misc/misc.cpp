@@ -4,7 +4,7 @@
 namespace misc
 {
 	bool no_recoil = true; 
-	
+
 	int __stdcall message_box(HWND window, const char* text, const char* caption, int type)
 	{
 		const auto ret_address{ reinterpret_cast<uintptr_t>(_ReturnAddress()) };

@@ -111,7 +111,7 @@ namespace events
 			a.popad64();
 			a.jmp(game::base_address + 0x1E93490);
 		});
-
+			
 		utils::hook::call(game::base_address + 0x10BA99D, cg_predict_playerstate_stub);
 		utils::hook::call(game::base_address + 0x1E93708, live_presence_update_stub);
 		

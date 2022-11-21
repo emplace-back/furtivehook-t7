@@ -800,6 +800,28 @@ namespace game
 		LOBBY_MAINMODE_ZM = 0x2,
 		LOBBY_MAINMODE_COUNT = 0x3,
 	};
+	
+	enum LobbyMsgElementType
+	{
+		MESSAGE_ELEMENT_INT32 = 0x0,
+		MESSAGE_ELEMENT_UINT32 = 0x1,
+		MESSAGE_ELEMENT_INT16 = 0x2,
+		MESSAGE_ELEMENT_UINT16 = 0x3,
+		MESSAGE_ELEMENT_INT8 = 0x4,
+		MESSAGE_ELEMENT_UINT8 = 0x5,
+		MESSAGE_ELEMENT_INT64 = 0x6,
+		MESSAGE_ELEMENT_UINT64 = 0x7,
+		MESSAGE_ELEMENT_FLOAT = 0x8,
+		MESSAGE_ELEMENT_XUID = 0x9,
+		MESSAGE_ELEMENT_STRING = 0xA,
+		MESSAGE_ELEMENT_GLOB = 0xB,
+		MESSAGE_ELEMENT_ARRAY_BEGIN = 0xC,
+		MESSAGE_ELEMENT_ARRAY_ELEMENT = 0xD,
+		MESSAGE_ELEMENT_ARRAY_END = 0xE,
+		MESSAGE_ELEMENT_DEBUG_START = 0xF,
+		MESSAGE_ELEMENT_DEBUG_END = 0x10,
+		MESSAGE_ELEMENT_COUNT = 0x11,
+	};
 
 	enum eModes
 	{
@@ -829,6 +851,21 @@ namespace game
 		char encodeFlags;
 		PackageType packageType;
 
+		template<size_t buf_size>
+		void init_lobby(char(&buf)[buf_size], const MsgType msg_type)
+		{
+			this->init(buf, buf_size);
+
+			this->packageType = PACKAGE_TYPE_WRITE;
+			this->type = msg_type;
+			this->encodeFlags = 0;
+
+			this->write<uint8_t>(MESSAGE_ELEMENT_UINT8);
+			this->write<uint8_t>(msg_type);
+			this->write<uint8_t>(MESSAGE_ELEMENT_STRING);
+			this->write_data("sike");
+		}
+
 		void init(char* buffer, const size_t buf_size)
 		{
 			*this = {};
@@ -839,7 +876,12 @@ namespace game
 
 		void write_data(const std::string& buffer)
 		{
-			const auto final_size = cursize + buffer.size();
+			return write_data(buffer.data(), buffer.size() + 1);
+		}
+
+		void write_data(const char* buffer, const size_t length)
+		{
+			const auto final_size = cursize + length;
 
 			if (final_size > maxsize)
 			{
@@ -847,7 +889,7 @@ namespace game
 			}
 			else
 			{
-				std::memcpy(&data[cursize], buffer.data(), buffer.size());
+				std::memcpy(&data[cursize], buffer, length);
 				cursize = final_size;
 			}
 		}
@@ -2544,11 +2586,23 @@ namespace game
 		uint8_t serviceId;
 		uint8_t taskId;
 	};
-
+	
+	struct TaskRecord;
+	using task_callback = void(*)(TaskRecord*);
+	
+	struct TaskDefinition
+	{
+		const uint64_t category;
+		const char* const name;
+		const int payloadSize;
+		const task_callback completed_callback;
+		const task_callback failure_callback;
+	}; 
+	
 	struct TaskRecord
 	{
 		TaskRecord *next;
-		const void *definition;
+		const TaskDefinition *definition;
 		TaskState state;
 		ControllerIndex_t controllerIndex;
 		unsigned int lastPoll;
@@ -2562,8 +2616,6 @@ namespace game
 		TaskRecord *nestedTask;
 		void* payload;
 	};
-
-	using task_callback = void(*)(TaskRecord*);
 
 	struct bdRichPresenceInfo
 	{
@@ -2709,37 +2761,6 @@ namespace game
 	{
 		char pad[0x346698];
 		gameState_t gameState;
-	};
-
-	enum LobbyMsgElementType
-	{
-		MESSAGE_ELEMENT_INT32 = 0x0,
-		MESSAGE_ELEMENT_UINT32 = 0x1,
-		MESSAGE_ELEMENT_INT16 = 0x2,
-		MESSAGE_ELEMENT_UINT16 = 0x3,
-		MESSAGE_ELEMENT_INT8 = 0x4,
-		MESSAGE_ELEMENT_UINT8 = 0x5,
-		MESSAGE_ELEMENT_INT64 = 0x6,
-		MESSAGE_ELEMENT_UINT64 = 0x7,
-		MESSAGE_ELEMENT_FLOAT = 0x8,
-		MESSAGE_ELEMENT_XUID = 0x9,
-		MESSAGE_ELEMENT_STRING = 0xA,
-		MESSAGE_ELEMENT_GLOB = 0xB,
-		MESSAGE_ELEMENT_ARRAY_BEGIN = 0xC,
-		MESSAGE_ELEMENT_ARRAY_ELEMENT = 0xD,
-		MESSAGE_ELEMENT_ARRAY_END = 0xE,
-		MESSAGE_ELEMENT_DEBUG_START = 0xF,
-		MESSAGE_ELEMENT_DEBUG_END = 0x10,
-		MESSAGE_ELEMENT_COUNT = 0x11,
-	};
-
-	struct TaskDefinition
-	{
-		const uint64_t category;
-		const char* const name;
-		const int payloadSize;
-		const task_callback completed_callback;
-		const task_callback failure_callback;
 	};
 
 	struct MatchMakingQuery

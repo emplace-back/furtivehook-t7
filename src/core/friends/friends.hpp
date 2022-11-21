@@ -5,7 +5,6 @@ namespace friends
 {	
 	struct response_t
 	{
-		std::chrono::system_clock::time_point last_online{};
 		game::Msg_InfoResponse info_response;
 		game::PresenceData presence;
 	}; 
@@ -19,7 +18,7 @@ namespace friends
 
 		bool is_online() const noexcept
 		{
-			return response.presence.version;
+			return response.presence.version || response.info_response.nonce;
 		}
 
 		bool operator<(const friend_info& other) const

@@ -3,8 +3,6 @@
 
 namespace events::lobby_msg
 {
-	void prep_lobby_msg(game::msg_t* msg, char* buffer, const size_t buf_size, const game::MsgType msg_type);
-	std::string build_lobby_msg(const game::LobbyModule module);
 	bool send_to_client(const game::LobbyModule module, const game::msg_t& msg, const game::netadr_t& netadr, const std::uint64_t xuid = 0);
 	bool send_to_host(const game::LobbySession* session, const game::msg_t & msg, const game::LobbyModule module);
 	void initialize();

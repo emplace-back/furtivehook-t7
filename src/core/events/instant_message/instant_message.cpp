@@ -73,18 +73,24 @@ namespace events::instant_message
 		return handle_message(sender_id, type, msg);
 	}
 
-	bool send_info_request(const std::vector<std::uint64_t>& recipients, uint32_t nonce)
+	bool send_info_request(const std::uint64_t id, uint32_t nonce)
 	{
 		if (game::Live_IsUserSignedInToDemonware(0))
 		{
-			char buffer[0x400] = { 0 };
+			char buffer[0x80] = { 0 };
 			game::msg_t msg{};
 
-			events::lobby_msg::prep_lobby_msg(&msg, buffer, sizeof buffer, game::MESSAGE_TYPE_INFO_REQUEST);
-			
+			msg.init_lobby(buffer, game::MESSAGE_TYPE_INFO_REQUEST);
 			game::LobbyMsgRW_PackageUInt(&msg, "nonce", &nonce);
+			
+			const auto result = game::Steam_SendP2PPacket(id, 'h', msg.data, msg.cursize);
 
-			return game::send_instant_message(recipients, 'h', msg);
+			if (!result)
+			{
+				return game::send_instant_message({ id }, 'h', msg.data, msg.cursize);
+			}
+
+			return result;
 		}
 
 		return false;
@@ -148,7 +154,7 @@ namespace events::instant_message
 					return false;
 
 				if (!game::s_infoProbe->active
-					&& game::s_infoProbe->nonce != nonce
+				 && game::s_infoProbe->nonce != nonce
 					&& nonce != friends::NONCE)
 				{
 					PRINT_MESSAGE("Instant Message", "Received a info request from %s", get_sender_string(sender_id).data());
@@ -187,9 +193,12 @@ namespace events::instant_message
 				{
 					if (const auto f = friends::get(id); f)
 					{
+						f->last_online = std::time(nullptr); 
 						f->response.info_response = info_response;
 					}
 				}
+
+				friends::write();
 
 				return false;
 			}

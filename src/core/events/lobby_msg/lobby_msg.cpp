@@ -3,6 +3,7 @@
 
 namespace events::lobby_msg
 {
+	utils::hook::detour lobby_msg_rw_package_int_hook; 
 	bool log_messages = true;
 
 	namespace
@@ -254,61 +255,72 @@ namespace events::lobby_msg
 		{
 			get_callbacks()[{ module, type }] = callback;
 		}
-	}
 
-	bool __fastcall handle_packet(const game::LobbyModule module, const game::netadr_t& from, game::msg_t* msg)
-	{
-		const auto ip_str{ utils::get_sender_string(from) };
-		const auto type_name{ game::LobbyTypes_GetMsgTypeName(msg->type) };
-
-		if (log_messages)
+		bool __fastcall lobby_msg_rw_package_int(game::msg_t* msg, const char* key, int* value)
 		{
-			PRINT_LOG("Received lobby message [%i] <%s> from %s", module, type_name, ip_str.data());
+			const auto result = lobby_msg_rw_package_int_hook.call<bool>(msg, key, value);
+
+			if (msg->packageType == game::PACKAGE_TYPE_READ)
+			{
+				const std::vector<std::pair<std::string, uint32_t>> patches =
+				{
+					{ "clientcount", 19 },
+					{ "votecount", 216 },
+					{ "settingssize", 0xC000 },
+				};
+
+				const auto result = std::any_of(patches.begin(), patches.end(), [&](const auto& p) { return p.first == utils::string::to_lower(key) && *value >= p.second; });
+
+				if (result)
+				{
+					PRINT_LOG("type: %s key: %s value: %i", game::LobbyTypes_GetMsgTypeName(msg->type), key, *value);
+					return false;
+				}
+			}
+
+			return result;
 		}
 
-		const auto& callbacks = get_callbacks();
-		const auto handler = callbacks.find({ module, msg->type });
-
-		if (handler == callbacks.end())
-			return false;
-
-		const auto msg_backup = *msg;
-		const auto handled = handler->second(from, *msg, module);
-
-		if (handled)
+		bool __fastcall handle_packet(const game::LobbyModule module, const game::netadr_t& from, game::msg_t* msg)
 		{
-			msg->type = static_cast<game::MsgType>(game::MESSAGE_TYPE_NONE);
+			const auto ip_str{ utils::get_sender_string(from) };
+			const auto type_name{ game::LobbyTypes_GetMsgTypeName(msg->type) };
+
+			if (log_messages)
+			{
+				PRINT_LOG("Received lobby message [%i] <%s> from %s", module, type_name, ip_str.data());
+			}
+
+			const auto& callbacks = get_callbacks();
+			const auto handler = callbacks.find({ module, msg->type });
+
+			if (handler == callbacks.end())
+				return false;
+
+			const auto msg_backup = *msg;
+			const auto handled = handler->second(from, *msg, module);
+
+			if (handled)
+			{
+				msg->type = static_cast<game::MsgType>(game::MESSAGE_TYPE_NONE);
+			}
+			else
+			{
+				*msg = msg_backup;
+			}
+
+			return handled;
 		}
-		else
+
+		std::string build_lobby_msg(const game::LobbyModule module)
 		{
-			*msg = msg_backup;
+			auto data{ ""s };
+			const auto header{ 0x4864ui16 };
+			data.append(reinterpret_cast<const char*>(&header), sizeof header);
+			data.push_back(module);
+			data.push_back(-1);
+			return data;
 		}
-
-		return handled;
-	}
-
-	void prep_lobby_msg(game::msg_t* msg, char* buffer, const size_t buf_size, const game::MsgType msg_type)
-	{
-		msg->init(buffer, buf_size);
-		
-		msg->packageType = game::PACKAGE_TYPE_WRITE;
-		msg->type = msg_type;
-		msg->encodeFlags = 0;
-
-		msg->write<uint8_t>(game::MESSAGE_ELEMENT_UINT8);
-		msg->write<uint8_t>(msg_type);
-		msg->write<uint8_t>(game::MESSAGE_ELEMENT_STRING);
-		msg->write_data("sike\0"s);
-	}
-
-	std::string build_lobby_msg(const game::LobbyModule module)
-	{
-		auto data{ ""s };
-		const auto header{ 0x4864ui16 };
-		data.append(reinterpret_cast<const char*>(&header), sizeof header);
-		data.push_back(module);
-		data.push_back(-1);
-		return data;
 	}
 	
 	bool send_to_client(const game::LobbyModule module, const game::msg_t& msg, const game::netadr_t& netadr, const std::uint64_t xuid)
@@ -348,6 +360,8 @@ namespace events::lobby_msg
 
 			a.jmp(game::base_address + 0x1EF709B);
 		}); 
+		
+		lobby_msg_rw_package_int_hook.create(game::base_address + 0x1EF5720, lobby_msg_rw_package_int);
 		
 		utils::hook::jump(game::base_address + 0x1EF7094, handle_packet_internal_stub);
 		utils::hook::nop(game::base_address + 0x1EF7094 + 5, 2); 

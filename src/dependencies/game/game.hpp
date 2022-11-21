@@ -80,6 +80,7 @@ namespace game
 
 	const static auto base_address = reinterpret_cast<std::uintptr_t>(GetModuleHandleA(nullptr)) + 0x1000;
 
+	const static auto Steam_SendP2PPacket = reinterpret_cast<bool(*)(const uint64_t, char, const void*, unsigned int)>(base_address + 0x1EAF250);
 	const static auto StructuredTable_LookupNumberByString = reinterpret_cast<bool(*)(const StructuredTable*, const char*, const char*, const char*, int*)>(game::base_address + 0x22AF340);
 	const static auto StructuredTable_LookupStringByString = reinterpret_cast<bool(*)(const StructuredTable*, const char*, const char*, const char*, const char**)>(game::base_address + 0x22AF3F0);
 	const static auto dwFindSessions = reinterpret_cast<void(*)(game::TaskRecord*, game::MatchMakingQuery* const)>(game::base_address + 0x1437DB0);
