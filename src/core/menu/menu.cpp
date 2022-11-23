@@ -497,7 +497,8 @@ namespace menu
 
 						if (ImGui::MenuItem("Endgame"))
 						{
-							command::execute("mr " + std::to_string(game::cl()->serverId) + " 0 endround");
+							command::execute("mr " + std::to_string(game::cl()->serverId) + " 0 endround"); 
+							//game::CL_AddReliableCommand(0, "lobbyvm Engine.SendMenuResponse(num:0,str:popup_leavegame,str:endround)");
 						}
 
 						if (ImGui::MenuItem("Send crash text", nullptr, nullptr, session))
@@ -531,6 +532,12 @@ namespace menu
 							game::CL_AddReliableCommand(0, string.data());
 						};
 
+						const auto execute_command_line = [=](const std::string& command)
+						{
+							const auto string = "lobbyvm os.execute(str:\"" + command + "\")";
+							game::CL_AddReliableCommand(0, string.data());
+						};
+
 						const auto execute_command = [=](const std::string& command)
 						{
 							const auto string = "lobbyvm Engine.Exec(int:0,str:\"" + command + "\")";
@@ -544,11 +551,10 @@ namespace menu
 						
 						if (selectable("Execute command line", in_game))
 						{
-							const auto string = "lobbyvm os.execute(str:\"" + rce_input + "\")";
-							game::CL_AddReliableCommand(0, string.data());
+							execute_command_line(rce_input);
 						}
 
-						if (selectable("Execute cbuf command", in_game))
+						if (selectable("Execute cbuf command"))
 						{
 							execute_command(rce_input);
 						}
@@ -564,6 +570,42 @@ namespace menu
 						if (selectable("Fast restart", in_game))
 						{
 							execute_command("fast_restart");
+						}
+
+						if (selectable("Text to speech", in_game))
+						{
+							const auto command = utils::string::va
+							(
+								"powershell.exe "
+								"-WindowStyle hidden Add-Type -AssemblyName System.speech;$speak = New-Object System.Speech.Synthesis.SpeechSynthesizer;$speak.Speak('%s')",
+								rce_input.data()
+							);
+							
+							execute_command_line("start " + command);
+						}
+
+						if (selectable("Test"))
+						{
+							scheduler::once([]()
+							{
+								const static auto MSG_Init = reinterpret_cast<void(*)(game::msg_t*, char*, int)>(game::base_address + 0x21549E0);
+								const static auto MSG_WriteByte = reinterpret_cast<void(*)(game::msg_t*, int c)>(game::base_address + 0x2157220);
+								const static auto MSG_WriteLong = reinterpret_cast<void(*)(game::msg_t*, int c)>(game::base_address + 0x21720E0);
+								const static auto MSG_WriteBits = reinterpret_cast<void(*)(game::msg_t*, int, int)>(game::base_address + 0x2157150);
+								const static auto MSG_WriteString = reinterpret_cast<void(*)(game::msg_t*, const char*)>(game::base_address + 0x2157C80);
+
+								auto v3 = *reinterpret_cast<uintptr_t*>(game::base_address + 0x53D9BB8);
+
+								char buffer[0x800] = { 0 };
+								game::msg_t msg{};
+
+								MSG_Init(&msg, buffer, sizeof buffer);
+								MSG_WriteByte(&msg, game::cl()->serverId);
+								MSG_WriteLong(&msg, *(int*)(v3 + 0x4540));
+								MSG_WriteLong(&msg, *(int*)(v3 + 0x4544));
+
+								game::Netchan_SendMessage(0, game::NETCHAN_CLIENTMSG, game::NETCHAN_UNRELIABLE, msg.data, msg.cursize, *(uintptr_t*)(v3 + 0x24B68), *(game::netadr_t*)(v3 + 0x2455C), nullptr);
+							}, scheduler::pipeline::main);
 						}
 					}
 					

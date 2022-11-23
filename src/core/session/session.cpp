@@ -35,7 +35,7 @@ namespace session
 		const game::TaskDefinition task_lobby_search
 		{
 			2,
-			"LobbySearch",
+			"t71",
 			0x10,
 			lobby_search_success_callback,
 			lobby_search_failure_callback
@@ -52,7 +52,7 @@ namespace session
 				&task_lobby_search,
 				0,
 				nullptr,
-				15000))
+				10000))
 			{
 				auto payload = *reinterpret_cast<game::SessionSearchPayloadData**>(&task->payload);
 				*payload = {};
@@ -130,34 +130,15 @@ namespace session
 
 					if (ImGui::MenuItem(xuid))
 					{
-						ImGui::LogToClipboardUnformatted(ip_string);
+						ImGui::LogToClipboardUnformatted(xuid);
 					}
 
 					ImGui::Separator();
 
-					const static std::vector<std::string> join_types =
+					if (ImGui::MenuItem("Join Session"))
 					{
-						"Normal",
-						"Playlist",
-						"Friend",
-						"Invite",
-						"Party",
-						"Group"
-					};
-
-					if (ImGui::BeginMenu("Join Session"))
-					{
-						for (size_t i = 0; i < join_types.size(); ++i)
-						{
-							const auto label = join_types[i] + "##" + std::to_string(i);
-
-							if (ImGui::MenuItem(label))
-							{
-								game::LobbyVM_JoinEvent(0, session.xuid, static_cast<game::JoinType>(i));
-							}
-						}
-
-						ImGui::EndMenu();
+						const auto signed_xuid = static_cast<int64_t>(session.xuid);
+						command::execute("join " + std::to_string(signed_xuid));
 					}
 
 					ImGui::Separator();

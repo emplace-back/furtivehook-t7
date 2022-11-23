@@ -76,7 +76,7 @@ namespace events
 
 		if (!presence_data->isInitialzied)
 			presence_data->init(); 
-		
+
 		if (no_update)
 			*presence_data = {};
 
