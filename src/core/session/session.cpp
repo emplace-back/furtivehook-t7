@@ -6,6 +6,7 @@ namespace session
 	namespace
 	{
 		game::MatchMakingQuery query_info{};
+		std::array<game::MatchMakingInfo, 1000> search_results;
 		std::vector<game::MatchMakingInfo> sessions;
 		
 		const auto lobby_search_success_callback = [](game::TaskRecord* task)
@@ -17,7 +18,7 @@ namespace session
 
 			for (size_t i = 0; i < remote_task->numResults; ++i)
 			{
-				const auto r = reinterpret_cast<game::MatchMakingInfo*>(game::base_address + 0x99AB490 + sizeof(game::MatchMakingInfo) * i);
+				const auto r = &search_results[i];
 
 				if (r->info.hostAddrSize != sizeof game::XNADDR)
 					continue;
@@ -45,10 +46,7 @@ namespace session
 			game::TaskDefinition const* task_def{ &task_lobby_search };
 			
 			if (game::TaskManager2_TaskGetInProgress(task_def))
-			{
-				DEBUG_LOG("Task %s is already in progress", task_def->name);
 				return;
-			}
 
 			query_info.queryId = game::SEARCH_SESSIONS_BY_SERVER_TYPE;
 			query_info.serverType = 2000;
@@ -57,14 +55,14 @@ namespace session
 			{
 				game::bdRemoteTask* remote_task{};
 
-				game::call(game::base_address + 0x290A2B0,
+				game::call<game::bdRemoteTask*>(game::base_address + 0x290A2B0,
 					matchmaking,
 					&remote_task,
 					query_info.queryId,
 					0,
-					50,
+					search_results.size(),
 					&query_info,
-					reinterpret_cast<game::MatchMakingInfo*>(game::base_address + 0x99AB490));
+					search_results.data());
 
 				game::TaskManager2_SetupRemoteTask(task_def, remote_task, 10000);
 			}
@@ -117,13 +115,14 @@ namespace session
 			{
 				const auto xnaddr = *reinterpret_cast<const game::XNADDR*>(session.info.hostAddr);
 				const auto ip_string = xnaddr.to_string(true);
+
+				if (!filter.PassFilter(ip_string))
+					continue;
+
 				const auto xuid = std::to_string(static_cast<int64_t>(session.xuid));
 				const auto label = ip_string + "##session" + xuid;
 				const auto selected = ImGui::Selectable(label);
 				const auto popup = "session_popup##" + xuid;
-
-				if (!filter.PassFilter(ip_string))
-					continue;
 				
 				ImGui::AlignTextToFramePadding();
 
@@ -182,5 +181,9 @@ namespace session
 	{
 		// Setup query info
 		game::call(game::base_address + 0x144C2E0, &query_info, 0, true);
+
+		// Setup search results
+		for (size_t i = 0; i < search_results.size(); ++i)
+			game::call(game::base_address + 0x144BA00, &search_results[i], true);
 	}
 }

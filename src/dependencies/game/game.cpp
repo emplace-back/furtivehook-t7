@@ -413,18 +413,18 @@ namespace game
 		return result;
 	}
 
-	TaskRecord* TaskManager2_SetupRemoteTask(const TaskDefinition* definition, game::bdRemoteTask* remote_task, const uint32_t timeout)
+	TaskRecord* TaskManager2_SetupRemoteTask(const TaskDefinition* definition, bdRemoteTask* remote_task, const uint32_t timeout)
 	{
 		if (!remote_task)
 			return nullptr;
 		
-		const auto task = game::TaskManager2_CreateTask(definition, 0, nullptr, timeout);
+		const auto task = TaskManager2_CreateTask(definition, 0, nullptr, timeout);
 
 		if (!task)
 			return nullptr;
 
 		task->remoteTask = remote_task;
-		game::TaskManager2_StartTask(task);
+		TaskManager2_StartTask(task);
 
 		return task;
 	}
