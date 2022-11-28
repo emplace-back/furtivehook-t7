@@ -5,9 +5,8 @@ namespace session
 {
 	namespace
 	{
+		game::MatchMakingQuery query_info{};
 		std::vector<game::MatchMakingInfo> sessions;
-
-		const static auto& s_lobbySearch = reinterpret_cast<game::LobbySearch*>(game::base_address + 0x15B9D600);
 		
 		const auto lobby_search_success_callback = [](game::TaskRecord* task)
 		{
@@ -43,21 +42,31 @@ namespace session
 
 		void fetch_sessions()
 		{
-			if (game::TaskManager2_TaskGetInProgress(&task_lobby_search))
-				return;
-				
-			game::Live_SetupMatchmakingQuery();
-
-			if (const auto task = game::TaskManager2_CreateTask(
-				&task_lobby_search,
-				0,
-				nullptr,
-				10000))
+			game::TaskDefinition const* task_def{ &task_lobby_search };
+			
+			if (game::TaskManager2_TaskGetInProgress(task_def))
 			{
-				auto payload = *reinterpret_cast<game::SessionSearchPayloadData**>(&task->payload);
-				*payload = {};
+				DEBUG_LOG("Task %s is already in progress", task_def->name);
+				return;
+			}
 
-				game::dwFindSessions(task, &s_lobbySearch->info);
+			query_info.queryId = game::SEARCH_SESSIONS_BY_SERVER_TYPE;
+			query_info.serverType = 2000;
+
+			if (const auto matchmaking = game::call<uintptr_t>(game::base_address + 0x144A2D0, 0); matchmaking)
+			{
+				game::bdRemoteTask* remote_task{};
+
+				game::call(game::base_address + 0x290A2B0,
+					matchmaking,
+					&remote_task,
+					query_info.queryId,
+					0,
+					50,
+					&query_info,
+					reinterpret_cast<game::MatchMakingInfo*>(game::base_address + 0x99AB490));
+
+				game::TaskManager2_SetupRemoteTask(task_def, remote_task, 10000);
 			}
 		}
 	}
@@ -108,7 +117,7 @@ namespace session
 			{
 				const auto xnaddr = *reinterpret_cast<const game::XNADDR*>(session.info.hostAddr);
 				const auto ip_string = xnaddr.to_string(true);
-				const auto xuid = std::to_string(session.xuid);
+				const auto xuid = std::to_string(static_cast<int64_t>(session.xuid));
 				const auto label = ip_string + "##session" + xuid;
 				const auto selected = ImGui::Selectable(label);
 				const auto popup = "session_popup##" + xuid;
@@ -137,8 +146,7 @@ namespace session
 
 					if (ImGui::MenuItem("Join Session"))
 					{
-						const auto signed_xuid = static_cast<int64_t>(session.xuid);
-						command::execute("join " + std::to_string(signed_xuid));
+						command::execute("join " + xuid);
 					}
 
 					ImGui::Separator();
@@ -168,5 +176,11 @@ namespace session
 			ImGui::EndColumns();
 			ImGui::EndTabItem();
 		}
+	}
+
+	void initialize()
+	{
+		// Setup query info
+		game::call(game::base_address + 0x144C2E0, &query_info, 0, true);
 	}
 }

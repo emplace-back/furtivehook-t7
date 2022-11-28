@@ -75,6 +75,7 @@ namespace game
 	netadr_t get_session_netadr(const LobbySession* session, const ActiveClient* client);
 	int I_stricmp(const std::string & a, const std::string & b);
 	char * I_strncpyz(char * place, const std::string & string, const size_t length);
+	TaskRecord* TaskManager2_SetupRemoteTask(const TaskDefinition* definition, game::bdRemoteTask* remote_task, const uint32_t timeout = 0);
 	
 	extern std::array<scr_string_t, static_cast<std::uint32_t>(bone_tag::num_tags)> bone_tags;
 
@@ -83,7 +84,6 @@ namespace game
 	const static auto Steam_SendP2PPacket = reinterpret_cast<bool(*)(const uint64_t, char, const void*, unsigned int)>(base_address + 0x1EAF250);
 	const static auto StructuredTable_LookupNumberByString = reinterpret_cast<bool(*)(const StructuredTable*, const char*, const char*, const char*, int*)>(game::base_address + 0x22AF340);
 	const static auto StructuredTable_LookupStringByString = reinterpret_cast<bool(*)(const StructuredTable*, const char*, const char*, const char*, const char**)>(game::base_address + 0x22AF3F0);
-	const static auto dwFindSessions = reinterpret_cast<void(*)(game::TaskRecord*, game::MatchMakingQuery* const)>(game::base_address + 0x1437DB0);
 	const static auto CL_StoreConfigString = reinterpret_cast<void(*)(int index, const char *s)>(game::base_address + 0x13657C0);
 	const static auto LiveInventory_IsValid = reinterpret_cast<bool(*)(const ControllerIndex_t)>(game::base_address + 0x1E09440);
 	const static auto Cmd_EndTokenizedString = reinterpret_cast<void(*)()>(base_address + 0x20EC770);
@@ -195,9 +195,8 @@ namespace game
 	const static auto Com_GameInfo_GetMapForIndex = reinterpret_cast<MapTableEntry*(*)(int)>(base_address + 0x20F31F0);
 	const static auto Com_GameInfo_GetGameTypeNameForID = reinterpret_cast<const char*(*)(int)>(base_address + 0x20F2E60);
 	const static auto Com_GameInfo_GetGameTypeOnMapName = reinterpret_cast<void(*)(const char *, const char *, char *, int)>(base_address + 0x20F2F40);
-	const static auto TaskManager2_ClearTasks = reinterpret_cast<void(*)(const void*)>(base_address + 0x22AF610);
-	const static auto TaskManager2_CreateTask = reinterpret_cast<TaskRecord*(*)(const void*, const ControllerIndex_t, TaskRecord*, int)>(base_address + 0x22AF770);
-	const static auto Live_SetupMatchmakingQuery = reinterpret_cast<void(*)()>(base_address + 0x1EFB5D0);
+	const static auto TaskManager2_CreateTask = reinterpret_cast<game::TaskRecord*(*)(const void*, const ControllerIndex_t, TaskRecord*, int)>(base_address + 0x22AF770);
+	const static auto TaskManager2_StartTask = reinterpret_cast<void(*)(game::TaskRecord*)>(base_address + 0x22B06C0);
 	const static auto UI_SafeTranslateString = reinterpret_cast<const char*(*)(const char *)>(base_address + 0x228E7B0);
 	const static auto FindColumnIndexFromName = reinterpret_cast<int(*)(const StructuredTable*, const char*)>(base_address + 0x22AE970);
 	const static auto StructuredTable_LoadAsset_FastFile = reinterpret_cast<void(*)(const char*, StructuredTable**)>(base_address + 0x22AF0C0);
@@ -274,5 +273,11 @@ namespace game
 			return static_cast<scr_string_t>(0u);
 
 		return bone_tags[static_cast<std::size_t>(t)];
+	}
+
+	template <typename T = void, typename... Args>
+	inline T call(const uintptr_t address, Args ... args)
+	{
+		return reinterpret_cast<T(*)(Args ...)>(address)(args...);
 	}
 }

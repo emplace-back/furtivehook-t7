@@ -2582,10 +2582,10 @@ namespace game
 		uint32_t totalNumResults;
 		uint64_t transactionID;
 		bdLobbyErrorCode errorCode;
-		void *taskResultProcessor;
+		void* taskResultProcessor;
 		uint8_t serviceId;
 		uint8_t taskId;
-	};
+	}; 
 	
 	struct TaskRecord;
 	using task_callback = void(*)(TaskRecord*);
@@ -2763,35 +2763,35 @@ namespace game
 		gameState_t gameState;
 	};
 
-	struct MatchMakingQuery
-	{
-		char pad[0xBC];
-	};
-
-	struct SessionSearchThrottleData
-	{
-		int returnTimeMs;
-	};
-
-	struct SessionSearchPayloadData
-	{
-		bool(*abortCheckfunc)(void);
-		SessionSearchThrottleData* throttleData;
-	};
-
-	struct LobbySearch
-	{
-		SearchState state;
-		bdLobbyErrorCode errorCode;
-		int numResults;
-		char pad[0x4];
-		MatchMakingQuery info;
-		SessionSearchPayloadData results;
-		SessionSearchThrottleData throttle;
-	};
-
 	struct GfxRenderCommandExecState
 	{
 		void* cmd;
+	};
+
+	enum QueryId
+	{
+		SEARCH_SESSIONS_INVALID = 0x0,
+		SEARCH_SESSIONS_BY_PLAYLIST_VERSION = 0x1,
+		SEARCH_SESSIONS = 0x2,
+		SEARCH_SESSION_BY_GAME_SECURITY_ID = 0x3,
+		SEARCH_SESSION_DEDICATED = 0x4,
+		SEARCH_SESSIONS_DEDICATED_PARKED = 0x5,
+		SEARCH_SESSIONS_BY_SERVER_TYPE = 0x6,
+	};
+
+	struct MatchMakingQuery
+	{
+		char pad[0x10];
+		QueryId queryId;
+		uint64_t securityID;
+		int showInMatchmaking;
+		int netcodeVersion;
+		int mapPacks;
+		int playlistVersion;
+		int playlistNum;
+		int serverType;
+		int isEmpty;
+		int teamSize;
+		char pad2[0x78];
 	};
 }

@@ -275,7 +275,7 @@ namespace friends
 					continue;
 				
 				const auto response = f.response;
-				const auto xuid = std::to_string(f.steam_id);
+				const auto xuid = std::to_string(static_cast<int64_t>(f.steam_id));
 				const auto label = f.name + "##friend" + xuid;
 				
 				ImGui::AlignTextToFramePadding(); 
@@ -312,8 +312,7 @@ namespace friends
 
 					if (ImGui::MenuItem("Join session"))
 					{
-						const auto signed_xuid = static_cast<int64_t>(f.steam_id);
-						command::execute("join " + std::to_string(signed_xuid));
+						command::execute("join " + xuid);
 					}
 					
 					ImGui::EndPopup();
