@@ -65,7 +65,6 @@ namespace utils
 		static bool is_bad_code_ptr(const void* ptr);
 
 		static allocator* get_allocator();
-
 	private:
 		static allocator mem_allocator_;
 	};

@@ -80,7 +80,7 @@ namespace friends
 				return {};
 			}
 
-			const auto result = json::parse(data, nullptr, false);
+			const auto result = json::parse(data);
 			if (result.empty() || !result.is_object())
 			{
 				return {};
@@ -115,24 +115,26 @@ namespace friends
 			if (!fetch)
 				return;
 
+			std::vector<uint64_t> online_targets;
+			online_targets.reserve(targets.size());
+
 			for (const auto& id : targets)
-				events::instant_message::send_info_request(id, friends::NONCE);
+			{
+				if (const auto f = friends::get(id); f && f->is_online())
+				{
+					online_targets.emplace_back(id);
+				}
+			}
+
+			events::instant_message::send_info_request(online_targets, friends::NONCE);
 		}
 
 		void update_online_status()
 		{
-			std::vector<std::uint64_t> recipients{};
-			
-			for (auto& f : friends)
-			{
-				if (f.is_online() && std::time(nullptr) - f.last_online > 30)
-				{
-					f.response = {};
-					friends::write();
-				}
+			static std::vector<std::uint64_t> recipients{};
 
-				recipients.emplace_back(f.steam_id);
-			}
+			if (recipients.empty())
+				for (const auto& f : friends) recipients.emplace_back(f.steam_id);
 
 			if (recipients.empty())
 				return;
@@ -141,14 +143,14 @@ namespace friends
 				return;
 
 			constexpr auto num{ 16 };
-			
+
 			static size_t batch_index{ 0 };
 
 			if (batch_index * num < recipients.size())
 			{
 				const std::vector<uint64_t> batch
-				{ 
-					recipients.begin() + (batch_index * num), 
+				{
+					recipients.begin() + (batch_index * num),
 					recipients.begin() + std::min(recipients.size(), (batch_index * num) + num)
 				};
 
@@ -283,7 +285,7 @@ namespace friends
 				const auto selected = ImGui::Selectable(label);
 				
 				const auto popup = "friend_popup##" + xuid;
-
+				
 				if (selected)
 					ImGui::OpenPopup(popup.data());
 
@@ -313,6 +315,35 @@ namespace friends
 					if (ImGui::MenuItem("Join session"))
 					{
 						command::execute("join " + xuid);
+					}
+
+					ImGui::Separator();
+
+					const auto info_response{ response.info_response };
+					auto party_session{ info_response.lobby[0] }; 
+					
+					const auto is_ready{ f.is_online() && party_session.isValid };
+
+					game::netadr_t netadr{};
+					game::net::oob::register_remote_addr(party_session, &netadr);
+
+					if (ImGui::BeginMenu("Send OOB##" + xuid, is_ready))
+					{
+						static auto oob_input = ""s;
+
+						ImGui::InputTextWithHint("##" + xuid, "OOB", &oob_input);
+
+						if (ImGui::MenuItem("Send OOB", nullptr, nullptr, !oob_input.empty()))
+						{
+							const auto status = game::call<int>(game::base_address + 0x143BAB0, &netadr);
+							
+							if (status == 2)
+							{
+								game::net::netchan::send_oob(f.steam_id, netadr, oob_input);
+							}
+						}
+
+						ImGui::EndMenu();
 					}
 					
 					ImGui::EndPopup();

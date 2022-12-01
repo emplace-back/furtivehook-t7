@@ -48,14 +48,16 @@ namespace security
 	{
 		if (*argc == 1)
 		{
-			PRINT_LOG("Lua_CmdParseArgs called with the VM '%s' for function %s.\nText: %s\nArgs: %s", *argv, function, *textIn, command::args{}.join(0).data());
+			PRINT_LOG("Lua_CmdParseArgs called with the VM '%s' for function %s.\nText: %s\nArgs: %s", *argv, function, *textIn, command::args{ argsPriv }.join(0).data());
 		}
 		else
 		{
-			PRINT_LOG("Lua_CmdParseArgs called without a VM specified for function %s.\nText: %s\nArgs: %s", function, *textIn, command::args{}.join(0).data());
+			PRINT_LOG("Lua_CmdParseArgs called without a VM specified for function %s.\nText: %s\nArgs: %s", function, *textIn, command::args{ argsPriv }.join(0).data());
 		}
 
-		//return lua_cmd_parse_args_hook.call<void>(function, textIn, argsPriv, argc, argv);
+#if 0
+		return lua_cmd_parse_args_hook.call<void>(function, textIn, argsPriv, argc, argv);
+#endif
 	}
 
 	const char* __fastcall cl_rank_get_paragon_icon_name(game::eModes mode, const int iconId)

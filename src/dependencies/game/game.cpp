@@ -4,29 +4,79 @@ namespace game
 {
 	std::array<scr_string_t, static_cast<std::uint32_t>(bone_tag::num_tags)> bone_tags; 
 
-	namespace oob
+	namespace net
 	{
-		bool send(const netadr_t& target, const std::string& data)
+		namespace netchan
 		{
-			return NET_OutOfBandData(NS_SERVER, target, data.data(), data.size());
-		}
-
-		bool register_remote_addr(const XSESSION_INFO* info, netadr_t* addr)
-		{
-			dwRegisterSecIDAndKey(&info->sessionID, &info->keyExchangeKey);
+			bool writing{ false };
 			
-			if (!dwCommonAddrToNetadr(addr, &info->hostAddress, &info->sessionID))
+			bool send(const NetChanMsgType type, const NetchanMsgMode mode, const uint64_t xuid, const netadr_t& netadr, const std::string& data)
 			{
-				return false;
+				return game::call<bool>(base_address + 0x2175A60, 0, type, mode, data.data(), data.size(), xuid, netadr, nullptr);
 			}
-			
-			return true;
-		}
 
-		bool register_remote_addr(const InfoResponseLobby& lobby, netadr_t* addr)
+			bool send_oob(const uint64_t xuid, const netadr_t& netadr, const std::string& data)
+			{
+				const auto final_data{ "\xff\xff\xff\xff" + data };
+				return netchan::send(NETCHAN_CLIENTMSG, NETCHAN_UNRELIABLE, xuid, netadr, final_data);
+			}
+
+			bool write(const game::clientConnection_t* clc, const std::string& data, const uint64_t xuid, const netadr_t& netadr)
+			{
+				netchan::writing = true;
+				
+				char buffer[0x800] = { 0 };
+				msg_t msg{};
+
+				msg.init(buffer, sizeof buffer);
+				msg.write<uint8_t>(game::cl()->serverId);
+				msg.write<int>(clc->serverMessageSequence);
+				msg.write<int>(clc->serverCommandSequence);
+
+				msg.write_bits(2, 3);
+				msg.write<int>(clc->reliableCommands.acknowledge + 1);
+				msg.write_data(data);
+
+				msg.write_bits(3, 3);
+				
+				char compressed_buffer[0x800]{};
+				std::memcpy(compressed_buffer, msg.data, 8);
+
+				const auto compressed_size = game::call<size_t>(game::base_address + 0x215F6C0, false, &msg.data[9], msg.cursize - 9, &compressed_buffer[9], msg.maxsize - 9) + 9;
+
+				return netchan::send(NETCHAN_CLIENTMSG, NETCHAN_UNRELIABLE, xuid, netadr, { compressed_buffer, compressed_size });
+			}
+
+			bool write(const std::string& data, const uint64_t xuid, const netadr_t& netadr)
+			{
+				return netchan::write(game::clc(), data, xuid, netadr);
+			}
+		}
+		
+		namespace oob
 		{
-			const auto session_info{ get_session_info(lobby) };
-			return register_remote_addr(&session_info, addr);
+			bool send(const netadr_t& target, const std::string& data)
+			{
+				return NET_OutOfBandData(NS_SERVER, target, data.data(), data.size());
+			}
+
+			bool register_remote_addr(const XSESSION_INFO* info, netadr_t* addr)
+			{
+				dwRegisterSecIDAndKey(&info->sessionID, &info->keyExchangeKey);
+
+				if (!dwCommonAddrToNetadr(addr, &info->hostAddress, &info->sessionID))
+				{
+					return false;
+				}
+
+				return true;
+			}
+
+			bool register_remote_addr(const InfoResponseLobby& lobby, netadr_t* addr)
+			{
+				const auto session_info{ get_session_info(lobby) };
+				return register_remote_addr(&session_info, addr);
+			}
 		}
 	}
 	
@@ -66,7 +116,6 @@ namespace game
 		security::initialize(); 
 		session::initialize();
 		steam::initialize();
-		command::initialize();
 		rendering::initialize();
 		events::initialize();
 
@@ -145,7 +194,7 @@ namespace game
 
 	bool CG_WorldPosToScreenPos(const Vec3* pos, Vec2* out)
 	{
-		const static auto CG_WorldPosToScreenPos = reinterpret_cast<bool(*)(LocalClientNum_t, const Vec3* worldPos, Vec2* outScreenPos)>(base_address + 0x573140); 
+		const static auto CG_WorldPosToScreenPos = reinterpret_cast<bool(*)(LocalClientNum_t, const Vec3 * worldPos, Vec2 * outScreenPos)>(base_address + 0x573140);
 		return spoof_call::call(CG_WorldPosToScreenPos, 0u, pos, out);
 	}
 
@@ -294,15 +343,6 @@ namespace game
 		return send_instant_message(recipients, type, msg.data, msg.cursize);
 	}
 
-	bool send_netchan_message(const game::LobbySession* session, const netadr_t& netadr, const std::uint64_t xuid, const std::string& data)
-	{
-		if (session == nullptr)
-			return false;
-		
-		const auto channel = LobbyNetChan_GetLobbyChannel(session->type, LOBBY_CHANNEL_UNRELIABLE);
-		return Netchan_SendMessage(0, channel, NETCHAN_UNRELIABLE, data.data(), data.size(), xuid, netadr, nullptr);
-	}
-
 	const char* LobbyTypes_GetMsgTypeName(const MsgType type)
 	{
 		if (type < MESSAGE_TYPE_INFO_REQUEST || type > MESSAGE_TYPE_DEMO_STATE)
@@ -332,15 +372,6 @@ namespace game
 	bool is_valid_lobby_type(const int lobby_type)
 	{
 		return lobby_type >= LOBBY_TYPE_PRIVATE && lobby_type < LOBBY_TYPE_TRANSITION;
-	}
-	
-	void enum_assets(const XAssetType type, const std::function<void(XAssetHeader)>& callback, const bool includeOverride)
-	{
-		DB_EnumXAssets(type, static_cast<void(*)(XAssetHeader, void*)>([](XAssetHeader header, void* data)
-		{
-			const auto& cb = *static_cast<const std::function<void(XAssetHeader)>*>(data);
-			cb(header);
-		}), &callback, includeOverride);
 	}
 
 	bool LobbyMsgRW_PackageElement(msg_t* msg, bool add_element)
@@ -399,11 +430,6 @@ namespace game
 		}
 		
 		return netadr;
-	}
-
-	int I_stricmp(const std::string& a, const std::string& b)
-	{
-		return _strnicmp(a.data(), b.data(), std::numeric_limits<int>::max());
 	}
 
 	char* I_strncpyz(char* place, const std::string& string, const size_t length)

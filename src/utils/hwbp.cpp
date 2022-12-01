@@ -39,7 +39,6 @@ namespace utils::hwbp
 			{
 				return this->context_;
 			}
-
 		private:
 			utils::thread::handle handle_;
 			CONTEXT context_{};

@@ -6,20 +6,23 @@ namespace command
 	{
 	public:
 		args() : cmd_args(game::Sys_GetTLS()->cmdArgs) {}
-		
-		const char* get(const int index) const noexcept;
-		int size() const noexcept;
-		std::string join(const int index = 0) const noexcept;
 
-		const char* operator[](const int index) const noexcept
+		args(const game::CmdArgs* a) : cmd_args(a)
+		{
+		}
+
+		const char* get(const int index) const;
+		int size() const;
+		std::string join(const int index = 0) const;
+
+		const char* operator[](const int index) const
 		{
 			return this->get(index);
 		}
 	private:
-		game::CmdArgs* cmd_args{};
+		const game::CmdArgs* cmd_args{};
 	};
 	
 	using callback = std::function<void(const args&)>;
 	void execute(std::string command, const bool sync = false);
-	void initialize();
 }

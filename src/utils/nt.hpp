@@ -66,7 +66,6 @@ namespace utils::nt
 		PIMAGE_OPTIONAL_HEADER get_optional_header() const;
 
 		uintptr_t** get_iat_entry(const std::string& module_name, const std::string& proc_name) const;
-
 	private:
 		HMODULE module_;
 	};

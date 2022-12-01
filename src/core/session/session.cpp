@@ -43,9 +43,9 @@ namespace session
 
 		void fetch_sessions()
 		{
-			game::TaskDefinition const* task_def{ &task_lobby_search };
+			const game::TaskDefinition* task_definition{ &task_lobby_search };
 			
-			if (game::TaskManager2_TaskGetInProgress(task_def))
+			if (game::TaskManager2_TaskGetInProgress(task_definition))
 				return;
 
 			query_info.queryId = game::SEARCH_SESSIONS_BY_SERVER_TYPE;
@@ -64,7 +64,7 @@ namespace session
 					&query_info,
 					search_results.data());
 
-				game::TaskManager2_SetupRemoteTask(task_def, remote_task, 10000);
+				game::TaskManager2_SetupRemoteTask(task_definition, remote_task, 10000);
 			}
 		}
 	}

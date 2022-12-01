@@ -18,7 +18,7 @@ namespace friends
 
 		bool is_online() const noexcept
 		{
-			return response.presence.version || response.info_response.nonce;
+			return response.presence.version;
 		}
 
 		bool operator<(const friend_info& other) const

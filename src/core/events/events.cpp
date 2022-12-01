@@ -82,6 +82,16 @@ namespace events
 
 		return no_update;
 	}
+
+	bool __fastcall cl_ready_to_send_packet(LocalClientNum_t localClientNum)
+	{
+		if (game::net::netchan::writing)
+		{
+			return game::net::netchan::writing = false;
+		}
+
+		return reinterpret_cast<decltype(&cl_ready_to_send_packet)>(game::base_address + 0x12FEF80)(localClientNum);
+	}
 	
 	void initialize()
 	{
@@ -114,6 +124,7 @@ namespace events
 			
 		utils::hook::call(game::base_address + 0x10BA99D, cg_predict_playerstate_stub);
 		utils::hook::call(game::base_address + 0x1E93708, live_presence_update_stub);
+		utils::hook::call(game::base_address + 0x12FF0A8, cl_ready_to_send_packet);
 		
 		connectionless_packet::initialize();
 		instant_message::initialize();

@@ -1,5 +1,6 @@
 #pragma once
 #include "dependencies/std_include.hpp"
+#include "game.hpp"
 
 #define DOT_PRODUCT(a,b) ((a)[0]*(b)[0]+(a)[1]*(b)[1]+(a)[2]*(b)[2])
 #define ANGLE2SHORT(a) ((int)((a)*(65536/360.0f))&65535)
@@ -893,6 +894,38 @@ namespace game
 				cursize = final_size;
 			}
 		}
+
+		void write_bits(int value, int bits)
+		{
+			if (static_cast<uint32_t>(bits) > 0x20)
+				return;
+
+			if (maxsize - cursize < 4)
+			{
+				overflowed = 1;
+			}
+			else
+			{
+				while (bits)
+				{
+					--bits;
+
+					const auto b = bit & 7;
+
+					if (!b)
+					{
+						bit = sizeof(uint64_t) * cursize;
+						data[++cursize] = 0;
+					}
+
+					if ((value & 1) != 0)
+						data[bit >> 3] |= 1 << b;
+
+					++bit;
+					value >>= 1;
+				}
+			}
+		}
 		
 		template<typename T> void write(T value)
 		{
@@ -911,7 +944,7 @@ namespace game
 
 		template<typename T> T read()
 		{
-			auto result = static_cast<T>(0); 
+			auto result = static_cast<T>(-1); 
 			
 			if (readcount >= splitSize + cursize)
 			{
@@ -1301,19 +1334,33 @@ namespace game
 		}
 	};
 
+	struct outPacket_t
+	{
+		int p_cmdNumber;
+		int p_serverTime;
+		int p_realtime;
+	}; 
+	
 	struct clientActive_t
 	{
-		char pad[0xB674];
+		char pad[0x60];
+		outPacket_t* outPackets;
+		char pad2[0xB60C];
 		int serverId;
-		char pad2[0x160];
+		char pad3[0x160];
 		Vec3 cgameKickAngles;
-		char pad3[0xE4];
+		char pad4[0xE4];
 		Vec3 viewangles;
-		char pad4[0x10001C];
+		char pad5[0x10001C];
 		usercmd_s cmds[128];
 		int cmdNumber;
-		char pad5[0x8993C];
+		char pad6[0x8993C];
 
+		int packet_backup_mask() const
+		{
+			return *reinterpret_cast<int*>(reinterpret_cast<uintptr_t>(this) + 0x95C4);
+		}
+		
 		usercmd_s* user_cmd(const int i)
 		{
 			return &cmds[i & 0x7F];
@@ -1780,7 +1827,7 @@ namespace game
 	struct Msg_ModifiedStats
 	{
 		int statsSize;
-		byte statsBuffer[65536];
+		char statsBuffer[65536];
 	};
 
 	struct Msg_VoicePacket
@@ -2793,5 +2840,56 @@ namespace game
 		int isEmpty;
 		int teamSize;
 		char pad2[0x78];
+	};
+
+	struct NetChanMessage_s
+	{
+		bool numFragments;
+		bool complete;
+		uint32_t messageLen;
+		uint32_t sequence;
+		uint64_t destXUID;
+		uint64_t sourceXUID;
+		uint16_t sendCount;
+		netadr_t destAddress;
+		void* msgConfig;
+		NetChanMessage_s* next;
+		void* fragments;
+		uint32_t acked[4];
+		int lastAckMS;
+		int lastTouchedMS;
+		int lastKeepAliveMs;
+		int timeoutMS;
+		bool dropped;
+		uint16_t nonce;
+		int rttMS;
+		int nextSendMS;
+		char msgName[64];
+	};
+
+	struct ReliableCommands
+	{
+		int sequence;
+		int acknowledge;
+		char* commands[128];
+		int commandBufferNext;
+		char commandBuffer[16384];
+	};
+
+	struct clientConnection_t
+	{
+		int qport;
+		ClientNum_t clientNum;
+		int lastPacketSentTime;
+		int lastPacketTime;
+		netadr_t serverAddress;
+		int connectTime;
+		int connectPacketCount;
+		char serverMessage[256];
+		int challenge;
+		int checksumFeed;
+		ReliableCommands reliableCommands;
+		int serverMessageSequence;
+		int serverCommandSequence;
 	};
 }

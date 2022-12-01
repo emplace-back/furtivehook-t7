@@ -3,6 +3,7 @@
 
 namespace events::connectionless_packet
 {
+	utils::hook::detour sv_connectionless_packet_hook; 
 	bool log_commands = true;
 
 	namespace
@@ -40,17 +41,27 @@ namespace events::connectionless_packet
 		return handler->second(args, from);
 	}
 
-	bool __fastcall cl_dispatch_connectionless_packet_stub(LocalClientNum_t localClientNum, game::netadr_t from, game::msg_t* msg)
+	bool __fastcall cl_dispatch_connectionless_packet(LocalClientNum_t localClientNum, game::netadr_t from, game::msg_t* msg)
 	{
 		if (events::connectionless_packet::handle_command(from))
 			return false;
 
-		return reinterpret_cast<decltype(&cl_dispatch_connectionless_packet_stub)>(game::base_address + 0x134BD50)(localClientNum, from, msg);
+		return reinterpret_cast<decltype(&cl_dispatch_connectionless_packet)>(game::base_address + 0x134BD50)(localClientNum, from, msg);
+	}
+
+	bool __fastcall sv_connectionless_packet(game::netadr_t from, game::msg_t* msg)
+	{
+		if (events::connectionless_packet::handle_command(from))
+			return false;
+
+		return sv_connectionless_packet_hook.call<bool>(from, msg);
 	}
 
 	void initialize()
 	{
-		utils::hook::call(game::base_address + 0x134B838, cl_dispatch_connectionless_packet_stub); 
+		sv_connectionless_packet_hook.create(game::base_address + 0x2253860, sv_connectionless_packet);
+
+		utils::hook::call(game::base_address + 0x134B838, cl_dispatch_connectionless_packet);
 		
 		const auto crash_attempt_oob = [](const command::args&, const game::netadr_t& from)
 		{

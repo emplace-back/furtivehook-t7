@@ -73,7 +73,7 @@ namespace events::instant_message
 		return handle_message(sender_id, type, msg);
 	}
 
-	bool send_info_request(const std::uint64_t id, uint32_t nonce)
+	bool send_info_request(const std::vector<std::uint64_t>& recipients, uint32_t nonce)
 	{
 		if (game::Live_IsUserSignedInToDemonware(0))
 		{
@@ -82,15 +82,8 @@ namespace events::instant_message
 
 			msg.init_lobby(buffer, game::MESSAGE_TYPE_INFO_REQUEST);
 			game::LobbyMsgRW_PackageUInt(&msg, "nonce", &nonce);
-			
-			const auto result = game::Steam_SendP2PPacket(id, 'h', msg.data, msg.cursize);
 
-			if (!result)
-			{
-				return game::send_instant_message({ id }, 'h', msg.data, msg.cursize);
-			}
-
-			return result;
+			return game::send_instant_message(recipients, 'h', msg);
 		}
 
 		return false;

@@ -59,6 +59,17 @@ namespace exception
 		}
 	}
 
+	void write_mini_dump(void*, const LPEXCEPTION_POINTERS ex)
+	{
+		const auto addr = reinterpret_cast<uintptr_t>(ex->ExceptionRecord->ExceptionAddress);
+		const auto offset = addr - game::base_address;
+		
+		DEBUG_LOG("Games exception handler called."
+			"\nAt offset 0x%llX (0x%llX)",
+			offset,
+			addr);
+	}
+
 	void initialize()
 	{
 		SetUnhandledExceptionFilter(exception_filter);
@@ -68,5 +79,7 @@ namespace exception
 		
 		set_filter(exception_filter);
 		utils::hook::jump(set_filter, set_unhandled_exception_filter_stub);
+
+		utils::hook::jump(game::base_address + 0x2331560, write_mini_dump);
 	}
 }
