@@ -3,8 +3,6 @@
 
 namespace events::connectionless_packet
 {
-	bool __fastcall handle_command(const game::netadr_t & from);
 	void initialize();
-
 	extern bool log_commands;
 }

@@ -19,34 +19,33 @@ namespace events::server_command
 		{
 			get_callbacks()[command] = callback;
 		}
-	}
 
-	bool __fastcall handle_command(const char* buffer)
-	{
-		game::Cmd_TokenizeStringNoEval(buffer);
-		
-		const command::args args{}; 
-
-		if (log_commands)
+		bool __fastcall handle_command(const char* buffer)
 		{
-			PRINT_LOG("Received SV Command: %s", args.join().data());
+			auto args = command::args::get_client();
+			args.tokenize(buffer);
+
+			if (log_commands)
+			{
+				PRINT_LOG("Received SV Command: %s", args.join().data());
+			}
+
+			const auto& handlers = get_callbacks();
+			const auto handler = handlers.find(args[0][0]);
+
+			if (handler == handlers.end())
+				return false;
+
+			const auto handled = handler->second(args);
+
+			if (handled)
+			{
+				args.end_tokenize();
+				args.tokenize("");
+			}
+
+			return handled;
 		}
-
-		const auto& handlers = get_callbacks();
-		const auto handler = handlers.find(args[0][0]);
-
-		if (handler == handlers.end())
-			return false;
-
-		const auto handled = handler->second(args);
-		
-		if (handled)
-		{
-			game::Cmd_EndTokenizedString();
-			game::Cmd_TokenizeStringNoEval("");
-		}
-
-		return handled;
 	}
 
 	void initialize()

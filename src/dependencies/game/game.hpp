@@ -43,12 +43,18 @@ namespace game
 	{
 		namespace netchan
 		{
-			bool send(const NetChanMsgType type, const NetchanMsgMode mode, const uint64_t xuid, const netadr_t& netadr, const std::string& data);
-			bool send_oob(const uint64_t xuid, const netadr_t& netadr, const std::string& data);
-			bool write(const game::clientConnection_t* clc, const std::string& data, const uint64_t xuid, const netadr_t& netadr);
-			bool write(const std::string& data, const uint64_t xuid, const netadr_t& netadr);
+			struct write_packet
+			{
+				uint8_t server_id;
+				int message_sequence;
+				int command_sequence;
+				int acknowledge;
+			}; 
 			
-			extern bool writing;
+			bool send(const NetChanMsgType type, const std::string& data, const netadr_t& netadr, const uint64_t target_xuid, const uint64_t sender_xuid = 0);
+			bool send_oob(const uint64_t xuid, const netadr_t& netadr, const std::string& data, const bool fill = false);
+			bool write(const write_packet& packet, const std::string& data, const netadr_t& netadr, const uint64_t target_xuid, const uint64_t sender_xuid = 0);
+			bool write(const std::string& data);
 		}
 		
 		namespace oob
@@ -57,8 +63,11 @@ namespace game
 			bool register_remote_addr(const XSESSION_INFO* info, netadr_t* addr);
 			bool register_remote_addr(const InfoResponseLobby& lobby, netadr_t* addr);
 		}
+		
+		bool send(const netadr_t& netadr, const std::string& data);
 	}
 	
+	size_t get_base(); 
 	void initialize();
 	bool in_game();
 	int find_target_from_addr(const LobbySession* session, const netadr_t& from);
@@ -92,17 +101,12 @@ namespace game
 
 	const static auto base_address = reinterpret_cast<std::uintptr_t>(GetModuleHandleA(nullptr)) + 0x1000;
 
-	const static auto Cmd_EndTokenizedString = reinterpret_cast<void(*)()>(base_address + 0x20EC770);
-	const static auto Cmd_TokenizeStringNoEval = reinterpret_cast<void(*)(const char*)>(base_address + 0x20EE870);
 	const static auto LobbyJoinSource_IMInfoResponse = reinterpret_cast<bool(*)(const ControllerIndex_t, const uint64_t, msg_t*)>(base_address + 0x1EE4E00);
 	const static auto LobbyJoinSource_IMInfoRequest = reinterpret_cast<bool(*)(const ControllerIndex_t, const uint64_t, uint32_t)>(base_address + 0x1EE1620);
 	const static auto LobbyMsgRW_IsEndOfArray = reinterpret_cast<bool(*)(msg_t*)>(base_address + 0x1EF5520);
 	const static auto CG_SimulateBulletFire_EndPos = reinterpret_cast<void(*)(int*, float, float, const Vec3*, Vec3*, Vec3*, float, float, const Vec3*, const Vec3*, const Vec3*, float, Weapon, int, int)>(base_address + 0x123CB50);
 	const static auto Cmd_AddCommandInternal = reinterpret_cast<void(*)(const char *, void(__cdecl *function)(), cmd_function_s *)>(base_address + 0x20EC530);
 	const static auto DB_GetXAssetName = reinterpret_cast<const char*(*)(const XAsset*)>(base_address + 0x13E8DA0);
-	const static auto MSG_LobbyStateGame = reinterpret_cast<bool(__fastcall *)(void*, msg_t*)>(base_address + 0x1ED4810);
-	const static auto MSG_JoinAgreementRequest = reinterpret_cast<bool(__fastcall *)(void*, msg_t*)>(base_address + 0x1EE0F90);
-	const static auto MSG_JoinParty = reinterpret_cast<bool(__fastcall *)(void*, msg_t*)>(base_address + 0x1EE1110);
 	const static auto BG_GetDepth = reinterpret_cast<float(*)(BulletHitInfo*, const BulletTraceResults*, const BulletFireParams*, const BulletTraceResults*)>(base_address + 0xA1CF0);
 	const static auto BG_GetMinDamageRangeScaled = reinterpret_cast<float(*)(Weapon)>(base_address + 0x26F0960);
 	const static auto BG_GetMultishotBaseMinDamageRangeScaled = reinterpret_cast<float(*)(Weapon)>(base_address + 0x26F0550);
@@ -153,12 +157,10 @@ namespace game
 	const static auto Cmd_ExecuteSingleCommand = reinterpret_cast<void(__fastcall*)(LocalClientNum_t, ControllerIndex_t, const char *, bool)>(base_address + 0x20ECC20);
 	const static auto Cbuf_AddText = reinterpret_cast<void(__fastcall*)(LocalClientNum_t, const char*)>(base_address + 0x20EB8B0);
 	const static auto dwInstantSendMessage = reinterpret_cast<bool(*)(ControllerIndex_t, const std::uint64_t*, unsigned int, char, const void *, unsigned int)>(base_address + 0x1439810);
-	const static auto NET_OutOfBandData = reinterpret_cast<bool(*)(netsrc_t, netadr_t, const char*, int)>(base_address + 0x2173060);
 	const static auto Live_IsUserSignedInToDemonware = reinterpret_cast<bool(*)(const ControllerIndex_t)>(base_address + 0x1E0C830);
 	const static auto CL_GetClientName = reinterpret_cast<bool(*)(LocalClientNum_t, int, char*, int, bool)>(base_address + 0x13E2140);
 	const static auto NET_CompareAdr = reinterpret_cast<bool(*)(const netadr_t, const netadr_t)>(base_address + 0x21722D0);
 	const static auto CL_GetLocalClientGlobals = *reinterpret_cast<clientActive_t*(*)(LocalClientNum_t)>(base_address + 0x70BD0);
-	const static auto LobbyNetChan_GetLobbyChannel = reinterpret_cast<NetChanMsgType(*)(LobbyType, LobbyChannel)>(base_address + 0x1EF7F70);
 	const static auto LivePresence_Serialize = reinterpret_cast<int(*)(bool, PresenceData *, const void *, size_t)>(base_address + 0x1E92D80);
 	const static auto task_livepresence_dw_get = reinterpret_cast<game::TaskDefinition*>(base_address + 0x3018A40);
 	const static auto TaskManager2_TaskGetInProgress = reinterpret_cast<bool(*)(const void*)>(base_address + 0x22B0780);
@@ -244,6 +246,35 @@ namespace game
 	template <typename T = void, typename... Args>
 	inline T call(const uintptr_t address, Args ... args)
 	{
-		return reinterpret_cast<T(*__fastcall)(Args ...)>(address)(args...);
+		return reinterpret_cast<T(*)(Args ...)>(address)(args...);
 	}
+
+	template <typename T = void, typename... Args>
+	inline T call(const void* address, const size_t index, Args ... args)
+	{
+		const auto table = *reinterpret_cast<uintptr_t**>(uintptr_t(address));
+		return game::call<T>(table[index], address, args...);
+	}
+
+	inline size_t relocate(const size_t val)
+	{
+		const auto base = get_base();
+		return base + (val - 0x140000000);
+	}
+
+	inline size_t derelocate(const size_t val)
+	{
+		const auto base = get_base();
+		return (val - base) + 0x140000000;
+	}
+
+	inline size_t derelocate(const void* val)
+	{
+		return derelocate(reinterpret_cast<size_t>(val));
+	}
+}
+
+inline size_t operator"" _g(const size_t val)
+{
+	return game::relocate(val);
 }

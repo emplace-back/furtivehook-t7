@@ -61,13 +61,9 @@ namespace exception
 
 	void write_mini_dump(void*, const LPEXCEPTION_POINTERS ex)
 	{
-		const auto addr = reinterpret_cast<uintptr_t>(ex->ExceptionRecord->ExceptionAddress);
-		const auto offset = addr - game::base_address;
-		
-		DEBUG_LOG("Games exception handler called."
-			"\nAt offset 0x%llX (0x%llX)",
-			offset,
-			addr);
+		DEBUG_LOG("Exception handler called."
+			"\n(0x%llX)",
+			reinterpret_cast<uintptr_t>(ex->ExceptionRecord->ExceptionAddress));
 	}
 
 	void initialize()

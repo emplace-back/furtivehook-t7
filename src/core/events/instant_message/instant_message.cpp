@@ -44,33 +44,33 @@ namespace events::instant_message
 
 			return handler->second(msg, sender_id);
 		}
-	}
 
-	bool __fastcall dw_instant_dispatch_message_stub(std::uint64_t sender_id, ControllerIndex_t controller_index, std::uint8_t* message, std::uint32_t message_size)
-	{
-		if (message_size >= 0x1000)
+		bool __fastcall dw_instant_dispatch_message_stub(std::uint64_t sender_id, ControllerIndex_t controller_index, std::uint8_t* message, std::uint32_t message_size)
 		{
-			PRINT_LOG("Received instant message of invalid size [%u] from %s", message_size, get_sender_string(sender_id).data());
-			return false;
+			if (message_size >= 0x1000)
+			{
+				PRINT_LOG("Received instant message of invalid size [%u] from %s", message_size, get_sender_string(sender_id).data());
+				return false;
+			}
+
+			game::msg_t msg{};
+			game::MSG_InitReadOnly(&msg, message, message_size);
+			game::MSG_BeginReading(&msg);
+
+			auto type{ 0ui8 };
+
+			if (msg.read<uint8_t>() == '1')
+			{
+				type = msg.read<uint8_t>();
+			}
+
+			if (log_messages)
+			{
+				PRINT_LOG("Received instant message '%c' of size [%u] from %s", type, message_size, get_sender_string(sender_id).data());
+			}
+
+			return handle_message(sender_id, type, msg);
 		}
-
-		game::msg_t msg{};
-		game::MSG_InitReadOnly(&msg, message, message_size);
-		game::MSG_BeginReading(&msg);
-
-		auto type{ 0ui8 };
-
-		if (msg.read<uint8_t>() == '1')
-		{
-			type = msg.read<uint8_t>();
-		}
-
-		if (log_messages)
-		{
-			PRINT_LOG("Received instant message '%c' of size [%u] from %s", type, message_size, get_sender_string(sender_id).data());
-		}
-
-		return handle_message(sender_id, type, msg);
 	}
 
 	bool send_info_request(const std::vector<std::uint64_t>& recipients, uint32_t nonce)

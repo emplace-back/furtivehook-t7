@@ -9,7 +9,7 @@ namespace command
 	{
 		void main_handler()
 		{
-			const args args{};
+			const auto args = command::args::get_client();
 			const auto command_lwr = utils::string::to_lower(args[0]);
 
 			if (callbacks.find(command_lwr) != callbacks.end())
@@ -31,6 +31,32 @@ namespace command
 				add_raw(name, main_handler);
 
 			callbacks[command_lwr] = callback;
+		}
+	}
+
+	void args::tokenize(const char* text, const bool eval_expressions)
+	{
+		if (auto& nesting{ ++cmd_args->nesting }; nesting < 8)
+		{
+			cmd_args->usedTextPool[nesting] = -cmd_args->totalUsedTextPool;
+			cmd_args->localClientNum[nesting] = -1;
+			cmd_args->controllerIndex[nesting] = 0;
+			cmd_args->argv[nesting] = &cmd_args->argvPool[cmd_args->totalUsedArgvPool];
+			cmd_args->argshift[nesting] = 0;
+			cmd_args->argc[nesting] = game::call<int>(game::base_address + 0x20EE300, text, 512 - cmd_args->totalUsedArgvPool, eval_expressions, cmd_args->argv[nesting], cmd_args);
+			cmd_args->totalUsedArgvPool += cmd_args->argc[nesting];
+			cmd_args->usedTextPool[nesting] += cmd_args->totalUsedTextPool;
+		}
+	}
+
+	void args::end_tokenize()
+	{
+		if (auto& nesting{ cmd_args->nesting }; nesting >= 0 && nesting < 8)
+		{
+			cmd_args->totalUsedArgvPool -= cmd_args->argc[nesting];
+			cmd_args->totalUsedArgvPool -= cmd_args->argshift[nesting];
+			cmd_args->totalUsedTextPool -= cmd_args->usedTextPool[nesting];
+			--nesting;
 		}
 	}
 	

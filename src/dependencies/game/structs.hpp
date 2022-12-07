@@ -2842,9 +2842,18 @@ namespace game
 		char pad2[0x78];
 	};
 
+	struct NetChanFragment_s
+	{
+		NetChanFragment_s* next;
+		int size;
+		uint8_t sequence;
+		char msgBuf[1256];
+		uint16_t sendCount;
+	};
+	
 	struct NetChanMessage_s
 	{
-		bool numFragments;
+		uint8_t numFragments;
 		bool complete;
 		uint32_t messageLen;
 		uint32_t sequence;
@@ -2854,7 +2863,7 @@ namespace game
 		netadr_t destAddress;
 		void* msgConfig;
 		NetChanMessage_s* next;
-		void* fragments;
+		NetChanFragment_s* fragments;
 		uint32_t acked[4];
 		int lastAckMS;
 		int lastTouchedMS;
@@ -2864,7 +2873,6 @@ namespace game
 		uint16_t nonce;
 		int rttMS;
 		int nextSendMS;
-		char msgName[64];
 	};
 
 	struct ReliableCommands
@@ -2891,5 +2899,34 @@ namespace game
 		ReliableCommands reliableCommands;
 		int serverMessageSequence;
 		int serverCommandSequence;
+		int lastExecutedServerCommand;
+		char serverCommands[128][1024];
+		bool isServerRestarting;
+		bool areTexturesLoaded;
+		bool waitForMovie;
+		bool hostCompromised;
+	};
+
+	enum bdDTLSAssociationStatus
+	{
+		BD_SOCKET_IDLE = 0x0,
+		BD_SOCKET_PENDING = 0x1,
+		BD_SOCKET_CONNECTED = 0x2,
+		BD_SOCKET_LOST = 0x3,
+	};
+
+	struct PacketQueueBlock
+	{
+		PacketQueueBlock* next;
+		int readOffset;
+		int writeOffset;
+		char data[16384];
+	};
+
+	struct NetChanMessageList_s
+	{
+		NetChanMessage_s* in[18];
+		NetChanMessage_s* out[18];
+		void* ackCache;
 	};
 }

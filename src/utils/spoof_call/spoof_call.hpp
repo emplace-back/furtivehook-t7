@@ -6,7 +6,7 @@ namespace spoof_call
 	extern "C" void* spoof_call_stub();
 	
 	template <typename T, typename... Args>
-	static inline auto invoke(const void* shell, Args... args) -> T
+	static inline auto call(const void* shell, Args... args) -> T
 	{
 		auto fn = reinterpret_cast<T(*)(Args...)>(shell);
 		return fn(args...);
@@ -17,10 +17,10 @@ namespace spoof_call
 	{
 		if (arg_count > 4)
 		{
-			return invoke<T, First, Second, Third, Fourth, void*, void*, Pack...>(function, first, second, third, fourth, shell_args, nullptr, pack...);
+			return game::call<T, First, Second, Third, Fourth, void*, void*, Pack...>(uintptr_t(function), first, second, third, fourth, shell_args, nullptr, pack...);
 		}
 		
-		return invoke<T, First, Second, Third, Fourth, void*, void*>(function, first, second, third, fourth, shell_args, nullptr);
+		return game::call<T, First, Second, Third, Fourth, void*, void*>(uintptr_t(function), first, second, third, fourth, shell_args, nullptr);
 	}
 
 	template <typename T, typename... Args>

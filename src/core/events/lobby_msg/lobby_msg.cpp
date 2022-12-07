@@ -3,7 +3,7 @@
 
 namespace events::lobby_msg
 {
-	utils::hook::detour lobby_msg_rw_package_int_hook; 
+	utils::hook::detour lobby_msg_rw_package_int_hook;
 	bool log_messages = true;
 
 	namespace
@@ -20,7 +20,7 @@ namespace events::lobby_msg
 
 			if (!game::LobbyMsgRW_PackageInt(&msg, "relaybits", &data.relayBits))
 				return true;
-			
+
 			if (!game::LobbyMsgRW_PackageUShort(&msg, "sizeofvoicedata", &data.sizeofVoiceData))
 				return true;
 
@@ -39,22 +39,6 @@ namespace events::lobby_msg
 			return false;
 		}
 
-		bool handle_join_agreement_request(const game::netadr_t& from, game::msg_t& msg, game::LobbyModule module)
-		{
-			game::Msg_JoinAgreementRequest request{};
-
-			if (!game::MSG_JoinAgreementRequest(&request, &msg))
-				return true;
-
-			if (!game::is_valid_lobby_type(request.sourceLobbyType))
-			{
-				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::get_sender_string(from).data());
-				return true;
-			}
-
-			return false;
-		}
-		
 		bool handle_host_disconnect_client(const game::netadr_t& from, game::msg_t& msg, game::LobbyModule module)
 		{
 			PRINT_MESSAGE("LobbyMSG", "Disconnect prevented from %s", utils::get_sender_string(from).data());
@@ -79,8 +63,8 @@ namespace events::lobby_msg
 
 		bool handle_client_content(const game::netadr_t& from, game::msg_t& msg, game::LobbyModule module)
 		{
-			game::Msg_ClientContent data{}; 
-			
+			game::Msg_ClientContent data{};
+
 			if (!game::LobbyMsgRW_PackageUInt(&msg, "datamask", &data.dataMask))
 				return true;
 
@@ -162,13 +146,13 @@ namespace events::lobby_msg
 				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::get_sender_string(from).data());
 				return true;
 			}
-			
+
 			return false;
 		}
 
 		using callback = std::function<bool(const game::netadr_t&, game::msg_t&, game::LobbyModule module)>;
 		using pair = std::pair<game::LobbyModule, game::MsgType>;
-		
+
 		auto& get_callbacks()
 		{
 			static std::unordered_map<pair, callback> callbacks{};
@@ -198,7 +182,7 @@ namespace events::lobby_msg
 
 				if (result)
 				{
-					PRINT_LOG("Crash attempt caught '%s' with key '%s' of value [%i]", game::LobbyTypes_GetMsgTypeName(msg->type), key, *value);
+					PRINT_LOG("Crash attempt caught <%s> with key '%s' of value [%i]", game::LobbyTypes_GetMsgTypeName(msg->type), key, *value);
 					msg->overflowed = 1;
 					return false;
 				}
@@ -249,44 +233,36 @@ namespace events::lobby_msg
 		}
 	}
 
-	bool send_lobby_msg(const game::NetChanMsgType channel, const game::LobbyModule module, const game::msg_t& msg, const game::netadr_t& netadr, const std::uint64_t xuid)
+	void send_lobby_msg(const game::NetChanMsgType channel, const game::LobbyModule module, const game::msg_t& msg, const game::netadr_t& netadr, const std::uint64_t xuid)
 	{
 		auto data{ lobby_msg::build_lobby_msg(module) };
 		data.append(reinterpret_cast<const char*>(msg.data), msg.cursize);
 
 		constexpr auto interval = 75;
-		const auto time = game::call<uint64_t>(game::base_address + 0x2332430);
-		static uint32_t last_time{ 0 };
+		const auto now = game::call<int>(game::base_address + 0x2332430);
+		static uint32_t last_call{ 0 };
 		static uint32_t count{ 0 };
 
-		count = last_time + interval >= time ? count + 1 : 0;
+		count = last_call + interval >= now ? count + 1 : 0;
 
 		const auto send_lobby_msg = [=]()
 		{
-			game::net::netchan::send(channel, game::NETCHAN_UNRELIABLE, xuid, netadr, data);
+			game::net::netchan::send(channel, data, netadr, xuid, 11111111111);
 		};
 
 		scheduler::once(send_lobby_msg, scheduler::pipeline::renderer, interval * 1ms * count);
-
-		last_time = time;
-		return true;
+		last_call = now;
 	}
 
-	bool send_lobby_msg(const game::LobbyModule module, const game::msg_t& msg, const game::netadr_t& netadr, const std::uint64_t xuid)
+	void send_lobby_msg(const game::LobbyModule module, const game::msg_t& msg, const game::netadr_t& netadr, const std::uint64_t xuid)
 	{
 		const auto session = game::session_data();
 
 		if (session == nullptr)
-			return false;
+			return;
 
 		const auto channel = game::call<game::NetChanMsgType>(game::base_address + 0x1EF7F70, session->type, game::LOBBY_CHANNEL_UNRELIABLE);
 		return send_lobby_msg(channel, module, msg, netadr, xuid);
-	}
-
-	void netchan_send_message(game::NetChanMessage_s* msg, game::NetChanMsgType type, const uint64_t source_xuid)
-	{
-		if (type == game::NETCHAN_CLIENTMSG && source_xuid == 0xDEADFA11)
-			msg->sourceXUID = source_xuid;
 	}
 	
 	void initialize()
@@ -303,25 +279,8 @@ namespace events::lobby_msg
 
 			a.jmp(game::base_address + 0x1EF709B);
 		}); 
-
-		const auto netchan_send_message_stub = utils::hook::assemble([](utils::hook::assembler& a)
-		{
-			a.mov(rdx, dword_ptr(rsp, 0xA8)); 
-		
-			a.pushad64();
-			a.mov(r8, rsi);
-			a.mov(rcx, rbx);
-			a.call_aligned(netchan_send_message);
-			a.popad64();
-
-			a.mov(edx, dword_ptr(rsp, 0xD0));
-			a.jmp(game::base_address + 0x2175E31);
-		});
 		
 		lobby_msg_rw_package_int_hook.create(game::base_address + 0x1EF5720, lobby_msg_rw_package_int);
-		
-		utils::hook::jump(game::base_address + 0x2175E2A, netchan_send_message_stub);
-		utils::hook::nop(game::base_address + 0x2175E2A + 5, 2); 
 		
 		utils::hook::jump(game::base_address + 0x1EF7094, handle_packet_internal_stub);
 		utils::hook::nop(game::base_address + 0x1EF7094 + 5, 2); 
@@ -334,7 +293,6 @@ namespace events::lobby_msg
 		lobby_msg::on_message(game::LOBBY_MODULE_HOST, game::MESSAGE_TYPE_VOICE_PACKET, lobby_msg::handle_voice_packet);
 
 		lobby_msg::on_message(game::LOBBY_MODULE_CLIENT, game::MESSAGE_TYPE_LOBBY_HOST_DISCONNECT_CLIENT, lobby_msg::handle_host_disconnect_client);
-		lobby_msg::on_message(game::LOBBY_MODULE_CLIENT, game::MESSAGE_TYPE_JOIN_AGREEMENT_REQUEST, lobby_msg::handle_join_agreement_request);
 		lobby_msg::on_message(game::LOBBY_MODULE_CLIENT, game::MESSAGE_TYPE_LOBBY_CLIENT_CONTENT, lobby_msg::handle_client_content);
 
 		lobby_msg::on_message(game::LOBBY_MODULE_PEER_TO_PEER, game::MESSAGE_TYPE_VOICE_PACKET, lobby_msg::handle_voice_packet);

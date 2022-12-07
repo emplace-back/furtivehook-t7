@@ -3,11 +3,13 @@
 
 namespace security
 {
-	utils::hook::detour lua_cmd_parse_args_hook;
-	utils::hook::detour cl_rank_get_paragon_icon_name_hook;
 	utils::hook::detour rb_draw_text_2d_cmd_hook;
 	utils::hook::detour r_read_char_from_string_hook;
-	utils::hook::detour ui_cod_read_char_from_string_hook;
+	utils::hook::detour ui_cod_read_char_from_string_hook; 
+	utils::hook::detour lua_cmd_parse_args_hook;
+	utils::hook::detour cl_rank_get_paragon_icon_name_hook;
+	utils::hook::detour net_enqueue_packet_hook;
+	utils::hook::detour cl_server_id_changed_hook;
 	
 	BOOL __stdcall is_processor_feature_present(DWORD feature)
 	{
@@ -54,7 +56,6 @@ namespace security
 		{
 			PRINT_LOG("Lua_CmdParseArgs called without a VM specified for function %s.\nText: %s\nArgs: %s", function, *textIn, command::args{ argsPriv }.join(0).data());
 		}
-
 #if 0
 		return lua_cmd_parse_args_hook.call<void>(function, textIn, argsPriv, argc, argv);
 #endif
@@ -65,6 +66,18 @@ namespace security
 		return cl_rank_get_paragon_icon_name_hook.call<const char*>(mode, std::min(static_cast<uint32_t>(iconId), 63u));
 	}
 	
+	bool __fastcall net_enqueue_packet(void* queue, uint32_t flags, game::netsrc_t sock, const game::netadr_t* addr, int length, const void* data)
+	{
+		const auto write_length = static_cast<uint32_t>(length + 3) + 48;
+
+		if (sizeof(game::PacketQueueBlock::data) >= write_length)
+		{
+			return net_enqueue_packet_hook.call<bool>(queue, flags, sock, addr, length, data);
+		}
+
+		DEBUG_LOG("Exploit attempt caught! [%u] from %s", length, utils::get_sender_string(*addr).data());
+	}
+
 	void initialize()
 	{
 		const auto ui_model_get_model_from_path_stub = utils::hook::assemble([](utils::hook::assembler& a)
@@ -87,6 +100,7 @@ namespace security
 		ui_cod_read_char_from_string_hook.create(game::base_address + 0x1F2D6C0, ui_cod_read_char_from_string);
 		lua_cmd_parse_args_hook.create(game::base_address + 0x1F044E0, lua_cmd_parse_args);
 		cl_rank_get_paragon_icon_name_hook.create(game::base_address + 0x13C9D20, cl_rank_get_paragon_icon_name);
+		net_enqueue_packet_hook.create(game::base_address + 0x2177600, net_enqueue_packet);
 
 		utils::hook::jump(game::base_address + 0x2018F40, ui_model_get_model_from_path_stub);
 		utils::hook::jump(game::base_address + 0x20EE7B6, game::base_address + 0x20EE788); // Cmd_TokenizeStringInternal
