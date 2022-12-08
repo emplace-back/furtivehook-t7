@@ -47,7 +47,7 @@ namespace events::connectionless_packet
 			if (connectionless_packet::handle_command(from))
 				return false;
 
-			return reinterpret_cast<decltype(&cl_dispatch_connectionless_packet)>(game::base_address + 0x134BD50)(localClientNum, from, msg);
+			return game::call<bool>(game::base_address + 0x134BD50, localClientNum, from, msg);
 		}
 
 		bool __fastcall sv_connectionless_packet(game::netadr_t& from, const char* message)

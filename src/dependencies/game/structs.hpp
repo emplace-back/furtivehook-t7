@@ -2929,4 +2929,12 @@ namespace game
 		NetChanMessage_s* out[18];
 		void* ackCache;
 	};
+
+	struct bdCommonAddr
+	{
+		char pad[0xA8];
+		int m_natType;
+		uint32_t m_hash;
+		bool m_isLoopback;
+	};
 }

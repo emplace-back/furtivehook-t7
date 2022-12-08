@@ -3,7 +3,7 @@
 
 namespace events
 {
-	bool prevent_join = true, no_presence = true;
+	bool prevent_join = true, no_presence = true, spoof_ip = true;
 
 	namespace
 	{
@@ -85,6 +85,28 @@ namespace events
 			return no_update;
 		}
 	}
+
+	bool __fastcall send_member_info(ControllerIndex_t controllerIndex, game::NetChanMsgType channel, game::LobbyModule module, game::netadr_t netadr, uint64_t xuid, game::Msg_JoinMemberInfo* msgData)
+	{
+		if (events::spoof_ip && !game::LiveUser_IsXUIDLocalPlayer(xuid))
+		{
+			const auto xnaddr = reinterpret_cast<game::XNADDR*>(&msgData->serializedAdr.xnaddr);
+			xnaddr->inaddr = htonl(0x01010101);
+		}
+
+		return game::call<bool>(game::base_address + 0x1EE39C0, controllerIndex, channel, module, netadr, xuid, msgData);
+	}
+
+	void __fastcall serialize(game::bdCommonAddr* thisptr, char* buffer)
+	{
+		game::call(game::base_address + 0x2900560, thisptr, buffer);
+
+		if (events::spoof_ip && thisptr->m_isLoopback)
+		{
+			const auto xnaddr = reinterpret_cast<game::XNADDR*>(buffer);
+			xnaddr->inaddr = htonl(0x01010101);
+		}
+	}
 	
 	void initialize()
 	{
@@ -115,6 +137,8 @@ namespace events
 			a.jmp(game::base_address + 0x1E93490);
 		});
 			
+		utils::hook::call(game::base_address + 0x1EE401C, send_member_info);
+		utils::hook::call(game::base_address + 0x2969B87, serialize);
 		utils::hook::call(game::base_address + 0x10BA99D, cg_predict_playerstate_stub);
 		utils::hook::call(game::base_address + 0x1E93708, live_presence_update_stub);
 		

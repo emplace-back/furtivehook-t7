@@ -212,17 +212,6 @@ namespace game
 		}
 	}
 	
-	size_t get_base()
-	{
-		const utils::nt::library host{};
-		if (!host || host == utils::nt::library::get_by_address(get_base))
-		{
-			throw std::runtime_error("Invalid host application");
-		}
-		
-		return reinterpret_cast<size_t>(host.get_ptr() + host.get_optional_header()->BaseOfCode);
-	}
-	
 	void initialize()
 	{
 		bone_tags[static_cast<std::uint32_t>(bone_tag::helmet)] = GScr_AllocString("j_helmet");

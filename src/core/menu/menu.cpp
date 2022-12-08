@@ -464,6 +464,7 @@ namespace menu
 					ImGui::Checkbox("Log instant messages", &events::instant_message::log_messages);
 					ImGui::Checkbox("Log lobby messages", &events::lobby_msg::log_messages);
 					ImGui::Checkbox("Log server commands", &events::server_command::log_commands);
+					ImGui::Checkbox("Spoof IP address", &events::spoof_ip);
 					ImGui::Checkbox("Prevent join", &events::prevent_join);
 					ImGui::Checkbox("Don't update presence", &events::no_presence);
 

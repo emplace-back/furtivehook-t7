@@ -1,4 +1,5 @@
 #pragma once
+#include "dependencies/std_include.hpp"
 #include "utils/string.hpp"
 #include "utils/spoof_call/spoof_call.hpp"
 #include "structs.hpp"
@@ -67,7 +68,7 @@ namespace game
 		bool send(const netadr_t& netadr, const std::string& data);
 	}
 	
-	size_t get_base(); 
+	size_t get_base();
 	void initialize();
 	bool in_game();
 	int find_target_from_addr(const LobbySession* session, const netadr_t& from);
@@ -272,9 +273,4 @@ namespace game
 	{
 		return derelocate(reinterpret_cast<size_t>(val));
 	}
-}
-
-inline size_t operator"" _g(const size_t val)
-{
-	return game::relocate(val);
 }

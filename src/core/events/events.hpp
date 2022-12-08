@@ -4,6 +4,5 @@
 namespace events
 {
 	void initialize();
-
-	extern bool prevent_join, no_presence;
+	extern bool prevent_join, no_presence, spoof_ip;
 }
