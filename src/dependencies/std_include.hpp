@@ -45,6 +45,7 @@
 #include "../thirdparty/steam_api/isteamapps.hpp"
 #include "../thirdparty/steam_api/isteamfriends.hpp"
 #include "../thirdparty/steam_api/isteammatchmaking.hpp"
+#include "../thirdparty/steam_api/isteamnetworking.hpp"
 #include "../thirdparty/imgui/imgui.h"
 #include "../thirdparty/imgui/imgui_internal.h"
 #include "../thirdparty/imgui/imgui_impl_dx11.h"

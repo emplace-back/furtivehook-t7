@@ -3,6 +3,9 @@
 
 namespace events::connectionless_packet
 {
+	using callback = std::function<bool(const command::args&, const game::netadr_t&, game::msg_t& msg)>;
+	
+	void on_command(const std::string& command, const callback& callback);
 	void initialize();
 	extern bool log_commands;
 }

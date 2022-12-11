@@ -3,7 +3,7 @@
 
 namespace events::instant_message
 {
-	bool send_info_request(const std::vector<std::uint64_t>& recipients, uint32_t nonce);
+	bool send_info_request(const uint64_t xuid, uint32_t nonce);
 	void initialize();
 	
 	extern bool log_messages;

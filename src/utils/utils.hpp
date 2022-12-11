@@ -22,3 +22,26 @@ namespace utils
 		return static_cast<std::uint64_t>(std::atoll(str.data()));
 	}
 }
+
+namespace std
+{
+	template <>
+	struct equal_to<game::netadr_t>
+	{
+		using result_type = bool;
+
+		bool operator()(const game::netadr_t& lhs, const game::netadr_t& rhs) const
+		{
+			return game::NET_CompareAdr(lhs, rhs);
+		}
+	};
+
+	template <>
+	struct hash<game::netadr_t>
+	{
+		size_t operator()(const game::netadr_t& x) const
+		{
+			return hash<uint32_t>()(*reinterpret_cast<const uint32_t*>(&x.ip[0])) ^ hash<uint16_t>()(x.port);
+		}
+	};
+}

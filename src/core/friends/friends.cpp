@@ -120,13 +120,11 @@ namespace friends
 
 			for (const auto& id : targets)
 			{
-				if (const auto f = friends::get(id); f && f->is_online())
+				if (const auto f = friends::get(id))
 				{
-					online_targets.emplace_back(id);
+					events::instant_message::send_info_request(id, friends::NONCE);
 				}
 			}
-
-			events::instant_message::send_info_request(online_targets, friends::NONCE);
 		}
 
 		void update_online_status()
@@ -142,8 +140,15 @@ namespace friends
 			if (pending_task)
 				return;
 
-			constexpr auto num{ 16 };
+			constexpr auto interval{ 10s };
+			const auto now{ std::chrono::high_resolution_clock::now() };
+			static std::chrono::high_resolution_clock::time_point last_time{};
 
+			if (last_time + interval >= now)
+				return;
+
+			constexpr auto num{ 16 }; 
+			
 			static size_t batch_index{ 0 };
 
 			if (batch_index * num < recipients.size())
@@ -161,6 +166,7 @@ namespace friends
 			}
 			else
 			{
+				last_time = now; 
 				batch_index = 0;
 				recipients.clear();
 			}
@@ -276,7 +282,6 @@ namespace friends
 				if (!filter.PassFilter(f.name))
 					continue;
 				
-				const auto response = f.response;
 				const auto xuid = std::to_string(static_cast<int64_t>(f.steam_id));
 				const auto label = f.name + "##friend" + xuid;
 				
@@ -303,11 +308,74 @@ namespace friends
 						ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
 					}
 
+					if (ImGui::MenuItem("Remove"))
+					{
+						remove(f.steam_id);
+					}
+					
+					if (ImGui::BeginMenu("Rename##" + xuid))
+					{
+						auto& name = friends::get(f.steam_id)->name;
+
+						if (ImGui::InputTextWithHint("##" + xuid, "Name", &name))
+						{
+							friends::write();
+						}
+
+						ImGui::EndMenu();
+					}
+					
 					ImGui::Separator();
 
 					if (ImGui::MenuItem(xuid))
 					{
 						ImGui::LogToClipboardUnformatted(xuid);
+					}
+
+					const auto response = f.response;
+					const auto presence = response.presence;
+					const auto info_response = response.info_response;
+					const auto party_session = info_response.lobby[0];
+					const auto lobby_session = info_response.lobby[1];
+					
+					if (party_session.isValid)
+					{
+						ImGui::Separator();
+
+						auto message{ "Party: " + party_session.serializedAdr.xnaddr.to_string(true) };
+						message.append(" - "s + party_session.hostName + " (" + std::to_string(party_session.hostXuid) + ")");
+
+						if (const auto party{ presence.title.party };
+							ImGui::BeginMenu(message, party.availableCount > 1))
+						{
+							for (size_t i = 0; i < party.availableCount; ++i)
+							{
+								std::string gamertag = party.members[i].gamertag;
+								if (gamertag[0] == '&' && gamertag[1] == '&' && !gamertag[2])
+									gamertag = f.name;
+
+								ImGui::MenuItem(gamertag + "##"s + std::to_string(i), i == 0 ? "(Leader)" : "");
+							}
+
+							ImGui::EndMenu();
+						}
+					}
+
+					if (lobby_session.isValid && lobby_session.hostXuid != f.steam_id)
+					{
+						const auto message{ "Session: " + lobby_session.serializedAdr.xnaddr.to_string(true) };
+
+						if (ImGui::MenuItem(message))
+						{
+							game::connect_to_session(game::HostInfo{}.from_lobby(lobby_session));
+						}
+					}
+
+					if (const auto start_up_time{ presence.title.startupTimestamp }; start_up_time)
+					{
+						ImGui::Separator();
+
+						ImGui::MenuItem("Online since: " + utils::string::data_time(start_up_time, false));
 					}
 					
 					ImGui::Separator();
@@ -318,11 +386,32 @@ namespace friends
 					}
 
 					ImGui::Separator();
-
-					const auto info_response{ response.info_response };
-					auto party_session{ info_response.lobby[0] }; 
 					
-					const auto is_ready{ f.is_online() && party_session.isValid };
+					game::netadr_t netadr{};
+					game::net::oob::register_remote_addr(game::HostInfo{}.from_lobby(party_session), &netadr);
+					const auto status = game::call<game::bdDTLSAssociationStatus>(game::base_address + 0x143BAB0, &netadr);
+
+					const auto is_ready{ f.is_online() && status == game::BD_SOCKET_CONNECTED };
+
+					if (ImGui::MenuItem("Crash game", nullptr, nullptr, is_ready))
+					{
+						exploit::send_crash(netadr);
+					}
+
+					if (ImGui::MenuItem("Kick player", nullptr, nullptr, is_ready))
+					{
+						exploit::send_connect_response_migration_packet(netadr);
+					}
+
+					if (ImGui::MenuItem("Show migration screen", nullptr, nullptr, is_ready))
+					{
+						exploit::send_mstart_packet(netadr);
+					}
+
+					if (ImGui::MenuItem("Immobilize", nullptr, nullptr, is_ready))
+					{
+						exploit::send_request_stats_packet(netadr);
+					}
 
 					if (ImGui::BeginMenu("Send OOB##" + xuid, is_ready))
 					{
@@ -332,21 +421,7 @@ namespace friends
 
 						if (ImGui::MenuItem("Send OOB", nullptr, nullptr, !oob_input.empty()))
 						{
-							scheduler::schedule([=]()
-							{
-								game::netadr_t netadr{};
-								game::net::oob::register_remote_addr(party_session, &netadr);
-
-								const auto status = game::call<game::bdDTLSAssociationStatus>(game::base_address + 0x143BAB0, &netadr);
-
-								if (status == game::BD_SOCKET_CONNECTED)
-								{
-									game::net::netchan::send_oob(f.steam_id, netadr, oob_input);
-									return scheduler::cond_end;
-								}
-
-								return scheduler::cond_continue;
-							}, scheduler::main, 75ms);
+							game::net::oob::send(netadr, oob_input);
 						}
 
 						ImGui::EndMenu();
@@ -373,224 +448,6 @@ namespace friends
 				}
 			}
 
-			/*for (const auto& friend_num : indices)
-			{
-				if (auto& f{ friends[friend_num] }; filter.PassFilter(f.name))
-				{
-					const auto response{ f.response };
-					
-					const auto presence{ response.presence };
-					const auto info_response{ response.info_response };
-					
-					auto party_session{ info_response.lobby[0] };
-					auto lobby_session{ info_response.lobby[1] };
-					
-					ImGui::AlignTextToFramePadding();
-
-					ImGui::TextUnformatted(std::to_string(friend_num));
-
-					ImGui::NextColumn();
-
-					ImGui::PushStyleColor(ImGuiCol_Text, ImColor(200, 200, 200, 250).Value);
-
-					ImGui::AlignTextToFramePadding();
-					const auto selected = ImGui::Selectable(f.name.data() + "##"s + std::to_string(friend_num));
-
-					ImGui::PopStyleColor();
-					
-					const auto is_local{ party_session.isValid && party_session.hostXuid == f.steam_id };
-
-					if (is_local && party_session.hostName != f.name)
-					{
-						ImGui::SameLine(0, spacing);
-						ImGui::TextColored(ImColor(200, 200, 200, 250).Value, "(%s)", party_session.hostName);
-					}
-
-					const auto popup = "friend_popup##" + std::to_string(friend_num);
-					static game::netadr_t netadr{};
-
-					if (selected)
-					{
-						game::oob::register_remote_addr(party_session, &netadr);
-						
-						ImGui::OpenPopup(popup.data());
-					}
-
-					if (ImGui::BeginPopup(popup.data(), ImGuiWindowFlags_NoMove))
-					{
-						ImGui::MenuItem(f.name + "##" + std::to_string(friend_num) + "friend_menu_item", nullptr, false, false);
-
-						if (ImGui::IsItemClicked())
-						{
-							game::LiveSteam_PopOverlayForSteamID(f.steam_id);
-						}
-
-						if (ImGui::IsItemHovered())
-						{
-							ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
-						}
-
-						if (ImGui::BeginMenu("Rename##" + std::to_string(friend_num)))
-						{
-							static auto rename_friend_input = ""s;
-
-							ImGui::InputTextWithHint("##" + std::to_string(friend_num), "Name", &rename_friend_input);
-
-							if (ImGui::MenuItem("Rename"))
-							{
-								if (f.name != rename_friend_input)
-								{
-									f.name = rename_friend_input;
-									
-									friends::write();
-								}
-							}
-
-							ImGui::EndMenu();
-						}
-
-						if (ImGui::MenuItem("Remove"))
-						{
-							remove(f.steam_id);
-						}
-
-						ImGui::Separator();
-
-						if (ImGui::MenuItem(std::to_string(f.steam_id)))
-						{
-							ImGui::LogToClipboardUnformatted(std::to_string(f.steam_id));
-						}
-						
-						if (party_session.isValid)
-						{
-							ImGui::Separator(); 
-							
-							auto message{ "Party: " + party_session.serializedAdr.xnaddr.to_string(true) };
-							message.append(" - "s + party_session.hostName + " (" + std::to_string(party_session.hostXuid) + ")");
-
-							if (const auto party{ presence.title.party }; 
-								ImGui::BeginMenu(message, party.availableCount > 1))
-							{
-								for (size_t i = 0; i < party.availableCount; ++i)
-								{
-									std::string gamertag = party.members[i].gamertag;
-									if (gamertag[0] == '&' && gamertag[1] == '&' && !gamertag[2])
-										gamertag = f.name;
-									
-									ImGui::MenuItem(gamertag + "##"s + std::to_string(i), i == 0 ? "(Leader)" : "");
-								}
-								
-								ImGui::EndMenu();
-							}
-						}
-
-						if (lobby_session.isValid && lobby_session.hostXuid != f.steam_id)
-						{
-							const auto message{ "Session: " + lobby_session.serializedAdr.xnaddr.to_string(true) };
-							
-							if (ImGui::MenuItem(message))
-							{
-								ImGui::LogToClipboardUnformatted(message);
-							}
-						}
-
-						const auto activity = presence.title.activity;
-						const auto gametype_id = presence.title.gametypeID;
-						const auto map_id = presence.title.mapID;
-
-						if (activity == game::PRESENCE_ACTIVITY_MP_PLAYING_GMODE_ON_MAP
-							&& gametype_id >= 0
-							&& map_id >= 0)
-						{
-							const auto data = game::get_gametype_on_mapname(map_id, gametype_id);
-							if (!data.empty() && ImGui::MenuItem(data))
-							{
-								ImGui::LogToClipboardUnformatted(data);
-							}
-						}
-						
-						if (const auto start_up_time = presence.title.startupTimestamp; presence.title.startupTimestamp)
-						{
-							ImGui::Separator(); 
-							
-							ImGui::MenuItem("Online since: " + utils::string::data_time(start_up_time, false));
-						}
-
-						ImGui::Separator();
-						
-						if (ImGui::MenuItem("Join session"))
-						{
-							game::LobbyVM_JoinEvent(0, f.steam_id, game::JOIN_TYPE_PARTY);
-						}
-
-						ImGui::Separator();
-
-						const auto is_ready{ response.online && party_session.isValid && netadr.inaddr };
-						
-						if (ImGui::MenuItem("Crash game"))
-						{
-							exploit::instant_message::send_friend_message_crash({ f.steam_id });
-
-							if (is_ready)
-							{
-								exploit::send_crash(netadr);
-							}
-						}
-						
-						if (ImGui::MenuItem("Open popup", nullptr, nullptr, response.online))
-						{
-							exploit::instant_message::send_popup({ f.steam_id });
-						}
-
-						if (ImGui::MenuItem("Kick player", nullptr, nullptr, is_ready))
-						{
-							exploit::send_connect_response_migration_packet(netadr);
-						}
-
-						if (ImGui::MenuItem("Show migration screen", nullptr, nullptr, is_ready))
-						{
-							exploit::send_mstart_packet(netadr);
-						}
-
-						if (ImGui::MenuItem("Immobilize", nullptr, nullptr, is_ready))
-						{
-							exploit::send_request_stats_packet(netadr);
-						}
-
-						if (ImGui::BeginMenu("Send OOB##" + std::to_string(friend_num), is_ready))
-						{
-							static auto oob_input = ""s;
-
-							ImGui::InputTextWithHint("##" + std::to_string(friend_num), "OOB", &oob_input);
-
-							if (ImGui::MenuItem("Send OOB", nullptr, nullptr, !oob_input.empty()))
-							{
-								game::oob::send(netadr, oob_input);
-							}
-
-							ImGui::EndMenu();
-						}
-
-						ImGui::EndPopup();
-					}
-
-					ImGui::NextColumn();
-
-					ImGui::AlignTextToFramePadding();
-					
-					const auto timestamp = f.last_online ? utils::string::data_time(f.last_online, false) : "Never";
-					const auto online_status = response.online ? "Online" : "Last seen: " + timestamp;
-					ImGui::TextColored(response.online ? ImColor(0, 255, 127, 250).Value : ImColor(200, 200, 200, 250).Value, online_status.data());
-
-					ImGui::NextColumn();
-
-					if (ImGui::GetColumnIndex() == 0)
-					{
-						ImGui::Separator();
-					}
-				}
-			}*/
-
 			ImGui::EndColumns();
 			ImGui::EndTabItem();
 		}
@@ -601,7 +458,7 @@ namespace friends
 		scheduler::on_dw_initialized([]()
 		{
 			scheduler::once(update_online_status, scheduler::pipeline::backend);
-			scheduler::loop(update_online_status, scheduler::pipeline::backend, 10s);
+			scheduler::loop(update_online_status, scheduler::pipeline::backend);
 		}, scheduler::pipeline::main);
 
 		try

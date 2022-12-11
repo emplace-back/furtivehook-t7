@@ -1144,6 +1144,18 @@ namespace game
 		SerializedAdr serializedAdr;
 		LobbyParams lobbyParams;
 		char pad[0x28];
+
+		game::XSESSION_INFO get_sess_info() const
+		{
+			if (!isValid)
+				return {};
+
+			game::XSESSION_INFO info{};
+			info.sessionID = secId;
+			info.keyExchangeKey = secKey;
+			info.hostAddress = serializedAdr.xnaddr;
+			return info;
+		}
 	};
 
 	struct Msg_InfoResponse
@@ -1152,8 +1164,8 @@ namespace game
 		int uiScreen;
 		std::uint8_t natType;
 		InfoResponseLobby lobby[2];
-	};
-
+	}; 
+	
 	struct HostInfo
 	{
 		std::uint64_t xuid;
@@ -1163,7 +1175,18 @@ namespace game
 		bdSecurityID secId;
 		bdSecurityKey secKey;
 		uint32_t serverLocation;
-	};
+
+		game::HostInfo from_lobby(const game::InfoResponseLobby& lobby)
+		{
+			game::HostInfo host_info{};
+			host_info.xuid = lobby.hostXuid;
+			const auto sess_info = lobby.get_sess_info();
+			host_info.secId = sess_info.sessionID;
+			host_info.secKey = sess_info.keyExchangeKey;
+			host_info.serializedAdr.xnaddr = sess_info.hostAddress;
+			return host_info;
+		}
+	}; 
 
 	struct SessionHost
 	{
@@ -1626,6 +1649,16 @@ namespace game
 		int recreateSession;
 		int timeSinceUpdate;
 		char pad2[0x14];
+
+		game::HostInfo get_host_info() const 
+		{
+			game::HostInfo host_info{};
+			host_info.xuid = xuid;
+			host_info.secId.id = sessionID;
+			host_info.secKey = *reinterpret_cast<const game::bdSecurityKey*>(keyExchangeKey);
+			host_info.serializedAdr.xnaddr = *reinterpret_cast<const game::XNADDR*>(info.hostAddr);
+			return host_info;
+		}
 
 		bool operator<(const MatchMakingInfo& other) const
 		{
@@ -2936,5 +2969,19 @@ namespace game
 		int m_natType;
 		uint32_t m_hash;
 		bool m_isLoopback;
+	};
+
+	enum JoinSourceState
+	{
+		JOIN_SOURCE_STATE_IDLE = 0x0,
+		JOIN_SOURCE_STATE_CONNECT_TO_NEXT_HOST = 0x1,
+		JOIN_SOURCE_STATE_ASSOCIATING = 0x2,
+		JOIN_SOURCE_STATE_HANDSHAKING = 0x3,
+		JOIN_SOURCE_STATE_WAITING_FOR_AGREEMENT = 0x4,
+		JOIN_SOURCE_STATE_CONNECTION_FAILED = 0x5,
+		JOIN_SOURCE_STATE_CONNECTION_SUCCESS = 0x6,
+		JOIN_SOURCE_STATE_ENDING_HOST = 0x7,
+		JOIN_SOURCE_STATE_CLEANUP = 0x8,
+		JOIN_SOURCE_STATE_COUNT = 0x9,
 	};
 }

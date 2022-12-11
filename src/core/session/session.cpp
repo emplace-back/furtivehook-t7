@@ -5,10 +5,17 @@ namespace session
 {
 	namespace
 	{
+		struct player_info
+		{
+			size_t client_num; 
+			std::string name;
+		}; 
+		
 		game::MatchMakingQuery query_info{};
 		std::array<game::MatchMakingInfo, 1000> search_results;
 		std::vector<game::MatchMakingInfo> sessions;
-		
+		std::unordered_map<game::netadr_t, std::vector<player_info>> players;
+
 		const auto lobby_search_success_callback = [](game::TaskRecord* task)
 		{
 			const auto remote_task = task->remoteTask;
@@ -43,7 +50,7 @@ namespace session
 
 		void fetch_sessions()
 		{
-			const game::TaskDefinition* task_definition{ &task_lobby_search };
+			game::TaskDefinition const* task_definition{ &task_lobby_search };
 			
 			if (game::TaskManager2_TaskGetInProgress(task_definition))
 				return;
@@ -68,7 +75,7 @@ namespace session
 			}
 		}
 	}
-
+	
 	void register_session(const game::MatchMakingInfo& session)
 	{
 		const auto entry = std::find_if(sessions.begin(), sessions.end(), [&](const auto& s) { return s.xuid == session.xuid; });
@@ -82,7 +89,7 @@ namespace session
 			*entry = session;
 		}
 	}
-
+	
 	void draw_session_list(const float width, const float spacing)
 	{
 		if (ImGui::BeginTabItem("Sessions"))
@@ -113,7 +120,8 @@ namespace session
 			
 			for (const auto& session : sorted_sessions)
 			{
-				const auto xnaddr = *reinterpret_cast<const game::XNADDR*>(session.info.hostAddr);
+				const auto host_info = session.get_host_info(); 
+				const auto xnaddr = host_info.serializedAdr.xnaddr;
 				const auto ip_string = xnaddr.to_string(true);
 
 				if (!filter.PassFilter(ip_string))
@@ -142,10 +150,10 @@ namespace session
 					}
 
 					ImGui::Separator();
-
+					
 					if (ImGui::MenuItem("Join Session"))
 					{
-						command::execute("join " + xuid);
+						game::connect_to_session(host_info);
 					}
 
 					ImGui::Separator();
@@ -153,6 +161,50 @@ namespace session
 					if (ImGui::MenuItem("Freeze session"))
 					{
 						exploit::instant_message::send_info_response_overflow({ session.xuid });
+					}
+
+					if (ImGui::BeginMenu("Send OOB##" + xuid))
+					{
+						static auto oob_input = ""s;
+
+						ImGui::InputTextWithHint("##" + xuid, "OOB", &oob_input);
+
+						if (ImGui::MenuItem("Send OOB", nullptr, nullptr, !oob_input.empty()))
+						{
+							game::net::oob::on_registered_addr(host_info, [=](const auto& netadr)
+							{
+								game::net::netchan::send_oob(session.xuid, netadr, oob_input);
+							});
+						}
+
+						ImGui::EndMenu();
+					}
+
+					ImGui::Separator();
+
+					if (ImGui::BeginMenu("List players##" + xuid))
+					{
+						game::netadr_t netadr{};
+						game::net::oob::register_remote_addr(session.get_host_info(), &netadr);
+						
+						if (ImGui::MenuItem("Refresh players"))
+						{
+							game::net::oob::on_registered_addr(host_info, [=](const auto& netadr)
+							{
+								game::net::netchan::send_oob(session.xuid, netadr, "getstatus\n");
+							});
+						}
+
+						ImGui::Separator();
+
+						for (const auto& player : players[netadr])
+						{
+							const auto client_num = player.client_num;
+							const auto label = player.name + "##player";
+							const auto selected = ImGui::Selectable(label);
+						}
+						
+						ImGui::EndMenu();
 					}
 
 					ImGui::EndPopup();
@@ -183,7 +235,33 @@ namespace session
 		game::call(game::base_address + 0x144C2E0, &query_info, 0, true);
 
 		// Setup search results
-		for (size_t i = 0; i < search_results.size(); ++i)
+		for (size_t i = 0; i < search_results.size(); ++i) 
 			game::call(game::base_address + 0x144BA00, &search_results[i], true);
+
+		events::connectionless_packet::on_command("statusResponse", [](const auto& args, const auto& target, auto& msg)
+		{
+			char buffer[1024]{ 0 };
+			game::call(game::base_address + 0x2156BA0, &msg, buffer, sizeof buffer);
+
+			std::vector<player_info> players_info;
+			players_info.reserve(18);
+
+			for (size_t i = 0; i < 18; ++i)
+			{
+				const auto data = game::call<char*>(game::base_address + 0x2156BA0, &msg, buffer, sizeof buffer);
+
+				if (!*data)
+					break;
+
+				if (const auto args = utils::string::split(data, ' '); args.size() > 2)
+				{
+					players_info.emplace_back(player_info{ i, utils::string::replace_all(utils::string::join(args, 2), "\"", "") });
+				}
+			}
+
+			players[target] = std::move(players_info); 
+			
+			return true;
+		});
 	}
 }

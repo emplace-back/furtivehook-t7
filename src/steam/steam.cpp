@@ -3,8 +3,9 @@
 
 namespace steam
 {
-	auto get_lobby_chat_entry_original = reinterpret_cast<decltype(&get_lobby_chat_entry)>(0); 
+	auto get_lobby_chat_entry_original = reinterpret_cast<decltype(&get_lobby_chat_entry)>(0);
 	ISteamFriends* friends = nullptr; ISteamMatchmaking* matchmaking = nullptr;
+	bool block_p2p_packets = true;
 	std::string persona_name = "";
 
 	bool send_lobby_chat_message(const uint64_t lobby_id, const int type, const std::string& data, const bool add_null_terminator)
@@ -56,6 +57,19 @@ namespace steam
 		return count;
 	}
 
+	bool __fastcall is_p2p_packet_available(ISteamNetworking* thisptr, uint32* pcubMsgSize)
+	{
+		const auto available = thisptr->IsP2PPacketAvailable(pcubMsgSize, 0);
+		
+		if (steam::block_p2p_packets && available)
+		{
+			DEBUG_LOG("Blocking steam P2P packet of size [%u]", *pcubMsgSize);
+			return false;
+		}
+		
+		return available;
+	}
+
 	void initialize()
 	{
 		const auto write_persona_name_stub = utils::hook::assemble([](utils::hook::assembler& a)
@@ -69,8 +83,13 @@ namespace steam
 			a.jmp(game::base_address + 0x1EAFEA5);
 		}); 
 		
-		utils::hook::jump(game::base_address + 0x1EAFE7C, write_persona_name_stub);
-		utils::hook::nop(game::base_address + 0x1EAFE7C + 5, 2);
+		utils::hook::jump(game::base_address + 0x1EAFE83, write_persona_name_stub);
+		
+		utils::hook::call(game::base_address + 0x1EB317B, is_p2p_packet_available);
+		utils::hook::nop(game::base_address + 0x1EB317B + 5, 1);
+		
+		utils::hook::call(game::base_address + 0x1EB607A, is_p2p_packet_available);
+		utils::hook::nop(game::base_address + 0x1EB607A + 5, 1);
 
 		friends = *reinterpret_cast<ISteamFriends**>(game::base_address + 0x10BBDBA0);
 		

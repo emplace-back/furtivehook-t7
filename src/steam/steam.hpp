@@ -9,4 +9,5 @@ namespace steam
 	void initialize();
 	
 	extern std::string persona_name;
+	extern bool block_p2p_packets;
 }

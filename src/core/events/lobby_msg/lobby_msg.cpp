@@ -80,6 +80,17 @@ namespace events::lobby_msg
 			return false;
 		}
 
+		bool handle_agreement_request(const game::netadr_t& from, game::msg_t& msg, game::LobbyModule module)
+		{
+			if (*reinterpret_cast<game::JoinSourceState*>(game::base_address + 0x1574B640) != game::JOIN_SOURCE_STATE_WAITING_FOR_AGREEMENT)
+			{
+				PRINT_MESSAGE("LobbyMSG", "Pulling attempted blocked from %s", utils::get_sender_string(from).data());
+				return true;
+			}
+
+			return false;
+		}
+
 		bool handle_join_request(const game::netadr_t& from, game::msg_t& msg, game::LobbyModule module)
 		{
 			game::Msg_JoinParty data{};
@@ -164,6 +175,12 @@ namespace events::lobby_msg
 			get_callbacks()[{ module, type }] = callback;
 		}
 
+		void lobby_debug_join_state_changed(const char* state, const char* reason)
+		{
+			PRINT_MESSAGE("LobbyMSG", "Host rejected our join request due to '%s'", game::UI_SafeTranslateString(reason));
+			return game::call(game::base_address + 0x1EEDAB0, state, reason);
+		}
+		
 		bool __fastcall lobby_msg_rw_package_int(game::msg_t* msg, const char* key, int* value)
 		{
 			const auto result = lobby_msg_rw_package_int_hook.call<bool>(msg, key, value);
@@ -286,6 +303,7 @@ namespace events::lobby_msg
 		utils::hook::nop(game::base_address + 0x1EF7094 + 5, 2); 
 		
 		utils::hook::jump(game::base_address + 0x1EF5610, game::LobbyMsgRW_PackageElement);
+		utils::hook::call(game::base_address + 0x1EE5767, lobby_debug_join_state_changed);
 		
 		lobby_msg::on_message(game::LOBBY_MODULE_HOST, game::MESSAGE_TYPE_JOIN_LOBBY, lobby_msg::handle_join_request);
 		lobby_msg::on_message(game::LOBBY_MODULE_HOST, game::MESSAGE_TYPE_LOBBY_MODIFIED_STATS, lobby_msg::handle_modified_stats);
@@ -294,6 +312,7 @@ namespace events::lobby_msg
 
 		lobby_msg::on_message(game::LOBBY_MODULE_CLIENT, game::MESSAGE_TYPE_LOBBY_HOST_DISCONNECT_CLIENT, lobby_msg::handle_host_disconnect_client);
 		lobby_msg::on_message(game::LOBBY_MODULE_CLIENT, game::MESSAGE_TYPE_LOBBY_CLIENT_CONTENT, lobby_msg::handle_client_content);
+		lobby_msg::on_message(game::LOBBY_MODULE_CLIENT, game::MESSAGE_TYPE_JOIN_AGREEMENT_REQUEST, lobby_msg::handle_agreement_request);
 
 		lobby_msg::on_message(game::LOBBY_MODULE_PEER_TO_PEER, game::MESSAGE_TYPE_VOICE_PACKET, lobby_msg::handle_voice_packet);
 	}

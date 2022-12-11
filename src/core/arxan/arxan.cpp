@@ -93,7 +93,7 @@ namespace arxan
 		std::wstring wstr{};
 		wstr.resize(max_count);
 
-		const auto count = GetWindowTextW(window, &wstr[0], max_count);
+		const auto count = GetWindowTextW(window, wstr.data(), max_count);
 
 		if (count)
 		{

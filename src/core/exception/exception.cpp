@@ -61,9 +61,7 @@ namespace exception
 
 	void write_mini_dump(void*, const LPEXCEPTION_POINTERS ex)
 	{
-		DEBUG_LOG("Exception handler called."
-			"\n(0x%llX)",
-			reinterpret_cast<uintptr_t>(ex->ExceptionRecord->ExceptionAddress));
+		DEBUG_LOG("Exception handler called.");
 	}
 
 	void initialize()

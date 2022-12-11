@@ -18,11 +18,16 @@ namespace friends
 
 		bool is_online() const noexcept
 		{
-			return response.presence.version;
+			return response.presence.version || response.info_response.nonce;
 		}
 
 		bool operator<(const friend_info& other) const
 		{
+			if (is_online())
+			{
+				return is_online() > other.is_online();
+			}
+			
 			return last_online > other.last_online;
 		}
 	}; 

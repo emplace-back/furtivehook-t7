@@ -46,23 +46,27 @@ namespace game
 		{
 			struct write_packet
 			{
-				uint8_t server_id;
+				int server_id;
 				int message_sequence;
 				int command_sequence;
 				int acknowledge;
+				std::string data;
 			}; 
+			
+			extern bool writing;
 			
 			bool send(const NetChanMsgType type, const std::string& data, const netadr_t& netadr, const uint64_t target_xuid, const uint64_t sender_xuid = 0);
 			bool send_oob(const uint64_t xuid, const netadr_t& netadr, const std::string& data, const bool fill = false);
-			bool write(const write_packet& packet, const std::string& data, const netadr_t& netadr, const uint64_t target_xuid, const uint64_t sender_xuid = 0);
+			bool write(const write_packet& packet, const netadr_t& netadr, const uint64_t target_xuid, const uint64_t sender_xuid = 0, const bool compress_buffer = true);
 			bool write(const std::string& data);
 		}
 		
 		namespace oob
 		{
 			bool send(const netadr_t& target, const std::string& data);
-			bool register_remote_addr(const XSESSION_INFO* info, netadr_t* addr);
-			bool register_remote_addr(const InfoResponseLobby& lobby, netadr_t* addr);
+			bool register_remote_addr(const HostInfo& info, netadr_t* addr);
+			void on_registered_addr(const HostInfo& info, const std::function<void(const game::netadr_t&)>& callback);
+			void on_registered_addr(const InfoResponseLobby& lobby, const std::function<void(const game::netadr_t&)>& callback);
 		}
 		
 		bool send(const netadr_t& netadr, const std::string& data);
@@ -73,7 +77,6 @@ namespace game
 	bool in_game();
 	int find_target_from_addr(const LobbySession* session, const netadr_t& from);
 	bool can_connect_to_player(const LobbySession* session, const size_t client_num, const size_t target_xuid);
-	XSESSION_INFO get_session_info(const InfoResponseLobby& lobby);
 	void on_every_frame();
 	bool is_enemy(const int client_num);
 	bool CG_WorldPosToScreenPos(const Vec3* pos, Vec2* out);
@@ -97,11 +100,13 @@ namespace game
 	netadr_t get_session_netadr(const LobbySession* session, const ActiveClient* client);
 	char * I_strncpyz(char * place, const std::string & string, const size_t length);
 	TaskRecord* TaskManager2_SetupRemoteTask(const TaskDefinition* definition, bdRemoteTask* remote_task, const uint32_t timeout = 0);
+	void connect_to_session(const game::HostInfo& info);
 	
 	extern std::array<scr_string_t, static_cast<std::uint32_t>(bone_tag::num_tags)> bone_tags;
 
 	const static auto base_address = reinterpret_cast<std::uintptr_t>(GetModuleHandleA(nullptr)) + 0x1000;
 
+	const static auto UI_SafeTranslateString = reinterpret_cast<const char*(*)(const char*)>(base_address + 0x228E7B0);
 	const static auto LobbyJoinSource_IMInfoResponse = reinterpret_cast<bool(*)(const ControllerIndex_t, const uint64_t, msg_t*)>(base_address + 0x1EE4E00);
 	const static auto LobbyJoinSource_IMInfoRequest = reinterpret_cast<bool(*)(const ControllerIndex_t, const uint64_t, uint32_t)>(base_address + 0x1EE1620);
 	const static auto LobbyMsgRW_IsEndOfArray = reinterpret_cast<bool(*)(msg_t*)>(base_address + 0x1EF5520);

@@ -3,34 +3,41 @@
 
 namespace command
 {
-	std::unordered_map<std::string, callback> callbacks; 
-
 	namespace
 	{
-		void main_handler()
+		using callback = std::function<bool(const command::args&)>; 
+		
+		std::unordered_map<std::string, callback>& get_callbacks()
 		{
-			const auto args = command::args::get_client();
-			const auto command_lwr = utils::string::to_lower(args[0]);
+			static std::unordered_map<std::string, callback> callbacks{};
+			return callbacks;
+		}
+		
+		bool __fastcall sv_execute_client_command(const char* message)
+		{
+			auto args = command::args::get_server();
+			args.tokenize(message, true);
 
-			if (callbacks.find(command_lwr) != callbacks.end())
+			if (events::server_command::log_commands)
 			{
-				callbacks[command_lwr](args);
+				PRINT_LOG("Received SV Command: %s", args.join().data());
 			}
-		}
 
-		void add_raw(const char* name, void(*callback)())
-		{
-			game::Cmd_AddCommandInternal(name, callback, utils::memory::get_allocator()->allocate<game::cmd_function_s>());
-		}
+			const auto& handlers = get_callbacks();
+			const auto handler = handlers.find(utils::string::to_lower(args[0]));
 
-		void add(const char* name, const callback& callback)
-		{
-			const auto command_lwr = utils::string::to_lower(name);
+			if (handler == handlers.end())
+				return false;
 
-			if (callbacks.find(command_lwr) == callbacks.end())
-				add_raw(name, main_handler);
+			const auto handled = handler->second(args);
 
-			callbacks[command_lwr] = callback;
+			if (handled)
+			{
+				args.end_tokenize();
+				args.tokenize("");
+			}
+
+			return handled;
 		}
 	}
 
@@ -105,5 +112,20 @@ namespace command
 		{
 			game::Cbuf_AddText(0, command.data());
 		}
+	}
+	
+	void initialize()
+	{
+		const auto sv_execute_client_command_stub = utils::hook::assemble([](utils::hook::assembler& a)
+		{
+			a.push(rcx);
+			a.mov(rcx, rdx);
+			a.call_aligned(command::sv_execute_client_command);
+			a.pop(rcx);
+
+			a.jmp(game::base_address + 0x2249E0B);
+		});
+
+		utils::hook::jump(game::base_address + 0x2249E06, sv_execute_client_command_stub);
 	}
 }

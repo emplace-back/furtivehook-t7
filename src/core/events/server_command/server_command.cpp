@@ -20,10 +20,10 @@ namespace events::server_command
 			get_callbacks()[command] = callback;
 		}
 
-		bool __fastcall handle_command(const char* buffer)
+		bool __fastcall handle_command(const char* message)
 		{
 			auto args = command::args::get_client();
-			args.tokenize(buffer);
+			args.tokenize(message);
 
 			if (log_commands)
 			{
@@ -60,7 +60,7 @@ namespace events::server_command
 			a.jmp(game::base_address + 0x131ED18);
 		});
 
-		utils::hook::jump(game::base_address + 0x131ED0B, cl_cgame_needs_server_command_stub);
+		utils::hook::jump(game::base_address + 0x131ED13, cl_cgame_needs_server_command_stub);
 		
 		server_command::on_command('2', [=](const auto& args)
 		{

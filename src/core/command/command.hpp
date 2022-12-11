@@ -33,6 +33,6 @@ namespace command
 		game::CmdArgs* cmd_args{};
 	};
 	
-	using callback = std::function<void(const args&)>;
 	void execute(std::string command, const bool sync = false);
+	void initialize();
 }

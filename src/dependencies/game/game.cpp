@@ -8,6 +8,8 @@ namespace game
 	{
 		namespace netchan
 		{
+			bool writing{ false };
+			
 			bool send(const NetChanMsgType type, const std::string& data, const netadr_t& netadr, const uint64_t target_xuid, const uint64_t sender_xuid)
 			{
 				const auto chan = reinterpret_cast<NetChanMessageList_s*>(base_address + 0x16E6AE20);
@@ -24,23 +26,26 @@ namespace game
 
 				const auto sender_id{ sender_xuid ? sender_xuid : game::LiveUser_GetXuid(0) };
 
+				if (type == NETCHAN_CLIENTMSG)
+					netchan::writing = true; 
+				
 				if (msg)
 				{
-					if (type > NETCHAN_CLIENTMSG)
+					if (!msg->complete)
 					{
-						if (!msg->complete)
-						{
-							++msg->sequence;
-						}
-
-						if (msg->dropped)
-						{
-							++msg->nonce;
-							msg->dropped = 0;
-						}
-
-						msg->complete = 0;
+						++msg->sequence;
 					}
+
+					if (msg->dropped)
+					{
+						++msg->nonce;
+						msg->dropped = 0;
+					}
+
+					msg->sendCount = 0; 
+					msg->messageLen = data.size();
+					msg->numFragments = max_fragments;
+					msg->complete = 0;
 				}
 				else
 				{
@@ -49,25 +54,25 @@ namespace game
 					if (!msg)
 						return false;
 
-					msg->sequence = 1;
-					msg->nonce = 1;
 					msg->destXUID = target_xuid;
 					msg->sourceXUID = sender_id;
 					msg->messageLen = data.size();
 					msg->numFragments = max_fragments;
 					msg->next = chan->out[type];
+					msg->sendCount = 0;
+					msg->sequence = 1;
+					msg->nonce = 1;
 					chan->out[type] = msg;
 				}
-
+				
 				const auto netchan_ms = *reinterpret_cast<int*>(base_address + 0x16E4AB1C);
 				msg->lastKeepAliveMs = netchan_ms;
 				msg->lastTouchedMS = netchan_ms;
-				auto final_msg{ *msg };
-				final_msg.sourceXUID = sender_xuid ? sender_xuid : game::LiveUser_GetXuid(0);
-				final_msg.messageLen = data.size();
-				final_msg.numFragments = max_fragments;
-				final_msg.destAddress = netadr;
+				msg->destAddress = netadr;
 
+				auto final_msg{ *msg };
+				final_msg.sourceXUID = sender_id; 
+				
 				for (size_t i = 0; i < max_fragments; ++i)
 					game::call(base_address + 0x2173300, &data[i * fragment_offset], fragment_offset, i, &final_msg);
 
@@ -93,9 +98,9 @@ namespace game
 				return netchan::send(NETCHAN_CLIENTMSG, final_data, netadr, xuid);
 			}
 
-			bool write(const write_packet& packet, const std::string& data, const netadr_t& netadr, const uint64_t target_xuid, const uint64_t sender_xuid)
+			bool write(const write_packet& packet, const netadr_t& netadr, const uint64_t target_xuid, const uint64_t sender_xuid, const bool compress_buffer)
 			{
-				char buffer[0x800] = { 0 };
+				char buffer[0x10000] = { 0 };
 				msg_t msg{};
 
 				msg.init(buffer, sizeof buffer);
@@ -103,21 +108,20 @@ namespace game
 				msg.write<int>(packet.message_sequence);
 				msg.write<int>(packet.command_sequence);
 
-				if (!data.empty())
+				if (!packet.data.empty())
 				{
 					msg.write_bits(2, 3);
 					msg.write<int>(packet.acknowledge);
-					msg.write_data(data);
+					msg.write_data(packet.data);
 				}
 
 				msg.write_bits(3, 3);
 
-				char compressed_buffer[0x800]{};
+				char compressed_buffer[0x10000]{};
 				std::memcpy(compressed_buffer, msg.data, sizeof uint64_t);
 
 				const auto compressed_size = game::call<size_t>(base_address + 0x215F6C0, false, &msg.data[9], msg.cursize - 9, &compressed_buffer[9], msg.maxsize - 9) + 9;
-
-				return netchan::send(NETCHAN_CLIENTMSG, { compressed_buffer, compressed_size }, netadr, target_xuid, sender_xuid);
+				return netchan::send(NETCHAN_CLIENTMSG, { compressed_buffer, compress_buffer ? compressed_size : msg.maxsize }, netadr, target_xuid, sender_xuid);
 			}
 
 			bool write(const std::string& data)
@@ -130,10 +134,11 @@ namespace game
 					game::cl()->serverId,
 					clc->serverMessageSequence,
 					clc->serverCommandSequence,
-					clc->reliableCommands.acknowledge + 1
+					clc->reliableCommands.acknowledge + 1,
+					data,
 				};
 
-				return netchan::write(packet, data, session->host.info.netAdr, session->host.info.xuid);
+				return netchan::write(packet, session->host.info.netAdr, session->host.info.xuid);
 			}
 		}
 		
@@ -145,22 +150,59 @@ namespace game
 				return net::send(netadr, final_data);
 			}
 
-			bool register_remote_addr(const XSESSION_INFO* info, netadr_t* addr)
+			bool register_remote_addr(const HostInfo& info, netadr_t* addr)
 			{
-				dwRegisterSecIDAndKey(&info->sessionID, &info->keyExchangeKey);
+				dwRegisterSecIDAndKey(&info.secId, &info.secKey);
 
-				if (!dwCommonAddrToNetadr(addr, &info->hostAddress, &info->sessionID))
+				/*const auto key_map = game::call<void*>(game::base_address + 0x144A780);
+				if(key_map)
 				{
+					if (game::call<bool>(game::base_address + 0x2959000, key_map, &info.secId, &info.secKey))
+					{
+						const auto error_message = game::call<const char*>(game::base_address + 0x143A9B0, &info.secId);
+						if (error_message)
+						{
+							game::call<bool>(game::base_address + 0x143A820); 
+							DEBUG_LOG("%s", error_message);
+							return false;
+						}
+					}
+				}*/
+
+				if (!dwCommonAddrToNetadr(addr, &info.serializedAdr.xnaddr, &info.secId))
+				{
+					DEBUG_LOG("Failed to retrieve the remote IP address from XNADDR");
 					return false;
 				}
 
 				return true;
 			}
 
-			bool register_remote_addr(const InfoResponseLobby& lobby, netadr_t* addr)
+			void on_registered_addr(const HostInfo& info, const std::function<void(const game::netadr_t&)>& callback)
 			{
-				const auto session_info{ get_session_info(lobby) };
-				return register_remote_addr(&session_info, addr);
+				scheduler::schedule([=]()
+				{
+					game::netadr_t netadr{};
+					game::net::oob::register_remote_addr(info, &netadr);
+
+					const auto status = game::call<game::bdDTLSAssociationStatus>(game::base_address + 0x143BAB0, &netadr);
+
+					switch (status)
+					{
+					case game::BD_SOCKET_CONNECTED:
+						callback(netadr);
+						return scheduler::cond_end;
+					case game::BD_SOCKET_LOST:
+						return scheduler::cond_end;
+					default:
+						return scheduler::cond_continue;
+					}
+				}, scheduler::main, 75ms);
+			}
+
+			void on_registered_addr(const InfoResponseLobby& lobby, const std::function<void(const game::netadr_t&)>& callback)
+			{
+				return oob::on_registered_addr(game::HostInfo{}.from_lobby(lobby), callback);
 			}
 		}
 
@@ -245,6 +287,7 @@ namespace game
 
 		std::thread{ exception::initialize }.detach();
 
+		command::initialize();
 		security::initialize(); 
 		session::initialize();
 		steam::initialize();
@@ -312,16 +355,6 @@ namespace game
 		}
 
 		return false;
-	}
-
-	XSESSION_INFO get_session_info(const InfoResponseLobby& lobby)
-	{
-		XSESSION_INFO sess_info{};
-		sess_info.sessionID = lobby.secId;
-		sess_info.keyExchangeKey = lobby.secKey;
-		sess_info.hostAddress = lobby.serializedAdr.xnaddr;
-
-		return sess_info;
 	}
 
 	bool CG_WorldPosToScreenPos(const Vec3* pos, Vec2* out)
@@ -585,5 +618,16 @@ namespace game
 		TaskManager2_StartTask(task);
 
 		return task;
+	}
+
+	void connect_to_session(const game::HostInfo& info)
+	{
+		const auto begin = game::call<bool>(game::base_address + 0x1ED8540, 0, 0, game::LOBBY_TYPE_PRIVATE, game::LOBBY_TYPE_GAME);
+
+		if (!begin)
+			return;
+
+		game::call(game::base_address + 0x1EE3550, info.xuid, info.name, &info.secId, &info.secKey, &info.serializedAdr, game::JOIN_TYPE_NORMAL, info.xuid);
+		game::call(game::base_address + 0x1EE4DD0);
 	}
 }

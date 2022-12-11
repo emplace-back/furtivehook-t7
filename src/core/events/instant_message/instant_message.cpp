@@ -73,7 +73,7 @@ namespace events::instant_message
 		}
 	}
 
-	bool send_info_request(const std::vector<std::uint64_t>& recipients, uint32_t nonce)
+	bool send_info_request(const uint64_t xuid, uint32_t nonce)
 	{
 		if (game::Live_IsUserSignedInToDemonware(0))
 		{
@@ -83,7 +83,10 @@ namespace events::instant_message
 			msg.init_lobby(buffer, game::MESSAGE_TYPE_INFO_REQUEST);
 			game::LobbyMsgRW_PackageUInt(&msg, "nonce", &nonce);
 
-			return game::send_instant_message(recipients, 'h', msg);
+			if (!game::call<bool>(game::base_address + 0x1EAF250, xuid, 'h', msg.data, msg.cursize))
+			{
+				return game::send_instant_message({ xuid }, 'h', msg);
+			}
 		}
 
 		return false;
@@ -186,13 +189,13 @@ namespace events::instant_message
 				{
 					if (const auto f = friends::get(id); f)
 					{
-						f->last_online = std::time(nullptr); 
+						f->last_online = std::time(nullptr);
 						f->response.info_response = info_response;
 					}
 				}
 
 				friends::write();
-
+				
 				return false;
 			}
 
