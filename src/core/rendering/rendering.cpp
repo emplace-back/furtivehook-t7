@@ -17,7 +17,7 @@ namespace rendering
 	
 	void initialize()
 	{
-		if (const auto chain = *reinterpret_cast<IDXGISwapChain**>(game::base_address + 0xF4B7858))
+		if (const auto chain = *reinterpret_cast<IDXGISwapChain**>(OFFSET(0x7FF6D4798858)))
 		{
 			present_original = utils::hook::vtable(chain, 8, &present);
 		}

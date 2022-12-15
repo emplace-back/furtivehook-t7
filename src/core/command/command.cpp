@@ -50,7 +50,7 @@ namespace command
 			cmd_args->controllerIndex[nesting] = 0;
 			cmd_args->argv[nesting] = &cmd_args->argvPool[cmd_args->totalUsedArgvPool];
 			cmd_args->argshift[nesting] = 0;
-			cmd_args->argc[nesting] = game::call<int>(game::base_address + 0x20EE300, text, 512 - cmd_args->totalUsedArgvPool, eval_expressions, cmd_args->argv[nesting], cmd_args);
+			cmd_args->argc[nesting] = game::call<int>(0x7FF6C73CF300, text, 512 - cmd_args->totalUsedArgvPool, eval_expressions, cmd_args->argv[nesting], cmd_args);
 			cmd_args->totalUsedArgvPool += cmd_args->argc[nesting];
 			cmd_args->usedTextPool[nesting] += cmd_args->totalUsedTextPool;
 		}
@@ -123,9 +123,9 @@ namespace command
 			a.call_aligned(command::sv_execute_client_command);
 			a.pop(rcx);
 
-			a.jmp(game::base_address + 0x2249E0B);
+			a.jmp(OFFSET(0x7FF6C752AE0B));
 		});
 
-		utils::hook::jump(game::base_address + 0x2249E06, sv_execute_client_command_stub);
+		utils::hook::jump(OFFSET(0x7FF6C752AE06), sv_execute_client_command_stub);
 	}
 }

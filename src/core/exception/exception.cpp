@@ -15,7 +15,7 @@ namespace exception
 		{
 			const auto code = ex->ExceptionRecord->ExceptionCode; 
 			const auto addr = reinterpret_cast<uintptr_t>(ex->ExceptionRecord->ExceptionAddress);
-			const auto base = game::base_address; 
+			const auto base = game::get_base(); 
 			const auto offset = addr - base;
 			
 			if (code != STATUS_INTEGER_OVERFLOW
@@ -74,6 +74,6 @@ namespace exception
 		set_filter(exception_filter);
 		utils::hook::jump(set_filter, set_unhandled_exception_filter_stub);
 
-		utils::hook::jump(game::base_address + 0x2331560, write_mini_dump);
+		utils::hook::jump(OFFSET(0x7FF6C7612560), write_mini_dump);
 	}
 }

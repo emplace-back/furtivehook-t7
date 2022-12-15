@@ -229,12 +229,11 @@ namespace arxan
 
 	uint32_t adjust_integrity_checksum(const uint64_t return_address, uint8_t* stack_frame, const uint32_t current_checksum)
 	{
-		const auto handler_address = (return_address - 5) - game::base_address; 
 		const auto* context = search_handler_context(stack_frame, current_checksum);
 
 		if (!context)
 		{
-			MessageBoxA(nullptr, utils::string::va("No frame offset for: %llX", handler_address).data(), "Error", MB_ICONERROR);
+			MessageBoxA(nullptr, utils::string::va("No frame offset.").data(), "Error", MB_ICONERROR);
 			utils::nt::terminate(0xBAD);
 			
 			return current_checksum;

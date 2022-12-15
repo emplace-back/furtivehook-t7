@@ -71,7 +71,7 @@ namespace scheduler
 	{
 		const auto ret_address{ reinterpret_cast<uintptr_t>(_ReturnAddress()) };
 
-		if (ret_address == game::base_address + 0x20F88A9) // Com_Frame_Try_Block_Function
+		if (ret_address == OFFSET(0x7FF6C73D98A9)) // Com_Frame_Try_Block_Function
 		{
 			scheduler::execute(scheduler::pipeline::main);
 		}
@@ -143,7 +143,7 @@ namespace scheduler
 
 		scheduler::once([]()
 		{
-			r_end_frame_hook.create(game::base_address + 0x1CD9E90, r_end_frame_stub);
+			r_end_frame_hook.create(OFFSET(0x7FF6C6FBAE90), r_end_frame_stub);
 		}, scheduler::pipeline::main);
 	}
 }

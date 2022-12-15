@@ -183,7 +183,7 @@ namespace autowall
 
 			if (!rev_trace_hit && !all_solid)
 			{
-				const static auto bg_bulletPenetrationTreatVoidsAsSolid = *reinterpret_cast<game::dvar_t**>(game::base_address + 0x19C2BA30);
+				const static auto bg_bulletPenetrationTreatVoidsAsSolid = *reinterpret_cast<game::dvar_t**>(OFFSET(0x7FF6DEF0CA30));
 				
 				if (bg_bulletPenetrationTreatVoidsAsSolid->current.integer & 8)
 				{

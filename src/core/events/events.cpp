@@ -74,7 +74,7 @@ namespace events
 		bool __fastcall live_presence_update()
 		{
 			const auto no_update = events::no_presence;
-			auto presence_data = reinterpret_cast<game::PresenceData*>(game::base_address + 0x1140EBE0);
+			auto presence_data = reinterpret_cast<game::PresenceData*>(OFFSET(0x7FF6D66EFBE0));
 
 			if (!presence_data->isInitialzied)
 				presence_data->init();
@@ -92,7 +92,7 @@ namespace events
 				return game::net::netchan::writing = false;
 			}
 
-			return game::call<bool>(game::base_address + 0x12FEF80, localClientNum);
+			return game::call<bool>(0x7FF6C65DFF80, localClientNum);
 		}
 
 		bool __fastcall send_member_info(ControllerIndex_t controllerIndex, game::NetChanMsgType channel, game::LobbyModule module, game::netadr_t netadr, uint64_t xuid, game::Msg_JoinMemberInfo* msgData)
@@ -103,12 +103,12 @@ namespace events
 				xnaddr->inaddr = htonl(0x01010101);
 			}
 
-			return game::call<bool>(game::base_address + 0x1EE39C0, controllerIndex, channel, module, netadr, xuid, msgData);
+			return game::call<bool>(0x7FF6C71C49C0, controllerIndex, channel, module, netadr, xuid, msgData);
 		}
 
 		void __fastcall serialize(game::bdCommonAddr* thisptr, char* buffer)
 		{
-			game::call(game::base_address + 0x2900560, thisptr, buffer);
+			game::call(0x7FF6C7BE1560, thisptr, buffer);
 
 			if (events::spoof_ip && thisptr->m_isLoopback)
 			{
@@ -126,7 +126,7 @@ namespace events
 			a.call_aligned(events::cg_predict_playerstate);
 			a.popad64();
 			
-			a.jmp(game::base_address + 0x9C2AF0);
+			a.jmp(OFFSET(0x7FF6C5CA3AF0));
 		});
 
 		const auto live_presence_update_stub = utils::hook::assemble([](utils::hook::assembler& a)
@@ -144,14 +144,14 @@ namespace events
 
 			a.bind(return_unhandled);
 			a.popad64();
-			a.jmp(game::base_address + 0x1E93490);
+			a.jmp(OFFSET(0x7FF6C7174490));
 		});
 			
-		utils::hook::call(game::base_address + 0x12FF0A8, cl_ready_to_send_packet); 
-		utils::hook::call(game::base_address + 0x1EE401C, send_member_info);
-		utils::hook::call(game::base_address + 0x2969B87, serialize);
-		utils::hook::call(game::base_address + 0x10BA99D, cg_predict_playerstate_stub);
-		utils::hook::call(game::base_address + 0x1E93708, live_presence_update_stub);
+		utils::hook::call(OFFSET(0x7FF6C65E00A8), cl_ready_to_send_packet);
+		utils::hook::call(OFFSET(0x7FF6C71C501C), send_member_info);
+		utils::hook::call(OFFSET(0x7FF6C7C4AB87), serialize);
+		utils::hook::call(OFFSET(0x7FF6C639B99D), cg_predict_playerstate_stub);
+		utils::hook::call(OFFSET(0x7FF6C7174708), live_presence_update_stub);
 		
 		connectionless_packet::initialize();
 		instant_message::initialize();

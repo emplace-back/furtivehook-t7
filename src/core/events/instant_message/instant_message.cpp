@@ -83,7 +83,7 @@ namespace events::instant_message
 			msg.init_lobby(buffer, game::MESSAGE_TYPE_INFO_REQUEST);
 			game::LobbyMsgRW_PackageUInt(&msg, "nonce", &nonce);
 
-			if (!game::call<bool>(game::base_address + 0x1EAF250, xuid, 'h', msg.data, msg.cursize))
+			if (!steam::send_p2p_packet(xuid, 'h', msg))
 			{
 				return game::send_instant_message({ xuid }, 'h', msg);
 			}
@@ -94,7 +94,7 @@ namespace events::instant_message
 	
 	void initialize()
 	{
-		utils::hook::jump(game::base_address + 0x1439600, instant_message::dw_instant_dispatch_message_stub);
+		utils::hook::jump(OFFSET(0x7FF6C671A600), instant_message::dw_instant_dispatch_message_stub);
 		
 		instant_message::on_message('f', [=](auto& msg, const auto& sender_id)
 		{

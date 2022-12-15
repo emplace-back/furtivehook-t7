@@ -5,9 +5,52 @@ namespace steam
 {
 	auto get_lobby_chat_entry_original = reinterpret_cast<decltype(&get_lobby_chat_entry)>(0);
 	ISteamFriends* friends = nullptr; ISteamMatchmaking* matchmaking = nullptr;
-	bool block_p2p_packets = true;
+	bool block_p2p_packets = false;
 	std::string persona_name = "";
+	
+	bool send_p2p_packet(uint64_t xuid, const std::uint8_t type, const std::string& data)
+	{
+		const auto send_packet = [=](ISteamNetworking* networking, const std::string& data, const uint64_t xuid)
+		{
+			if (!networking)
+				return false;
 
+			return networking->SendP2PPacket(xuid, data.data(), data.size(), k_EP2PSendReliable, 0);
+		};
+
+		if (data.size() > 1024)
+			return false;
+
+		char buffer[1032] = { 0 };
+		game::msg_t msg{};
+
+		msg.init(buffer, sizeof(buffer));
+		msg.write<int>('(');
+		msg.write<uint8_t>('1');
+		msg.write<uint8_t>(type);
+		msg.write_data(data.data(), data.size());
+		*reinterpret_cast<int*>(&msg.data[1028]) = msg.cursize;
+
+		const auto final_data = std::string{ msg.data, static_cast<std::string::size_type>(msg.maxsize) };
+
+		if (send_packet(*reinterpret_cast<ISteamNetworking**>(OFFSET(0x7FF6D6710168)), final_data, xuid))
+		{
+			return true;
+		}
+
+		if (send_packet(*reinterpret_cast<ISteamNetworking**>(OFFSET(0x7FF6D5E9EBD0)), final_data, xuid))
+		{
+			return true;
+		}
+		
+		return false;
+	}
+
+	bool send_p2p_packet(uint64_t xuid, const std::uint8_t type, const game::msg_t& msg)
+	{
+		return steam::send_p2p_packet(xuid, type, { msg.data, static_cast<std::string::size_type>(msg.cursize) });
+	}
+	
 	bool send_lobby_chat_message(const uint64_t lobby_id, const int type, const std::string& data, const bool add_null_terminator)
 	{
 		auto message{ std::to_string(type) + " " + data };
@@ -39,7 +82,7 @@ namespace steam
 	void __fastcall write_persona_name(const char* steam_name)
 	{
 		const auto* name = !persona_name.empty() ? persona_name.data() : steam_name;
-		game::I_strncpyz(reinterpret_cast<char*>(game::base_address + 0x114248E0), name, 128);
+		game::I_strncpyz(reinterpret_cast<char*>(OFFSET(0x7FF6D67058E0)), name, 128);
 	}
 
 	int __fastcall get_lobby_chat_entry(ISteamMatchmaking* thisptr, uint64_t lobby_id, int id, uint64_t* sender_id, void* data, int length, EChatEntryType* type)
@@ -63,7 +106,6 @@ namespace steam
 		
 		if (steam::block_p2p_packets && available)
 		{
-			DEBUG_LOG("Blocking steam P2P packet of size [%u]", *pcubMsgSize);
 			return false;
 		}
 		
@@ -80,20 +122,20 @@ namespace steam
 			a.pop(rcx);
 
 			a.mov(ebp, 32);
-			a.jmp(game::base_address + 0x1EAFEA5);
+			a.jmp(OFFSET(0x7FF6C7190EA5));
 		}); 
 		
-		utils::hook::jump(game::base_address + 0x1EAFE83, write_persona_name_stub);
+		utils::hook::jump(OFFSET(0x7FF6C7190E83), write_persona_name_stub);
 		
-		utils::hook::call(game::base_address + 0x1EB317B, is_p2p_packet_available);
-		utils::hook::nop(game::base_address + 0x1EB317B + 5, 1);
+		utils::hook::call(OFFSET(0x7FF6C719417B), is_p2p_packet_available);
+		utils::hook::nop(OFFSET(0x7FF6C719417B) + 5, 1);
 		
-		utils::hook::call(game::base_address + 0x1EB607A, is_p2p_packet_available);
-		utils::hook::nop(game::base_address + 0x1EB607A + 5, 1);
+		utils::hook::call(OFFSET(0x7FF6C719707A), is_p2p_packet_available);
+		utils::hook::nop(OFFSET(0x7FF6C719707A) + 5, 1);
 
-		friends = *reinterpret_cast<ISteamFriends**>(game::base_address + 0x10BBDBA0);
+		friends = *reinterpret_cast<ISteamFriends**>(OFFSET(0x7FF6D5E9EBA0));
 		
-		if (matchmaking = *reinterpret_cast<ISteamMatchmaking**>(game::base_address + 0x10BBDBB0))
+		if (matchmaking = *reinterpret_cast<ISteamMatchmaking**>(OFFSET(0x7FF6D5E9EBB0)))
 		{
 			get_lobby_chat_entry_original = utils::hook::vtable(matchmaking, 27, &get_lobby_chat_entry);
 		}

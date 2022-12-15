@@ -1,12 +1,13 @@
 #pragma once
 #include "dependencies/std_include.hpp"
+#include "dependencies/game/game.hpp"
 
 namespace spoof_call
 {
 	extern "C" void* spoof_call_stub();
-	
+
 	template <typename T, typename... Args>
-	static inline auto call(const void* shell, Args... args) -> T
+	static inline auto invoke(const void* shell, Args... args) -> T
 	{
 		auto fn = reinterpret_cast<T(*)(Args...)>(shell);
 		return fn(args...);
@@ -17,10 +18,10 @@ namespace spoof_call
 	{
 		if (arg_count > 4)
 		{
-			return game::call<T, First, Second, Third, Fourth, void*, void*, Pack...>(uintptr_t(function), first, second, third, fourth, shell_args, nullptr, pack...);
+			return invoke<T, First, Second, Third, Fourth, void*, void*, Pack...>(function, first, second, third, fourth, shell_args, nullptr, pack...);
 		}
-		
-		return game::call<T, First, Second, Third, Fourth, void*, void*>(uintptr_t(function), first, second, third, fourth, shell_args, nullptr);
+
+		return invoke<T, First, Second, Third, Fourth, void*, void*>(function, first, second, third, fourth, shell_args, nullptr);
 	}
 
 	template <typename T, typename... Args>
@@ -30,9 +31,9 @@ namespace spoof_call
 		{
 			const void* trampoline;
 			void* function;
-		}; 
-		
-		shell_args p{ reinterpret_cast<void*>(game::base_address + 0x2A95FFB), reinterpret_cast<void*>(fn) };
+		};
+
+		shell_args p{ reinterpret_cast<void*>(game::get_offset(0x7FF6C7D76FF9 + 2)), reinterpret_cast<void*>(fn) };
 		return do_call<T, Args...>(&spoof_call_stub, &p, sizeof...(Args), args...);
 	}
 }

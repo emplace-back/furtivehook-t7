@@ -104,7 +104,7 @@ namespace menu
 		if (initialized)
 		{
 			open = !open;
-			utils::hook::set<bool>(game::base_address + 0x17E70335, !open);
+			utils::hook::set<bool>(OFFSET(0x7FF6DD151335), !open);
 		}
 	}
 
@@ -501,13 +501,13 @@ namespace menu
 
 						if (ImGui::MenuItem("Send crash", nullptr, nullptr, target_id && !target_steam_id.empty()))
 						{
-							exploit::instant_message::send_friend_message_crash({ target_id });
-							exploit::instant_message::send_info_response_overflow({ target_id });
+							exploit::instant_message::send_friend_message_crash(target_id);
+							exploit::instant_message::send_info_response_overflow(target_id);
 						}
 
 						if (ImGui::MenuItem("Send popup", nullptr, nullptr, target_id && !target_steam_id.empty()))
 						{
-							exploit::instant_message::send_popup({ target_id });
+							exploit::instant_message::send_popup(target_id);
 						}
 
 						ImGui::Separator();

@@ -1,4 +1,5 @@
 #pragma once
+#include "dependencies/std_include.hpp"
 
 namespace command
 {
@@ -16,7 +17,7 @@ namespace command
 
 		static args get_server()
 		{
-			return args{ reinterpret_cast<game::CmdArgs*>(game::base_address + 0x1689BE30) };
+			return args{ reinterpret_cast<game::CmdArgs*>(OFFSET(0x7FF6DBB7CE30)) };
 		}
 
 		void tokenize(const char* string, const bool eval_expressions = false);

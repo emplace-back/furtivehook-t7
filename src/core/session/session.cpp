@@ -58,11 +58,11 @@ namespace session
 			query_info.queryId = game::SEARCH_SESSIONS_BY_SERVER_TYPE;
 			query_info.serverType = 2000;
 
-			if (const auto matchmaking = game::call<uintptr_t>(game::base_address + 0x144A2D0, 0); matchmaking)
+			if (const auto matchmaking = game::call<uintptr_t>(0x7FF6C672B2D0, 0); matchmaking)
 			{
 				game::bdRemoteTask* remote_task{};
 
-				game::call<game::bdRemoteTask*>(game::base_address + 0x290A2B0,
+				game::call<game::bdRemoteTask*>(0x7FF6C7BEB2B0,
 					matchmaking,
 					&remote_task,
 					query_info.queryId,
@@ -160,7 +160,7 @@ namespace session
 
 					if (ImGui::MenuItem("Freeze session"))
 					{
-						exploit::instant_message::send_info_response_overflow({ session.xuid });
+						exploit::instant_message::send_info_response_overflow(session.xuid);
 					}
 
 					if (ImGui::BeginMenu("Send OOB##" + xuid))
@@ -232,23 +232,23 @@ namespace session
 	void initialize()
 	{
 		// Setup query info
-		game::call(game::base_address + 0x144C2E0, &query_info, 0, true);
+		game::call(0x7FF6C672D2E0, &query_info, 0, true);
 
 		// Setup search results
 		for (size_t i = 0; i < search_results.size(); ++i) 
-			game::call(game::base_address + 0x144BA00, &search_results[i], true);
+			game::call(0x7FF6C672CA00, &search_results[i], true);
 
 		events::connectionless_packet::on_command("statusResponse", [](const auto& args, const auto& target, auto& msg)
 		{
 			char buffer[1024]{ 0 };
-			game::call(game::base_address + 0x2156BA0, &msg, buffer, sizeof buffer);
+			game::call(0x7FF6C7437BA0, &msg, buffer, sizeof buffer);
 
 			std::vector<player_info> players_info;
 			players_info.reserve(18);
 
 			for (size_t i = 0; i < 18; ++i)
 			{
-				const auto data = game::call<char*>(game::base_address + 0x2156BA0, &msg, buffer, sizeof buffer);
+				const auto data = game::call<char*>(0x7FF6C7437BA0, &msg, buffer, sizeof buffer);
 
 				if (!*data)
 					break;

@@ -1,4 +1,5 @@
 ﻿#include "dependencies/std_include.hpp"
+#include "game.hpp"
 
 namespace game
 {
@@ -12,7 +13,7 @@ namespace game
 			
 			bool send(const NetChanMsgType type, const std::string& data, const netadr_t& netadr, const uint64_t target_xuid, const uint64_t sender_xuid)
 			{
-				const auto chan = reinterpret_cast<NetChanMessageList_s*>(base_address + 0x16E6AE20);
+				const auto chan = reinterpret_cast<NetChanMessageList_s*>(OFFSET(0x7FF6DC14BE20));
 				auto msg = chan->out[type];
 				for (; msg; msg = msg->next)
 				{
@@ -49,7 +50,7 @@ namespace game
 				}
 				else
 				{
-					msg = game::call<NetChanMessage_s*>(game::base_address + 0x21733F0);
+					msg = game::call<NetChanMessage_s*>(0x7FF6C74543F0);
 
 					if (!msg)
 						return false;
@@ -65,7 +66,7 @@ namespace game
 					chan->out[type] = msg;
 				}
 				
-				const auto netchan_ms = *reinterpret_cast<int*>(base_address + 0x16E4AB1C);
+				const auto netchan_ms = *reinterpret_cast<int*>(OFFSET(0x7FF6DC12BB1C));
 				msg->lastKeepAliveMs = netchan_ms;
 				msg->lastTouchedMS = netchan_ms;
 				msg->destAddress = netadr;
@@ -74,15 +75,15 @@ namespace game
 				final_msg.sourceXUID = sender_id; 
 				
 				for (size_t i = 0; i < max_fragments; ++i)
-					game::call(base_address + 0x2173300, &data[i * fragment_offset], fragment_offset, i, &final_msg);
+					game::call(0x7FF6C7454300, &data[i * fragment_offset], fragment_offset, i, &final_msg);
 
 				if (fragment_length != 0)
 				{
-					game::call(base_address + 0x2173300, data.data(), fragment_length, max_fragments, &final_msg);
+					game::call(0x7FF6C7454300, data.data(), fragment_length, max_fragments, &final_msg);
 					++final_msg.numFragments;
 				}
 
-				return game::call<bool>(base_address + 0x21760F0, 0, type, &final_msg);
+				return game::call<bool>(0x7FF6C74570F0, 0, type, &final_msg);
 			}
 
 			bool send_oob(const uint64_t xuid, const netadr_t& netadr, const std::string& data, const bool fill)
@@ -120,7 +121,7 @@ namespace game
 				char compressed_buffer[0x10000]{};
 				std::memcpy(compressed_buffer, msg.data, sizeof uint64_t);
 
-				const auto compressed_size = game::call<size_t>(base_address + 0x215F6C0, false, &msg.data[9], msg.cursize - 9, &compressed_buffer[9], msg.maxsize - 9) + 9;
+				const auto compressed_size = game::call<size_t>(0x7FF6C74406C0, false, &msg.data[9], msg.cursize - 9, &compressed_buffer[9], msg.maxsize - 9) + 9;
 				return netchan::send(NETCHAN_CLIENTMSG, { compressed_buffer, compress_buffer ? compressed_size : msg.maxsize }, netadr, target_xuid, sender_xuid);
 			}
 
@@ -178,6 +179,18 @@ namespace game
 				return true;
 			}
 
+			netadr_t register_remote_addr(const InfoResponseLobby& lobby)
+			{
+				game::netadr_t netadr{};
+				
+				if (oob::register_remote_addr(game::HostInfo{}.from_lobby(lobby), &netadr))
+				{
+					return netadr;
+				}
+				
+				return {};
+			}
+
 			void on_registered_addr(const HostInfo& info, const std::function<void(const game::netadr_t&)>& callback)
 			{
 				scheduler::schedule([=]()
@@ -185,7 +198,7 @@ namespace game
 					game::netadr_t netadr{};
 					game::net::oob::register_remote_addr(info, &netadr);
 
-					const auto status = game::call<game::bdDTLSAssociationStatus>(game::base_address + 0x143BAB0, &netadr);
+					const auto status = game::call<game::bdDTLSAssociationStatus>(0x7FF6C671CAB0, &netadr);
 
 					switch (status)
 					{
@@ -212,13 +225,13 @@ namespace game
 			
 			if (netadr.type == NA_LOOPBACK)
 			{
-				const auto queue = reinterpret_cast<void*>(base_address + 0x16E6AC10 + 104 * netadr.port);
-				return game::call<bool>(base_address + 0x2177600, queue, 0, sock, &netadr, data.size(), data.data());
+				const auto queue = reinterpret_cast<void*>(OFFSET(0x7FF6DC14BC10) + 104 * netadr.port);
+				return game::call<bool>(0x7FF6C7458600, queue, 0, sock, &netadr, data.size(), data.data());
 			}
 			else if (netadr.type == NA_IP)
 			{
 				char checksum[0x10000] = { 0 };
-				const auto checksum_length = game::call<uint16_t>(base_address + 0x2177250, checksum, data.data(), data.size());
+				const auto checksum_length = game::call<uint16_t>(0x7FF6C7458250, checksum, data.data(), data.size());
 				*reinterpret_cast<uint16_t*>(&checksum[data.size()]) = checksum_length;
 
 				char buffer[sizeof(checksum)] = { 0 };
@@ -231,9 +244,9 @@ namespace game
 				msg.write_data(checksum, data.size() + 2);
 
 				volatile long* addr_handle;
-				game::call(base_address + 0x143C850, &addr_handle, &netadr);
+				game::call(0x7FF6C671D850, &addr_handle, &netadr);
 
-				if (const auto socket_router = game::call<uintptr_t**>(base_address + 0x144A7B0); socket_router && addr_handle)
+				if (const auto socket_router = game::call<uintptr_t**>(0x7FF6C672B7B0); socket_router && addr_handle)
 				{
 					_InterlockedIncrement(&addr_handle[2]);
 					const auto status = game::call<int>(socket_router, 9, &addr_handle);
@@ -252,6 +265,12 @@ namespace game
 
 			return false;
 		}
+	}
+	
+	uintptr_t get_base()
+	{
+		const static utils::nt::library host{}; 
+		return reinterpret_cast<size_t>(host.get_ptr());
 	}
 	
 	void initialize()
@@ -359,7 +378,7 @@ namespace game
 
 	bool CG_WorldPosToScreenPos(const Vec3* pos, Vec2* out)
 	{
-		const static auto CG_WorldPosToScreenPos = reinterpret_cast<bool(*)(LocalClientNum_t, const Vec3 * worldPos, Vec2 * outScreenPos)>(base_address + 0x573140);
+		const static auto CG_WorldPosToScreenPos = reinterpret_cast<bool(*)(LocalClientNum_t, const Vec3 * worldPos, Vec2 * outScreenPos)>(OFFSET(0x7FF6C5854140));
 		return spoof_call::call(CG_WorldPosToScreenPos, 0u, pos, out);
 	}
 
@@ -427,7 +446,7 @@ namespace game
 		if (ps == nullptr)
 			return false;
 		
-		const static auto CG_GetPlayerViewOrigin = reinterpret_cast<bool(*)(LocalClientNum_t, const playerState_s*, Vec3*, uint32_t)>(base_address + 0x11EF4C0); 
+		const static auto CG_GetPlayerViewOrigin = reinterpret_cast<bool(*)(LocalClientNum_t, const playerState_s*, Vec3*, uint32_t)>(OFFSET(0x7FF6C64D04C0));
 		return spoof_call::call(CG_GetPlayerViewOrigin, 0u, ps, view_origin, 0u);
 	}
 
@@ -487,7 +506,8 @@ namespace game
 
 	bool CG_BulletTrace(BulletTraceResults* br, BulletFireParams* bp, const int attacker_entity_num, int lastSurfaceType)
 	{
-		return reinterpret_cast<bool(*)(LocalClientNum_t, BulletFireParams *, BulletTraceResults*, const Weapon, int, int)>(base_address + 0x1168BA0)(0, bp, br, {}, attacker_entity_num, lastSurfaceType);
+		//return reinterpret_cast<bool(*)(LocalClientNum_t, BulletFireParams *, BulletTraceResults*, const Weapon, int, int)>(OFFSET(0x7FF6C6449BA0))(0, bp, br, {}, attacker_entity_num, lastSurfaceType);
+		return call<bool>(0x7FF6C6449BA0, 0, bp, br, 0, attacker_entity_num, lastSurfaceType);
 	}
 
 	bool send_instant_message(const std::vector<std::uint64_t>& recipients, const std::uint8_t type, const void* message, const std::uint32_t message_size)
@@ -622,12 +642,12 @@ namespace game
 
 	void connect_to_session(const game::HostInfo& info)
 	{
-		const auto begin = game::call<bool>(game::base_address + 0x1ED8540, 0, 0, game::LOBBY_TYPE_PRIVATE, game::LOBBY_TYPE_GAME);
+		const auto begin = game::call<bool>(0x7FF6C71B9540, 0, 0, game::LOBBY_TYPE_PRIVATE, game::LOBBY_TYPE_GAME);
 
 		if (!begin)
 			return;
 
-		game::call(game::base_address + 0x1EE3550, info.xuid, info.name, &info.secId, &info.secKey, &info.serializedAdr, game::JOIN_TYPE_NORMAL, info.xuid);
-		game::call(game::base_address + 0x1EE4DD0);
+		game::call(0x7FF6C71C4550, info.xuid, info.name, &info.secId, &info.secKey, &info.serializedAdr, game::JOIN_TYPE_NORMAL, info.xuid);
+		game::call(0x7FF6C71C5DD0);
 	}
 }

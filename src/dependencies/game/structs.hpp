@@ -1,6 +1,6 @@
 #pragma once
 #include "dependencies/std_include.hpp"
-#include "game.hpp"
+//#include "game.hpp"
 
 #define DOT_PRODUCT(a,b) ((a)[0]*(b)[0]+(a)[1]*(b)[1]+(a)[2]*(b)[2])
 #define ANGLE2SHORT(a) ((int)((a)*(65536/360.0f))&65535)

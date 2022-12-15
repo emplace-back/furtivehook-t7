@@ -23,7 +23,7 @@ namespace security
 
 	LONG __stdcall unhandled_exception_filter(PEXCEPTION_POINTERS ex)
 	{
-		auto ctx = reinterpret_cast<PCONTEXT>(game::base_address + 0x1A8A5910);
+		auto ctx = reinterpret_cast<PCONTEXT>(OFFSET(0x7FF6DFB86910));
 		RaiseException(STATUS_STACK_BUFFER_OVERRUN, 0, 1, reinterpret_cast<ULONG_PTR*>(&ctx));
 		return FALSE;
 	}
@@ -89,21 +89,21 @@ namespace security
 
 			a.movzx(ecx, byte_ptr(rbx));
 			a.test(cl, cl);
-			a.jmp(game::base_address + 0x2018F45);
+			a.jmp(OFFSET(0x7FF6C72F9F45));
 
 			a.bind(ret);
-			a.jmp(game::base_address + 0x2018F8B);
+			a.jmp(OFFSET(0x7FF6C72F9F8B));
 		});
 		
-		rb_draw_text_2d_cmd_hook.create(game::base_address + 0x1C5E5A0, rb_draw_text_2d_cmd);
-		r_read_char_from_string_hook.create(game::base_address + 0x1CAFF30, r_read_char_from_string);
-		ui_cod_read_char_from_string_hook.create(game::base_address + 0x1F2D6C0, ui_cod_read_char_from_string);
-		lua_cmd_parse_args_hook.create(game::base_address + 0x1F044E0, lua_cmd_parse_args);
-		cl_rank_get_paragon_icon_name_hook.create(game::base_address + 0x13C9D20, cl_rank_get_paragon_icon_name);
-		net_enqueue_packet_hook.create(game::base_address + 0x2177600, net_enqueue_packet);
+		rb_draw_text_2d_cmd_hook.create(OFFSET(0x7FF6C6F3F5A0), rb_draw_text_2d_cmd);
+		r_read_char_from_string_hook.create(OFFSET(0x7FF6C6F90F30), r_read_char_from_string);
+		ui_cod_read_char_from_string_hook.create(OFFSET(0x7FF6C720E6C0), ui_cod_read_char_from_string);
+		lua_cmd_parse_args_hook.create(OFFSET(0x7FF6C71E54E0), lua_cmd_parse_args);
+		cl_rank_get_paragon_icon_name_hook.create(OFFSET(0x7FF6C66AAD20), cl_rank_get_paragon_icon_name);
+		net_enqueue_packet_hook.create(OFFSET(0x7FF6C7458600), net_enqueue_packet);
 
-		utils::hook::jump(game::base_address + 0x2018F40, ui_model_get_model_from_path_stub);
-		utils::hook::jump(game::base_address + 0x20EE7B6, game::base_address + 0x20EE788); // Cmd_TokenizeStringInternal
+		utils::hook::jump(OFFSET(0x7FF6C72F9F40), ui_model_get_model_from_path_stub);
+		utils::hook::jump(OFFSET(0x7FF6C73CF7B6), OFFSET(0x7FF6C73CF788)); // Cmd_TokenizeStringInternal
 		
 		utils::hook::iat("kernel32.dll", "IsProcessorFeaturePresent", is_processor_feature_present);
 		utils::hook::iat("kernel32.dll", "UnhandledExceptionFilter", unhandled_exception_filter);

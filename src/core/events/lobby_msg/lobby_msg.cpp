@@ -71,7 +71,7 @@ namespace events::lobby_msg
 			if (!game::LobbyMsgRW_PackageInt(&msg, "lobbytype", &data.lobbyType))
 				return true;
 
-			if (game::call<uint32_t>(game::base_address + 0x1EEA710, data.dataMask) >= 2 || !game::is_valid_lobby_type(data.lobbyType))
+			if (game::call<uint32_t>(0x7FF6C71CB710, data.dataMask) >= 2 || !game::is_valid_lobby_type(data.lobbyType))
 			{
 				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::get_sender_string(from).data());
 				return true;
@@ -82,9 +82,9 @@ namespace events::lobby_msg
 
 		bool handle_agreement_request(const game::netadr_t& from, game::msg_t& msg, game::LobbyModule module)
 		{
-			if (*reinterpret_cast<game::JoinSourceState*>(game::base_address + 0x1574B640) != game::JOIN_SOURCE_STATE_WAITING_FOR_AGREEMENT)
+			if (const auto state = *reinterpret_cast<game::JoinSourceState*>(OFFSET(0x7FF6DAA2C640));
+				state != game::JOIN_SOURCE_STATE_WAITING_FOR_AGREEMENT)
 			{
-				PRINT_MESSAGE("LobbyMSG", "Pulling attempted blocked from %s", utils::get_sender_string(from).data());
 				return true;
 			}
 
@@ -178,7 +178,7 @@ namespace events::lobby_msg
 		void lobby_debug_join_state_changed(const char* state, const char* reason)
 		{
 			PRINT_MESSAGE("LobbyMSG", "Host rejected our join request due to '%s'", game::UI_SafeTranslateString(reason));
-			return game::call(game::base_address + 0x1EEDAB0, state, reason);
+			return game::call(0x7FF6C71CEAB0, state, reason);
 		}
 		
 		bool __fastcall lobby_msg_rw_package_int(game::msg_t* msg, const char* key, int* value)
@@ -256,7 +256,7 @@ namespace events::lobby_msg
 		data.append(reinterpret_cast<const char*>(msg.data), msg.cursize);
 
 		constexpr auto interval = 75;
-		const auto now = game::call<int>(game::base_address + 0x2332430);
+		const auto now = game::call<int>(0x7FF6C7613430);
 		static uint32_t last_call{ 0 };
 		static uint32_t count{ 0 };
 
@@ -278,7 +278,7 @@ namespace events::lobby_msg
 		if (session == nullptr)
 			return;
 
-		const auto channel = game::call<game::NetChanMsgType>(game::base_address + 0x1EF7F70, session->type, game::LOBBY_CHANNEL_UNRELIABLE);
+		const auto channel = game::call<game::NetChanMsgType>(0x7FF6C71D8F70, session->type, game::LOBBY_CHANNEL_UNRELIABLE);
 		return send_lobby_msg(channel, module, msg, netadr, xuid);
 	}
 	
@@ -294,16 +294,16 @@ namespace events::lobby_msg
 			a.call_aligned(lobby_msg::handle_packet);
 			a.popad64();
 
-			a.jmp(game::base_address + 0x1EF709B);
+			a.jmp(OFFSET(0x7FF6C71D809B));
 		}); 
 		
-		lobby_msg_rw_package_int_hook.create(game::base_address + 0x1EF5720, lobby_msg_rw_package_int);
+		lobby_msg_rw_package_int_hook.create(OFFSET(0x7FF6C71D6720), lobby_msg_rw_package_int);
 		
-		utils::hook::jump(game::base_address + 0x1EF7094, handle_packet_internal_stub);
-		utils::hook::nop(game::base_address + 0x1EF7094 + 5, 2); 
+		utils::hook::jump(OFFSET(0x7FF6C71D8094), handle_packet_internal_stub);
+		utils::hook::nop(OFFSET(0x7FF6C71D8094) + 5, 2);
 		
-		utils::hook::jump(game::base_address + 0x1EF5610, game::LobbyMsgRW_PackageElement);
-		utils::hook::call(game::base_address + 0x1EE5767, lobby_debug_join_state_changed);
+		utils::hook::jump(OFFSET(0x7FF6C71D6610), game::LobbyMsgRW_PackageElement);
+		utils::hook::call(OFFSET(0x7FF6C71C6767), lobby_debug_join_state_changed);
 		
 		lobby_msg::on_message(game::LOBBY_MODULE_HOST, game::MESSAGE_TYPE_JOIN_LOBBY, lobby_msg::handle_join_request);
 		lobby_msg::on_message(game::LOBBY_MODULE_HOST, game::MESSAGE_TYPE_LOBBY_MODIFIED_STATS, lobby_msg::handle_modified_stats);

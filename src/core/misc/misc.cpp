@@ -9,7 +9,7 @@ namespace misc
 	{
 		const auto ret_address{ reinterpret_cast<uintptr_t>(_ReturnAddress()) };
 
-		if (ret_address == game::base_address + 0x231D53A) // Sys_CheckCrashOrRerun
+		if (ret_address == OFFSET(0x7FF6C75FE53A)) // Sys_CheckCrashOrRerun
 		{
 			return IDNO;
 		}
@@ -26,7 +26,7 @@ namespace misc
 
 		scheduler::once([]()
 		{
-			utils::hook::return_value(game::base_address + 0x1E81CC8, std::numeric_limits<int>::max()); // Loot_GetItemQuantity
+			utils::hook::return_value(OFFSET(0x7FF6C7162CC8), std::numeric_limits<int>::max()); // Loot_GetItemQuantity
 		}, scheduler::pipeline::main);
 
 		scheduler::once(game::initialize, scheduler::pipeline::main);

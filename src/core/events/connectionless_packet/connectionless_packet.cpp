@@ -43,7 +43,7 @@ namespace events::connectionless_packet
 			if (connectionless_packet::handle_command(from, msg))
 				return false;
 
-			return game::call<bool>(game::base_address + 0x134BD50, localClientNum, from, msg);
+			return game::call<bool>(0x7FF6C662CD50, localClientNum, from, msg);
 		}
 
 		bool __fastcall sv_connectionless_packet(const game::netadr_t& from, game::msg_t* msg, const char* message)
@@ -79,12 +79,12 @@ namespace events::connectionless_packet
 			a.call_aligned(connectionless_packet::sv_connectionless_packet);
 			a.popad64();
 
-			a.jmp(game::base_address + 0x22538C9);
+			a.jmp(OFFSET(0x7FF6C75348C9));
 		}); 
 		
-		utils::hook::jump(game::base_address + 0x22538C4, sv_connectionless_packet_stub);
-		utils::hook::call(game::base_address + 0x134B838, cl_dispatch_connectionless_packet);
-		utils::hook::return_value(game::base_address + 0x1358310, 0); //CL_HandleVoiceTypePacket
+		utils::hook::jump(OFFSET(0x7FF6C75348C4), sv_connectionless_packet_stub);
+		utils::hook::call(OFFSET(0x7FF6C662C838), cl_dispatch_connectionless_packet);
+		utils::hook::return_value(OFFSET(0x7FF6C6639310), 0); //CL_HandleVoiceTypePacket
 		
 		const auto crash_attempt_oob = [](const command::args&, const game::netadr_t& from, auto&)
 		{

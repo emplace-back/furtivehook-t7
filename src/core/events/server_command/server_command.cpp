@@ -57,10 +57,10 @@ namespace events::server_command
 			a.call_aligned(server_command::handle_command);
 			a.pop(rcx);
 			
-			a.jmp(game::base_address + 0x131ED18);
+			a.jmp(OFFSET(0x7FF6C65FFD18));
 		});
 
-		utils::hook::jump(game::base_address + 0x131ED13, cl_cgame_needs_server_command_stub);
+		utils::hook::jump(OFFSET(0x7FF6C65FFD13), cl_cgame_needs_server_command_stub);
 		
 		server_command::on_command('2', [=](const auto& args)
 		{
