@@ -269,8 +269,8 @@ namespace game
 	
 	uintptr_t get_base()
 	{
-		const static utils::nt::library host{}; 
-		return reinterpret_cast<size_t>(host.get_ptr());
+		static auto base{ utils::nt::library{}.get_ptr() };
+		return reinterpret_cast<size_t>(base);
 	}
 	
 	void initialize()
@@ -378,8 +378,7 @@ namespace game
 
 	bool CG_WorldPosToScreenPos(const Vec3* pos, Vec2* out)
 	{
-		const static auto CG_WorldPosToScreenPos = reinterpret_cast<bool(*)(LocalClientNum_t, const Vec3 * worldPos, Vec2 * outScreenPos)>(OFFSET(0x7FF6C5854140));
-		return spoof_call::call(CG_WorldPosToScreenPos, 0u, pos, out);
+		return call<bool>(0x7FF6C5854140, 0, pos, out);
 	}
 
 	Vec2 get_screen_pos(const Vec3& world_pos)
@@ -446,8 +445,7 @@ namespace game
 		if (ps == nullptr)
 			return false;
 		
-		const static auto CG_GetPlayerViewOrigin = reinterpret_cast<bool(*)(LocalClientNum_t, const playerState_s*, Vec3*, uint32_t)>(OFFSET(0x7FF6C64D04C0));
-		return spoof_call::call(CG_GetPlayerViewOrigin, 0u, ps, view_origin, 0u);
+		return call<bool>(0x7FF6C64D04C0, 0, ps, view_origin, 0);
 	}
 
 	void adjust_user_cmd_movement(usercmd_s* cmd_old, const float angle, const float old_angle)
@@ -506,7 +504,6 @@ namespace game
 
 	bool CG_BulletTrace(BulletTraceResults* br, BulletFireParams* bp, const int attacker_entity_num, int lastSurfaceType)
 	{
-		//return reinterpret_cast<bool(*)(LocalClientNum_t, BulletFireParams *, BulletTraceResults*, const Weapon, int, int)>(OFFSET(0x7FF6C6449BA0))(0, bp, br, {}, attacker_entity_num, lastSurfaceType);
 		return call<bool>(0x7FF6C6449BA0, 0, bp, br, 0, attacker_entity_num, lastSurfaceType);
 	}
 

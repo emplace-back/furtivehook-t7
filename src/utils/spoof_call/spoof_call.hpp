@@ -1,39 +1,120 @@
 #pragma once
 #include "dependencies/std_include.hpp"
-#include "dependencies/game/game.hpp"
 
-namespace spoof_call
+namespace detail
 {
-	extern "C" void* spoof_call_stub();
+	extern "C" void* _spoofer_stub();
 
-	template <typename T, typename... Args>
-	static inline auto invoke(const void* shell, Args... args) -> T
+	template <typename Ret, typename... Args>
+	static inline auto shellcode_stub_helper(
+		const void* shell,
+		Args... args
+	) -> Ret
 	{
-		auto fn = reinterpret_cast<T(*)(Args...)>(shell);
+		auto fn = (Ret(*)(Args...))(shell);
 		return fn(args...);
 	}
 
-	template<typename T, typename First = void*, typename Second = void*, typename Third = void*, typename Fourth = void*, typename... Pack>
-	static inline auto do_call(const void* function, void* shell_args, const size_t arg_count, First first = nullptr, Second second = nullptr, Third third = nullptr, Fourth fourth = nullptr, Pack... pack)
+	template <std::size_t Argc, typename>
+	struct argument_remapper
 	{
-		if (arg_count > 4)
+		// At least 5 params
+		template<
+			typename Ret,
+			typename First,
+			typename Second,
+			typename Third,
+			typename Fourth,
+			typename... Pack
+		>
+		static auto do_call(
+			const void* shell,
+			void* shell_param,
+			First first,
+			Second second,
+			Third third,
+			Fourth fourth,
+			Pack... pack
+		) -> Ret
 		{
-			return invoke<T, First, Second, Third, Fourth, void*, void*, Pack...>(function, first, second, third, fourth, shell_args, nullptr, pack...);
+			return shellcode_stub_helper<
+				Ret,
+				First,
+				Second,
+				Third,
+				Fourth,
+				void*,
+				void*,
+				Pack...
+			>(
+				shell,
+				first,
+				second,
+				third,
+				fourth,
+				shell_param,
+				nullptr,
+				pack...
+				);
 		}
+	};
 
-		return invoke<T, First, Second, Third, Fourth, void*, void*>(function, first, second, third, fourth, shell_args, nullptr);
-	}
-
-	template <typename T, typename... Args>
-	static inline auto call(T(*fn)(Args...), Args... args) -> T
+	template <std::size_t Argc>
+	struct argument_remapper<Argc, std::enable_if_t<Argc <= 4>>
 	{
-		struct shell_args
+		// 4 or less params
+		template<
+			typename Ret,
+			typename First = void*,
+			typename Second = void*,
+			typename Third = void*,
+			typename Fourth = void*
+		>
+		static auto do_call(
+			const void* shell,
+			void* shell_param,
+			First first = First{},
+			Second second = Second{},
+			Third third = Third{},
+			Fourth fourth = Fourth{}
+		) -> Ret
 		{
-			const void* trampoline;
-			void* function;
-		};
+			return shellcode_stub_helper<
+				Ret,
+				First,
+				Second,
+				Third,
+				Fourth,
+				void*,
+				void*
+			>(
+				shell,
+				first,
+				second,
+				third,
+				fourth,
+				shell_param,
+				nullptr
+				);
+		}
+	};
+}
 
-		shell_args p{ reinterpret_cast<void*>(game::get_offset(0x7FF6C7D76FF9 + 2)), reinterpret_cast<void*>(fn) };
-		return do_call<T, Args...>(&spoof_call_stub, &p, sizeof...(Args), args...);
-	}
+
+template <typename Ret, typename... Args>
+static inline auto spoof_call(
+	Ret(*fn)(Args...),
+	Args... args
+) -> Ret
+{
+	struct shell_params
+	{
+		const void* trampoline;
+		void* function;
+		void* rbx;
+	};
+
+	shell_params p{ reinterpret_cast<void*>(game::get_offset(0x7FF6C7D76FF9 + 2)), reinterpret_cast<void*>(fn) };
+	using mapper = detail::argument_remapper<sizeof...(Args), void>;
+	return mapper::template do_call<Ret, Args...>((const void*)&detail::_spoofer_stub, &p, args...);
 }

@@ -123,7 +123,7 @@ namespace game
 	template <typename T = void, typename... Args>
 	inline auto call(const uintptr_t address, Args ... args)
 	{
-		return reinterpret_cast<T(*)(Args ...)>(get_offset(address))(args...);
+		return spoof_call(reinterpret_cast<T(*)(Args...)>(get_offset(address)), args...);
 	}
 
 	template <typename T = void, typename... Args>
@@ -131,7 +131,6 @@ namespace game
 	{
 		const auto table = *reinterpret_cast<uintptr_t**>(uintptr_t(address));
 		return reinterpret_cast<T(*)(const void*, Args ...)>(table[index])(address, args...);
-		//return game::call<T>(table[index], address, args...);
 	}
 
 	inline LobbySession* get_host_session(const int lobby_type)
@@ -164,8 +163,7 @@ namespace game
 
 	inline clientActive_t* cl()
 	{
-		const static auto CL_GetLocalClientGlobals = *reinterpret_cast<clientActive_t*(*)(LocalClientNum_t)>(OFFSET(0x7FF6C5351BD0));
-		return spoof_call::call(CL_GetLocalClientGlobals, 0u);
+		return call<clientActive_t*>(0x7FF6C5351BD0, 0);
 	}
 
 	inline clientConnection_t* clc()

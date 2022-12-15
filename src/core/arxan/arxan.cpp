@@ -233,7 +233,7 @@ namespace arxan
 
 		if (!context)
 		{
-			MessageBoxA(nullptr, utils::string::va("No frame offset.").data(), "Error", MB_ICONERROR);
+			MessageBoxA(nullptr, utils::string::va("No frame offset").data(), "Error", MB_ICONERROR);
 			utils::nt::terminate(0xBAD);
 			
 			return current_checksum;
