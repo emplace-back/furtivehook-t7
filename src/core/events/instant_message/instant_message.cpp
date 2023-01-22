@@ -75,21 +75,16 @@ namespace events::instant_message
 
 	bool send_info_request(const uint64_t xuid, uint32_t nonce)
 	{
-		if (game::Live_IsUserSignedInToDemonware(0))
+		char buffer[0x80] = { 0 };
+		game::msg_t msg{};
+
+		msg.init_lobby(buffer, game::MESSAGE_TYPE_INFO_REQUEST);
+		game::LobbyMsgRW_PackageUInt(&msg, "nonce", &nonce);
+
+		if (!steam::send_p2p_packet(xuid, 'h', msg))
 		{
-			char buffer[0x80] = { 0 };
-			game::msg_t msg{};
-
-			msg.init_lobby(buffer, game::MESSAGE_TYPE_INFO_REQUEST);
-			game::LobbyMsgRW_PackageUInt(&msg, "nonce", &nonce);
-
-			if (!steam::send_p2p_packet(xuid, 'h', msg))
-			{
-				return game::send_instant_message({ xuid }, 'h', msg);
-			}
+			return game::send_instant_message({ xuid }, 'h', msg);
 		}
-
-		return false;
 	}
 	
 	void initialize()
@@ -156,7 +151,7 @@ namespace events::instant_message
 					PRINT_MESSAGE("Instant Message", "Received a info request from %s", get_sender_string(sender_id).data());
 
 					if (events::prevent_join)
-						return false;
+						return true;
 				}
 
 				return game::LobbyJoinSource_IMInfoRequest(0, sender_id, nonce);

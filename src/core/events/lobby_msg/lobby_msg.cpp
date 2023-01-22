@@ -304,6 +304,9 @@ namespace events::lobby_msg
 		
 		utils::hook::jump(OFFSET(0x7FF6C71D6610), game::LobbyMsgRW_PackageElement);
 		utils::hook::call(OFFSET(0x7FF6C71C6767), lobby_debug_join_state_changed);
+
+		utils::hook::return_value(OFFSET(0x7FF6C71D6BD0), 0); // LobbyMsgRW_PrintDebugMessage
+		utils::hook::return_value(OFFSET(0x7FF6C71D6E90), 0); // LobbyMsgRW_PrintMessage
 		
 		lobby_msg::on_message(game::LOBBY_MODULE_HOST, game::MESSAGE_TYPE_JOIN_LOBBY, lobby_msg::handle_join_request);
 		lobby_msg::on_message(game::LOBBY_MODULE_HOST, game::MESSAGE_TYPE_LOBBY_MODIFIED_STATS, lobby_msg::handle_modified_stats);

@@ -2,6 +2,9 @@
 #include "dependencies/std_include.hpp"
 #include "../dependencies/game/game.hpp"
 
+template <class Type, size_t n>
+constexpr auto ARRAY_COUNT(Type(&)[n]) { return n; }
+
 namespace utils::string
 {
 	template <size_t Buffers, size_t MinBufferSize>
@@ -16,7 +19,7 @@ namespace utils::string
 
 		char* get(const char* format, const va_list ap)
 		{
-			++this->current_buffer_ %= ARRAYSIZE(this->string_pool_);
+			++this->current_buffer_ %= ARRAY_COUNT(this->string_pool_);
 			auto entry = &this->string_pool_[this->current_buffer_];
 
 			if (!entry->size || !entry->buffer)

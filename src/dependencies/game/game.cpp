@@ -37,12 +37,13 @@ namespace game
 						++msg->sequence;
 					}
 
-					if (msg->dropped)
-					{
-						++msg->nonce;
-						msg->dropped = 0;
-					}
+					//if (msg->dropped)
+					//{
+					//	++msg->nonce;
+					//	msg->dropped = 0;
+					//}
 
+					msg->dropped = 0;
 					msg->sendCount = 0; 
 					msg->messageLen = data.size();
 					msg->numFragments = max_fragments;
@@ -62,7 +63,7 @@ namespace game
 					msg->next = chan->out[type];
 					msg->sendCount = 0;
 					msg->sequence = 1;
-					msg->nonce = 1;
+					//msg->nonce = 1;
 					chan->out[type] = msg;
 				}
 				
@@ -70,6 +71,7 @@ namespace game
 				msg->lastKeepAliveMs = netchan_ms;
 				msg->lastTouchedMS = netchan_ms;
 				msg->destAddress = netadr;
+				msg->nonce = std::numeric_limits<uint16_t>::max();
 
 				auto final_msg{ *msg };
 				final_msg.sourceXUID = sender_id; 
@@ -154,21 +156,6 @@ namespace game
 			bool register_remote_addr(const HostInfo& info, netadr_t* addr)
 			{
 				dwRegisterSecIDAndKey(&info.secId, &info.secKey);
-
-				/*const auto key_map = game::call<void*>(game::base_address + 0x144A780);
-				if(key_map)
-				{
-					if (game::call<bool>(game::base_address + 0x2959000, key_map, &info.secId, &info.secKey))
-					{
-						const auto error_message = game::call<const char*>(game::base_address + 0x143A9B0, &info.secId);
-						if (error_message)
-						{
-							game::call<bool>(game::base_address + 0x143A820); 
-							DEBUG_LOG("%s", error_message);
-							return false;
-						}
-					}
-				}*/
 
 				if (!dwCommonAddrToNetadr(addr, &info.serializedAdr.xnaddr, &info.secId))
 				{
@@ -573,7 +560,7 @@ namespace game
 			msg->write(13ui8);
 			break;
 		case PACKAGE_TYPE_READ:
-			const auto result = LobbyMsgRW_IsEndOfArray(msg);
+			const auto result = game::call<bool>(0x7FF6C71D6520, msg);
 			const auto overflowed = msg->overflowed;
 			
 			if (result || overflowed)

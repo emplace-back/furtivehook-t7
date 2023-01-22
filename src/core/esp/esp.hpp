@@ -11,16 +11,14 @@ namespace esp
 
 	struct player_box_t
 	{
-		bool w2s;
 		int health;
-		Vec2 bottom, top, screen;
-		Vec2 pos; 
+		Vec2 pos;
 		Vec2 scale;
 	};
 
 	struct player_name_t
 	{
-		char name[256]{};
+		std::string name;
 		Vec2 pos;
 		Vec3 center;
 	};

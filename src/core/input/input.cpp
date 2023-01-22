@@ -72,7 +72,7 @@ namespace input
 			return true;
 		}
 
-		return CallWindowProcA(wndproc_, hwnd, msg, wparam, lparam);
+		return CallWindowProcW(wndproc_, hwnd, msg, wparam, lparam);
 	}
 
 	void on_key(UINT key, void(*cb)(), bool block)
@@ -82,6 +82,6 @@ namespace input
 
 	void initialize(HWND hwnd)
 	{
-		wndproc_ = WNDPROC(SetWindowLongPtr(hwnd, GWLP_WNDPROC, LONG_PTR(wnd_proc)));
+		wndproc_ = WNDPROC(SetWindowLongPtrW(hwnd, GWLP_WNDPROC, LONG_PTR(wnd_proc)));
 	}
 }

@@ -414,12 +414,7 @@ namespace friends
 
 					if (ImGui::MenuItem("Crash game", nullptr, nullptr, is_ready))
 					{
-						//exploit::send_crash(party_netadr);
-
-						if (game::dwGetConnectionStatus(&lobby_netadr) == game::BD_SOCKET_CONNECTED)
-						{
-							game::net::netchan::write({ 0, 0, 0x10000 }, lobby_netadr, lobby_session.hostXuid, f.steam_id, false);
-						}
+						exploit::send_crash(party_netadr);
 					}
 
 					if (ImGui::MenuItem("Kick player", nullptr, nullptr, is_ready))

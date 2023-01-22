@@ -58,7 +58,7 @@ namespace session
 			query_info.queryId = game::SEARCH_SESSIONS_BY_SERVER_TYPE;
 			query_info.serverType = 2000;
 
-			if (const auto matchmaking = game::call<uintptr_t>(0x7FF6C672B2D0, 0); matchmaking)
+			if (const auto matchmaking = game::call<uintptr_t>(0x7FF6C672B2D0, 0))
 			{
 				game::bdRemoteTask* remote_task{};
 

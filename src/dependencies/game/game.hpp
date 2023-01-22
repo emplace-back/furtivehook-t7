@@ -197,10 +197,7 @@ namespace game
 	const static auto UI_SafeTranslateString = reinterpret_cast<const char* (*)(const char*)>(OFFSET(0x7FF6C756F7B0));
 	const static auto LobbyJoinSource_IMInfoResponse = reinterpret_cast<bool(*)(const ControllerIndex_t, const uint64_t, msg_t*)>(OFFSET(0x7FF6C71C5E00));
 	const static auto LobbyJoinSource_IMInfoRequest = reinterpret_cast<bool(*)(const ControllerIndex_t, const uint64_t, uint32_t)>(OFFSET(0x7FF6C71C2620));
-	const static auto LobbyMsgRW_IsEndOfArray = reinterpret_cast<bool(*)(msg_t*)>(OFFSET(0x7FF6C71D6520));
 	const static auto CG_SimulateBulletFire_EndPos = reinterpret_cast<void(*)(int*, float, float, const Vec3*, Vec3*, Vec3*, float, float, const Vec3*, const Vec3*, const Vec3*, float, Weapon, int, int)>(OFFSET(0x7FF6C651DB50));
-	const static auto Cmd_AddCommandInternal = reinterpret_cast<void(*)(const char*, void(*)(), cmd_function_s*)>(OFFSET(0x7FF6C73CD530));
-	const static auto DB_GetXAssetName = reinterpret_cast<const char* (*)(const XAsset*)>(OFFSET(0x7FF6C66C9DA0));
 	const static auto BG_GetDepth = reinterpret_cast<float(*)(BulletHitInfo*, const BulletTraceResults*, const BulletFireParams*, const BulletTraceResults*)>(OFFSET(0x7FF6C5382CF0));
 	const static auto BG_GetMinDamageRangeScaled = reinterpret_cast<float(*)(Weapon)>(OFFSET(0x7FF6C79D1960));
 	const static auto BG_GetMultishotBaseMinDamageRangeScaled = reinterpret_cast<float(*)(Weapon)>(OFFSET(0x7FF6C79D1550));

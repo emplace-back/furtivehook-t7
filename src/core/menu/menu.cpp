@@ -9,8 +9,8 @@ namespace menu
 
 	void set_fonts()
 	{
-		glacial_indifference_bold = ImGui::GetIO().Fonts->AddFontFromMemoryCompressedBase85TTF(ImGui::GetIO().Fonts->GetSecondaryFont().data(), 18.0f);
-		glacial_indifference = ImGui::GetIO().Fonts->AddFontFromMemoryCompressedBase85TTF(ImGui::GetIO().Fonts->GetPrimaryFont().data(), 18.0f);
+		glacial_indifference_bold = ImGui::GetIO().Fonts->AddFontFromMemoryCompressedBase85TTF(ImGui::GetIO().Fonts->GetSecondaryFont().data(), 15.0f);
+		glacial_indifference = ImGui::GetIO().Fonts->AddFontFromMemoryCompressedBase85TTF(ImGui::GetIO().Fonts->GetPrimaryFont().data(), 15.0f);
 	}
 
 	void set_style_color()
@@ -313,10 +313,11 @@ namespace menu
 								{
 									const auto clc = game::clc();
 									game::net::netchan::write(packet, clc->serverAddress, session->host.info.xuid, player_xuid, false);
+									game::net::netchan::write({ 69, 0, 0x10000 }, clc->serverAddress, session->host.info.xuid, player_xuid, false);
 								}
 								else
 								{
-									game::net::netchan::write(packet, netadr, player_xuid, 0xDEADFA11, false);
+									game::net::netchan::write(packet, netadr, player_xuid, player_xuid, false);
 								}
 							}
 
@@ -632,6 +633,21 @@ namespace menu
 							if (ImGui::Button("Execute##execute_reliable_command", { 64.0f, 0.0f }))
 							{
 								game::CL_AddReliableCommand(0, reliable_command_input.data());
+							}
+						}
+
+						if (begin_section("Execute server command"))
+						{
+							static auto server_command_input = ""s;
+
+							ImGui::SetNextItemWidth(width * 0.85f);
+							ImGui::InputTextWithHint("##server_command_input", "Server Command", &server_command_input);
+
+							ImGui::SameLine();
+
+							if (ImGui::Button("Execute##execute_server_command", { 64.0f, 0.0f }))
+							{
+								game::call(0x7FF6C752FFE0, -1, 1, server_command_input.data());
 							}
 						}
 

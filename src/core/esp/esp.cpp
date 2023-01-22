@@ -164,7 +164,9 @@ namespace esp
 
 			if (const auto cent = game::centity(i); cent && is_valid_target(cent))
 			{
-				if (enemies_only && !game::is_enemy(i))
+				const auto is_enemy = game::is_enemy(i);
+				
+				if (enemies_only && !is_enemy)
 					continue;
 
 				screen_positions::player_box[i].health = game::cg()->clients[i].health;
@@ -183,8 +185,12 @@ namespace esp
 							screen_positions::player_box[i].pos -= scale * 0.5f;
 							screen_positions::player_box[i].scale = scale;
 
-							screen_positions::player_name[i].pos = center_pos;
-							screen_positions::player_name[i].pos.y -= scale.y * 0.5f;
+							if (char buffer[40] = { 0 }; game::CL_GetClientName(0, i, buffer, sizeof buffer, true))
+							{
+								screen_positions::player_name[i].pos = center_pos;
+								screen_positions::player_name[i].pos.y -= scale.y * 0.5f;
+								screen_positions::player_name[i].name = buffer;
+							}
 						}
 
 						screen_positions::player_bone_tags[i].pos[static_cast<std::uint32_t>(bone_tag)] = get_screen_pos(bone_tag_position);
@@ -194,17 +200,37 @@ namespace esp
 				screen_positions::player_color[i] = friendly_color;
 				screen_positions::player_bone_tags[i].color = friendly_color;
 				
-				if (game::is_enemy(i))
+				if (is_enemy)
 				{
 					const auto& color = enemy_color;
 
 					screen_positions::player_color[i] = color;
 					screen_positions::player_bone_tags[i].color = color;
 				}
-
-				game::CL_GetClientName(0, i, screen_positions::player_name[i].name, sizeof screen_positions::player_name[i].name, true);
 				
 				screen_positions::size = i;
+
+				/*if (player_name_tag)
+				{
+					if (auto origin = get_bone_tag_position(cent, game::bone_tag::head); !origin.empty())
+					{
+						origin.z += 16.0f;
+
+						const auto old = origin.lerp(cent->pose.origin, 0.5f);
+
+						origin.x = old.x;
+						origin.y = old.y;
+
+						Vec2 screen_pos;
+
+						if (char buffer[40] = { 0 };
+							game::CG_WorldPosToScreenPos(&origin, &screen_pos) && game::CL_GetClientName(0, i, buffer, sizeof buffer, true))
+						{
+							screen_positions::player_name[i].pos = screen_pos;
+							screen_positions::player_name[i].name = buffer;
+						}
+					}
+				}*/
 			}
 		}
 	}
@@ -279,7 +305,7 @@ namespace esp
 		{
 			const auto& color = screen_positions::player_color[ent_num];
 
-			const auto text = screen_positions::player_name[ent_num].name;
+			const auto text = screen_positions::player_name[ent_num].name.data();
 			const auto text_size = ImGui::CalcTextSize(text);
 			const auto x = pos.x - text_size.x * 0.5f;
 			const auto y = pos.y - text_size.y;

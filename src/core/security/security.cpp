@@ -9,7 +9,8 @@ namespace security
 	utils::hook::detour lua_cmd_parse_args_hook;
 	utils::hook::detour cl_rank_get_paragon_icon_name_hook;
 	utils::hook::detour net_enqueue_packet_hook;
-	utils::hook::detour cl_server_id_changed_hook;
+	utils::hook::detour cl_get_config_string_hook;
+	utils::hook::detour bg_cache_get_event_string_name_for_index_hook;
 	
 	BOOL __stdcall is_processor_feature_present(DWORD feature)
 	{
@@ -78,6 +79,34 @@ namespace security
 		DEBUG_LOG("Exploit attempt caught! [%u] from %s", length, utils::get_sender_string(*addr).data());
 	}
 
+	const char* __fastcall cl_get_config_string(int config_string_index)
+	{
+		if (constexpr auto max_index = 3629u; static_cast<std::uint32_t>(config_string_index) <= max_index)
+		{
+			return cl_get_config_string_hook.call<const char*>(config_string_index);
+		}
+
+		PRINT_LOG("(configStringIndex) > (MAX_CONFIGSTRINGS) [%u] [0x%llX]",
+			config_string_index,
+			uintptr_t(_ReturnAddress()) - game::get_base());
+
+		return "";
+	}
+
+	const char* __fastcall bg_cache_get_event_string_name_for_index(int inst, int index)
+	{
+		if (constexpr auto max_index = 0x100; static_cast<uint32_t>(index) <= max_index)
+		{
+			return bg_cache_get_event_string_name_for_index_hook.call<const char*>(inst, index);
+		}
+
+		PRINT_LOG("Crash attempt caught! [%u] [0x%llX]",
+			index,
+			uintptr_t(_ReturnAddress()) - game::get_base());
+
+		return "";
+	}
+
 	void initialize()
 	{
 		const auto ui_model_get_model_from_path_stub = utils::hook::assemble([](utils::hook::assembler& a)
@@ -101,6 +130,8 @@ namespace security
 		lua_cmd_parse_args_hook.create(OFFSET(0x7FF6C71E54E0), lua_cmd_parse_args);
 		cl_rank_get_paragon_icon_name_hook.create(OFFSET(0x7FF6C66AAD20), cl_rank_get_paragon_icon_name);
 		net_enqueue_packet_hook.create(OFFSET(0x7FF6C7458600), net_enqueue_packet);
+		cl_get_config_string_hook.create(OFFSET(0x7FF6C6601110), cl_get_config_string);
+		bg_cache_get_event_string_name_for_index_hook.create(OFFSET(0x7FF6C53878A0), bg_cache_get_event_string_name_for_index);
 
 		utils::hook::jump(OFFSET(0x7FF6C72F9F40), ui_model_get_model_from_path_stub);
 		utils::hook::jump(OFFSET(0x7FF6C73CF7B6), OFFSET(0x7FF6C73CF788)); // Cmd_TokenizeStringInternal

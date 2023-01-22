@@ -5,7 +5,7 @@ namespace steam
 {
 	auto get_lobby_chat_entry_original = reinterpret_cast<decltype(&get_lobby_chat_entry)>(0);
 	ISteamFriends* friends = nullptr; ISteamMatchmaking* matchmaking = nullptr;
-	bool block_p2p_packets = false;
+	bool block_p2p_packets = true;
 	std::string persona_name = "";
 	
 	bool send_p2p_packet(uint64_t xuid, const std::uint8_t type, const std::string& data)
@@ -124,7 +124,23 @@ namespace steam
 			a.mov(ebp, 32);
 			a.jmp(OFFSET(0x7FF6C7190EA5));
 		}); 
+
+		const auto begin_auth_ticket_stub = utils::hook::assemble([](utils::hook::assembler& a)
+		{
+			const auto ret = a.newLabel();
+
+			a.cmp(dword_ptr(r9, 4), 200);
+			a.ja(ret);
+			
+			a.mov(qword_ptr(rsp, 0x20), rbx);
+			a.jmp(OFFSET(0x7FF6C7194778));
+
+			a.bind(ret);
+			
+			a.jmp(OFFSET(0x7FF6C71947BB));
+		});
 		
+		utils::hook::jump(OFFSET(0x7FF6C7194773), begin_auth_ticket_stub);
 		utils::hook::jump(OFFSET(0x7FF6C7190E83), write_persona_name_stub);
 		
 		utils::hook::call(OFFSET(0x7FF6C719417B), is_p2p_packet_available);

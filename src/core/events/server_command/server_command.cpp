@@ -88,17 +88,26 @@ namespace events::server_command
 			return false;
 		});
 
-		server_command::on_command('t', [](const auto& args)
+		server_command::on_command('D', [](const auto& args)
 		{
-			const auto team = utils::atoi<uint32_t>(args[2]);
+			if (args.size() < 3)
+				return true; 
 
-			if (team >= 21)
+			const auto index = utils::atoi<uint32_t>(args[2]);
+
+			if (index >= 8)
 			{
-				PRINT_MESSAGE("Server", "Exploit attempt caught!");
+				PRINT_MESSAGE("Server", "Crash attempt caught!");
 				return true;
 			}
-
+		
 			return false;
+		}); 
+		
+		server_command::on_command('t', [](const auto& args)
+		{
+			PRINT_MESSAGE("Server", "Exploit attempt caught!");
+			return true;
 		});
 
 		server_command::on_command('v', [](const auto& args)

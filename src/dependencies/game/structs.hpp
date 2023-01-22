@@ -136,6 +136,11 @@ public:
 		return *this;
 	}
 
+	Vec3 lerp(const Vec3& to, const float slerp) 
+	{
+		return (to - *this) * slerp + *this;
+	}
+
 	float distance(Vec3 v) const {
 		Vec3 d(x - v.x, y - v.y, z - v.z);
 		return d.length();
