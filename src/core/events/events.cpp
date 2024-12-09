@@ -14,6 +14,7 @@ namespace events
 		utils::hook::detour process_packet_hook;
 		utils::hook::detour sys_send_packet_hook;
 		utils::hook::detour get_nat_type_hook;
+		utils::hook::detour live_presence_pack_hook;
 		
 		void __fastcall cl_create_new_commands(LocalClientNum_t localClientNum)
 		{
@@ -181,8 +182,6 @@ namespace events
 			
 			return sys_send_packet_hook.call<bool>(sock, length, data, netadr);
 		}
-
-		utils::hook::detour live_presence_pack_hook;
 		
 		int __fastcall live_presence_pack(game::PresenceData* presence, void* buffer, size_t buffer_size)
 		{
@@ -197,33 +196,6 @@ namespace events
 			}
 
 			return live_presence_pack_hook.call<int>(presence, buffer, buffer_size);
-		}
-
-		uint64_t big_long64(uint64_t value, uintptr_t* rsp)
-		{
-			const auto retaddr = *(rsp + 16 + 6);
-
-			if (!utils::nt::library::get_by_address(retaddr))
-				return value;
-
-			// LobbyMsgRW_PackageInt/LobbyMsgRW_PackageUInt
-			if (retaddr == OFFSET(0x7FF6C74575C6))
-			{
-				const auto msg = *reinterpret_cast<game::msg_t**>(rsp + 8 + 4);
-
-				auto msg_backup = *msg;
-
-				msg->readcount += sizeof(int64_t);
-
-				if ((value >> 0x20) == 0x11111111)
-				{
-					*reinterpret_cast<uint64_t*>(msg->data + msg->readcount) = utils::random<uint64_t>();
-				}
-
-				*msg = msg_backup;
-			}
-
-			return value;
 		}
 
 		bool __fastcall cl_add_reliable_command(LocalClientNum_t localClientNum, const char* cmd)
@@ -283,32 +255,6 @@ namespace events
 			a.popad64();
 			a.jmp(OFFSET(0x7FF6C7174490));
 		});
-
-		/*scheduler::once([]()
-		{
-			const auto big_long64_stub = utils::hook::assemble([](utils::hook::assembler& a)
-			{
-				a.pushad64();
-				a.lea(rdx, qword_ptr(rsp));
-				a.call_aligned(big_long64);
-				a.popad64(true);
-				a.ret();
-			});
-
-			scheduler::loop([=]()
-			{
-				const auto big_long64 = reinterpret_cast<uintptr_t**>(OFFSET(0x7FF6DD00DF68));
-
-				if (!big_long64)
-					return;
-
-				if (*big_long64 == big_long64_stub)
-					return;
-
-				DEBUG_LOG("Called");
-				utils::hook::set(big_long64, big_long64_stub);
-			});
-		}, scheduler::pipeline::main);*/
 
 		sys_send_packet_hook.create(OFFSET(0x7FF6C7612F70), sys_send_packet);
 		process_packet_hook.create(OFFSET(0x7FF6C7C3CE00), process_packet); 
