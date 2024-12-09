@@ -392,6 +392,35 @@ namespace menu
 								}, scheduler::pipeline::main);
 							}
 
+							if (ImGui::MenuItem("Chat test"))
+							{
+								std::thread([=]()
+								{
+									for (size_t i = 0; i < 128; ++i)
+									{
+										game::net::netchan::write_packet msg{};
+										msg.server_id = game::cl()->serverId;
+										msg.command_sequence = std::numeric_limits<uint16_t>::max();
+										const auto chat_message{ "hello"s };
+
+										if (menu::exploits[player_xuid].completed)
+										{
+											menu::exploits[player_xuid] = {};
+											return;
+										}
+										
+										menu::exploits[player_xuid].chat_message = chat_message;
+										
+										msg.data = "chat 0 " + chat_message;
+
+										msg.acknowledge = i;
+
+										game::net::netchan::write(msg, game::clc()->serverAddress, player_xuid, 1);
+										std::this_thread::sleep_for(250ms);
+									}
+								}).detach();
+							}
+
 							ImGui::EndMenu();
 						}
 
