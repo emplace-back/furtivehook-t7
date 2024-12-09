@@ -13,31 +13,6 @@ namespace events::connectionless_packet
 			return callbacks;
 		}
 
-		bool __fastcall handle_command(const game::netadr_t& from, game::msg_t* msg, const bool sv = false)
-		{
-			const auto args = sv ? command::args::get_server() : command::args::get_client();
-
-			if (log_commands)
-			{
-				PRINT_LOG("Received OOB [%s] '%s' from %s",
-					sv ? "s" : "c",
-					args.join(0).data(),
-					utils::get_sender_string(from).data());
-			}
-
-			const auto oob_string = utils::string::to_lower(args[0]);
-			const auto& callbacks = get_callbacks();
-			const auto handler = callbacks.find(oob_string);
-
-			if (handler == callbacks.end())
-				return false;
-
-			const auto msg_backup = *msg;
-			const auto handled = handler->second(args, from, *msg);
-			*msg = msg_backup;
-			return handled;
-		}
-
 		bool __fastcall cl_dispatch_connectionless_packet(LocalClientNum_t localClientNum, game::netadr_t from, game::msg_t* msg)
 		{
 			if (connectionless_packet::handle_command(from, msg))
@@ -68,6 +43,31 @@ namespace events::connectionless_packet
 		get_callbacks()[utils::string::to_lower(command)] = callback;
 	}
 
+	bool __fastcall handle_command(const game::netadr_t& from, game::msg_t* msg, const bool sv)
+	{
+		const auto args = sv ? command::args::get_server() : command::args::get_client();
+
+		if (log_commands)
+		{
+			PRINT_LOG("Received OOB [%s] '%s' from %s",
+				sv ? "s" : "c",
+				args.join(0).data(),
+				utils::get_sender_string(from).data());
+		}
+
+		const auto oob_string = utils::string::to_lower(args[0]);
+		const auto& callbacks = get_callbacks();
+		const auto handler = callbacks.find(oob_string);
+
+		if (handler == callbacks.end())
+			return false;
+
+		const auto msg_backup = *msg;
+		const auto handled = handler->second(args, from, *msg);
+		*msg = msg_backup;
+		return handled;
+	}
+
 	void initialize()
 	{
 		const auto sv_connectionless_packet_stub = utils::hook::assemble([](utils::hook::assembler& a)
@@ -84,7 +84,6 @@ namespace events::connectionless_packet
 		
 		utils::hook::jump(OFFSET(0x7FF6C75348C4), sv_connectionless_packet_stub);
 		utils::hook::call(OFFSET(0x7FF6C662C838), cl_dispatch_connectionless_packet);
-		utils::hook::return_value(OFFSET(0x7FF6C6639310), 0); //CL_HandleVoiceTypePacket
 		
 		const auto crash_attempt_oob = [](const command::args&, const game::netadr_t& from, auto&)
 		{

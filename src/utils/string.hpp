@@ -76,6 +76,20 @@ namespace utils::string
 		entry string_pool_[Buffers];
 	};
 
+	class info_string
+	{
+	public:
+		info_string() = default;
+		explicit info_string(const std::string& buffer);
+		explicit info_string(const char* buffer);
+
+		std::string get(const std::string& key) const;
+	private:
+		std::unordered_map<std::string, std::string> key_value_pairs{};
+
+		void parse(std::string buffer);
+	};
+
 	std::string get_log_file(const std::string & dir, const std::string& ext = "log");
 	std::string data_time(time_t seconds = 0, const bool date_only = true);
 	std::string join(const std::vector<std::string>& args, const std::size_t index = 1);
@@ -92,7 +106,7 @@ namespace utils::string
 	std::string convert(const std::wstring& wstr);
 	std::wstring convert(const std::string& str);
 	std::string reverse_words(std::string_view s);
-	std::string generate_random_string(const size_t length);
+	std::string random(const size_t length);
 	std::string strip_colors(const std::string & string);
-	void strip_materials(char* string);
+	void clean_ui_text(char* string);
 }

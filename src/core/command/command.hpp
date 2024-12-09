@@ -8,20 +8,14 @@ namespace command
 	public:
 		args(game::CmdArgs* a) : cmd_args(a)
 		{
+			assert(cmd_args && cmd_args->nesting < 8);
 		}
 
-		static args get_client()
-		{
-			return args{ game::Sys_GetTLS()->cmdArgs };
-		}
+		static args get_client();
+		static args get_server();
 
-		static args get_server()
-		{
-			return args{ reinterpret_cast<game::CmdArgs*>(OFFSET(0x7FF6DBB7CE30)) };
-		}
-
-		void tokenize(const char* string, const bool eval_expressions = false);
-		void end_tokenize();
+		void tokenize(const char* string, const bool eval_expressions = false) const;
+		void end_tokenize() const;
 		const char* get(const int index) const;
 		int size() const;
 		std::string join(const int index = 0) const;

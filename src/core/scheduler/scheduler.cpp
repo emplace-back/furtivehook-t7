@@ -125,7 +125,7 @@ namespace scheduler
 	{
 		schedule([=]()
 		{
-			const auto dw_init = game::Live_IsUserSignedInToDemonware(0);
+			const auto dw_init = reinterpret_cast<bool(*)(const ControllerIndex_t)>(OFFSET(0x7FF6C70ED7A0))(0);
 
 			if (dw_init)
 			{

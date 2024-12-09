@@ -376,7 +376,5 @@ namespace arxan
 
 		utils::hook::jump(GetWindowTextA, get_window_text, true, true);
 		utils::hook::move_hook(GetWindowTextA);
-
-		scheduler::once(search_and_patch_integrity_checks, scheduler::pipeline::main);
 	}
 }

@@ -41,30 +41,26 @@ namespace command
 		}
 	}
 
-	void args::tokenize(const char* text, const bool eval_expressions)
+	args args::get_client()
 	{
-		if (auto& nesting{ ++cmd_args->nesting }; nesting < 8)
-		{
-			cmd_args->usedTextPool[nesting] = -cmd_args->totalUsedTextPool;
-			cmd_args->localClientNum[nesting] = -1;
-			cmd_args->controllerIndex[nesting] = 0;
-			cmd_args->argv[nesting] = &cmd_args->argvPool[cmd_args->totalUsedArgvPool];
-			cmd_args->argshift[nesting] = 0;
-			cmd_args->argc[nesting] = game::call<int>(0x7FF6C73CF300, text, 512 - cmd_args->totalUsedArgvPool, eval_expressions, cmd_args->argv[nesting], cmd_args);
-			cmd_args->totalUsedArgvPool += cmd_args->argc[nesting];
-			cmd_args->usedTextPool[nesting] += cmd_args->totalUsedTextPool;
-		}
+		return args{ game::Sys_GetTLS()->cmdArgs };
 	}
 
-	void args::end_tokenize()
+	args args::get_server()
 	{
-		if (auto& nesting{ cmd_args->nesting }; nesting >= 0 && nesting < 8)
-		{
-			cmd_args->totalUsedArgvPool -= cmd_args->argc[nesting];
-			cmd_args->totalUsedArgvPool -= cmd_args->argshift[nesting];
-			cmd_args->totalUsedTextPool -= cmd_args->usedTextPool[nesting];
-			--nesting;
-		}
+		return args{ reinterpret_cast<game::CmdArgs*>(OFFSET(0x7FF6DBB7CE30)) };
+	}
+	
+	void args::tokenize(const char* text, const bool eval_expressions) const
+	{
+		// Cmd_TokenizeStringKernel
+		game::call(0x7FF6C73CF7C0, -1, 0, text, 512 - cmd_args->totalUsedArgvPool, eval_expressions, cmd_args);
+	}
+
+	void args::end_tokenize() const
+	{
+		// Cmd_EndTokenizedString
+		game::call(0x7FF6C73CD770);
 	}
 	
 	const char* args::get(const int index) const

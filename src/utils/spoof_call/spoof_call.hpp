@@ -114,7 +114,7 @@ static inline auto spoof_call(
 		void* rbx;
 	};
 
-	shell_params p{ reinterpret_cast<void*>(game::get_offset(0x7FF6C7D76FF9 + 2)), reinterpret_cast<void*>(fn) };
+	shell_params p{ reinterpret_cast<void*>(game::get_offset(0x7FF6C662184F)), reinterpret_cast<void*>(fn) };
 	using mapper = detail::argument_remapper<sizeof...(Args), void>;
 	return mapper::template do_call<Ret, Args...>((const void*)&detail::_spoofer_stub, &p, args...);
 }

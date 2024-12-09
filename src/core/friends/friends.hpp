@@ -11,21 +11,17 @@ namespace friends
 	
 	struct friend_info
 	{
-		std::uint64_t steam_id;
+		uint64_t steam_id;
 		std::string name;
 		std::time_t last_online;
+		bool is_online;
 		response_t response;
-
-		bool is_online() const noexcept
-		{
-			return response.presence.version || response.info_response.nonce;
-		}
 
 		bool operator<(const friend_info& other) const
 		{
-			if (is_online())
+			if (this->is_online)
 			{
-				return is_online() > other.is_online();
+				return this->is_online > other.is_online;
 			}
 			
 			return last_online > other.last_online;

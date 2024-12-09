@@ -7,18 +7,6 @@ namespace events::instant_message
 
 	namespace
 	{
-		std::string get_sender_string(const std::uint64_t sender_id)
-		{
-			const auto sender_name{ steam::get_friend_persona_name(sender_id) };
-
-			if (!sender_name.empty())
-			{
-				return utils::string::va("'%s' (%llu)", sender_name.data(), sender_id);
-			}
-
-			return utils::string::va("(%llu)", sender_id);
-		}
-		
 		using callback = std::function<bool(game::msg_t&, const std::uint64_t)>;
 		
 		std::unordered_map<std::uint8_t, callback>& get_callbacks()
@@ -49,7 +37,7 @@ namespace events::instant_message
 		{
 			if (message_size >= 0x1000)
 			{
-				PRINT_LOG("Received instant message of invalid size [%u] from %s", message_size, get_sender_string(sender_id).data());
+				PRINT_LOG("Received instant message of invalid size [%u] from %s", message_size, steam::get_sender_string(sender_id).data());
 				return false;
 			}
 
@@ -66,7 +54,7 @@ namespace events::instant_message
 
 			if (log_messages)
 			{
-				PRINT_LOG("Received instant message '%c' of size [%u] from %s", type, message_size, get_sender_string(sender_id).data());
+				PRINT_LOG("Received instant message '%c' of size [%u] from %s", type, message_size, steam::get_sender_string(sender_id).data());
 			}
 
 			return handle_message(sender_id, type, msg);
@@ -75,20 +63,34 @@ namespace events::instant_message
 
 	bool send_info_request(const uint64_t xuid, uint32_t nonce)
 	{
-		char buffer[0x80] = { 0 };
+		char buffer[0x80] = {0};
 		game::msg_t msg{};
 
 		msg.init_lobby(buffer, game::MESSAGE_TYPE_INFO_REQUEST);
 		game::LobbyMsgRW_PackageUInt(&msg, "nonce", &nonce);
 
-		if (!steam::send_p2p_packet(xuid, 'h', msg))
+		if (!steam::send_instant_message(xuid, 'h', msg))
 		{
 			return game::send_instant_message({ xuid }, 'h', msg);
 		}
 	}
 	
+	constexpr auto UGC_NAME{ "deez" };
+
+	bool __fastcall package_info_response_lobby(game::InfoResponseLobby* lobby, game::msg_t* msg)
+	{
+		if (msg->packageType == game::PACKAGE_TYPE_WRITE)
+		{
+			game::I_strncpyz(lobby->ugcName, UGC_NAME, 32);
+			lobby->ugcVersion = 69;
+		}
+
+		return game::call<bool>(0x7FF6C71BB030, lobby, msg);
+	}
+	
 	void initialize()
 	{
+		//utils::hook::call(OFFSET(0x7FF6C71C1F4C), instant_message::package_info_response_lobby);
 		utils::hook::jump(OFFSET(0x7FF6C671A600), instant_message::dw_instant_dispatch_message_stub);
 		
 		instant_message::on_message('f', [=](auto& msg, const auto& sender_id)
@@ -101,16 +103,16 @@ namespace events::instant_message
 
 				if (message.mType == game::JOIN_REQUEST)
 				{
-					PRINT_MESSAGE("Instant Message", "Crash attempt caught from %s", get_sender_string(sender_id).data());
+					PRINT_MESSAGE("Instant Message", "Crash attempt caught from %s", steam::get_sender_string(sender_id).data());
 				}
 				else if (message.mType == game::JOIN_REPLY)
 				{
-					PRINT_MESSAGE("Instant Message", "Popup attempt caught from %s", get_sender_string(sender_id).data());
+					PRINT_MESSAGE("Instant Message", "Popup attempt caught from %s", steam::get_sender_string(sender_id).data());
 				}
 			}
 			else
 			{
-				PRINT_MESSAGE("Instant Message", "Popup attempt caught from %s", get_sender_string(sender_id).data());
+				PRINT_MESSAGE("Instant Message", "Popup attempt caught from %s", steam::get_sender_string(sender_id).data());
 			}
 
 			return false;
@@ -134,7 +136,7 @@ namespace events::instant_message
 
 			if (lobby_msg::log_messages)
 			{
-				PRINT_LOG("Received lobby message <%s> from %s", game::LobbyTypes_GetMsgTypeName(msg.type), get_sender_string(sender_id).data());
+				PRINT_LOG("Received lobby message <%s> from %s", game::LobbyTypes_GetMsgTypeName(msg.type), steam::get_sender_string(sender_id).data());
 			}
 
 			if (msg.type == game::MESSAGE_TYPE_INFO_REQUEST)
@@ -148,7 +150,7 @@ namespace events::instant_message
 				 && game::s_infoProbe->nonce != nonce
 					&& nonce != friends::NONCE)
 				{
-					PRINT_MESSAGE("Instant Message", "Received a info request from %s", get_sender_string(sender_id).data());
+					PRINT_MESSAGE("Instant Message", "Received a info request from %s", steam::get_sender_string(sender_id).data());
 
 					if (events::prevent_join)
 						return true;
@@ -182,9 +184,11 @@ namespace events::instant_message
 
 				for (const auto& id : sender_xuids)
 				{
-					if (const auto f = friends::get(id); f)
+					if (const auto f = friends::get(id))
 					{
 						f->last_online = std::time(nullptr);
+						f->is_online = true;
+						
 						f->response.info_response = info_response;
 					}
 				}

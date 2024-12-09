@@ -9,6 +9,7 @@ namespace utils::nt
 		static library load(const std::string& name);
 		static library load(const std::filesystem::path& path);
 		static library get_by_address(const void* address);
+		static library get_by_address(const uintptr_t address);
 
 		library();
 		explicit library(const std::string& name);
@@ -30,8 +31,8 @@ namespace utils::nt
 
 		bool is_valid() const;
 		std::string get_name() const;
-		std::string get_path() const;
-		std::string get_folder() const;
+		std::filesystem::path get_path() const;
+		std::filesystem::path get_folder() const;
 		std::uint8_t* get_ptr() const;
 		void free();
 

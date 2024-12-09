@@ -71,7 +71,7 @@ namespace events::lobby_msg
 			if (!game::LobbyMsgRW_PackageInt(&msg, "lobbytype", &data.lobbyType))
 				return true;
 
-			if (game::call<uint32_t>(0x7FF6C71CB710, data.dataMask) >= 2 || !game::is_valid_lobby_type(data.lobbyType))
+			if (game::call<uint32_t>(0x7FF6C71CB710, data.dataMask) >= 2)
 			{
 				PRINT_MESSAGE("LobbyMSG", "Crash attempt caught from %s", utils::get_sender_string(from).data());
 				return true;
@@ -139,7 +139,7 @@ namespace events::lobby_msg
 
 			for (size_t i = std::size(data.chunkStatus); i != 0; --i)
 			{
-				if (!game::LobbyMsgRW_PackageBool(&msg, "chunk", &data.chunkStatus[i]))
+				if (!game::LobbyMsgRW_PackageUChar(&msg, "chunk", &data.chunkStatus[i]))
 					return true;
 			}
 
@@ -161,18 +161,12 @@ namespace events::lobby_msg
 			return false;
 		}
 
-		using callback = std::function<bool(const game::netadr_t&, game::msg_t&, game::LobbyModule module)>;
 		using pair = std::pair<game::LobbyModule, game::MsgType>;
 
 		auto& get_callbacks()
 		{
 			static std::unordered_map<pair, callback> callbacks{};
 			return callbacks;
-		}
-
-		void on_message(const game::LobbyModule module, const game::MsgType type, const callback& callback)
-		{
-			get_callbacks()[{ module, type }] = callback;
 		}
 
 		void lobby_debug_join_state_changed(const char* state, const char* reason)
@@ -238,48 +232,41 @@ namespace events::lobby_msg
 
 			return handled;
 		}
-
-		std::string build_lobby_msg(const game::LobbyModule module)
-		{
-			auto data{ ""s };
-			const auto header{ 0x4864ui16 };
-			data.append(reinterpret_cast<const char*>(&header), sizeof header);
-			data.push_back(module);
-			data.push_back(-1);
-			return data;
-		}
 	}
 
-	void send_lobby_msg(const game::NetChanMsgType channel, const game::LobbyModule module, const game::msg_t& msg, const game::netadr_t& netadr, const std::uint64_t xuid)
+	void on_message(const game::LobbyModule module, const game::MsgType type, const callback& callback)
+	{
+		get_callbacks()[{ module, type }] = callback;
+	}
+
+	std::string build_lobby_msg(const game::LobbyModule module)
+	{
+		auto data{ ""s };
+		const auto header{ static_cast<uint16_t>(lobby_msg::PROTOCOL) };
+		data.append(reinterpret_cast<const char*>(&header), sizeof header);
+		data.push_back(static_cast<uint8_t>(module));
+		data.push_back(-1);
+		return data;
+	}
+
+	bool send_lobby_msg(const game::NetChanMsgType channel, const game::LobbyModule module, const game::msg_t& msg, const game::netadr_t& netadr, const uint64_t src_xuid)
 	{
 		auto data{ lobby_msg::build_lobby_msg(module) };
 		data.append(reinterpret_cast<const char*>(msg.data), msg.cursize);
 
-		constexpr auto interval = 75;
-		const auto now = game::call<int>(0x7FF6C7613430);
-		static uint32_t last_call{ 0 };
-		static uint32_t count{ 0 };
-
-		count = last_call + interval >= now ? count + 1 : 0;
-
-		const auto send_lobby_msg = [=]()
-		{
-			game::net::netchan::send(channel, data, netadr, xuid, 11111111111);
-		};
-
-		scheduler::once(send_lobby_msg, scheduler::pipeline::renderer, interval * 1ms * count);
-		last_call = now;
+		//return game::net::netchan::send(channel, data, netadr, 0, src_xuid);
+		return game::net::netchan::send2(channel, data, netadr, 0xDEADFA11, src_xuid);
 	}
 
-	void send_lobby_msg(const game::LobbyModule module, const game::msg_t& msg, const game::netadr_t& netadr, const std::uint64_t xuid)
+	bool send_lobby_msg(const game::LobbyModule module, const game::msg_t& msg, const game::netadr_t& netadr, const uint64_t src_xuid)
 	{
 		const auto session = game::session_data();
 
 		if (session == nullptr)
-			return;
+			return false;
 
 		const auto channel = game::call<game::NetChanMsgType>(0x7FF6C71D8F70, session->type, game::LOBBY_CHANNEL_UNRELIABLE);
-		return send_lobby_msg(channel, module, msg, netadr, xuid);
+		return send_lobby_msg(channel, module, msg, netadr);
 	}
 	
 	void initialize()

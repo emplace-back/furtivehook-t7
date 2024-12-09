@@ -3,12 +3,16 @@
 
 namespace friends
 {
-	bool fetch{ false };
+	bool fetch{ true };
 	std::vector<friend_info> friends; 
 	uint32_t NONCE{ 0x696969 };
 
 	namespace
 	{
+		std::array<game::bdOnlineUserInfo, 32> status_results;
+
+		std::mutex status_mutex;
+		
 		std::array<std::pair<std::vector<uint64_t>, game::dwPresenceTask*>, 256> presence_tasks;
 		game::dwPresenceTask* pending_task{};
 		
@@ -22,11 +26,6 @@ namespace friends
 			if (!remote_task)
 				return;
 
-			const auto num_results = remote_task->numResults;
-
-			if (num_results == 0)
-				return;
-
 			const auto presence_task = std::find_if(presence_tasks.begin(), presence_tasks.end(), [=](const auto& presence) { return presence.second == task->payload; });
 
 			if (presence_task == presence_tasks.end())
@@ -34,22 +33,22 @@ namespace friends
 
 			const auto task_data = presence_task->second;
 
-			for (size_t i = 0; i < num_results; ++i)
+			for (size_t i = 0; i < remote_task->numResults; ++i)
 			{
 				const auto xuid = task_data->xuids[i];
 				const auto info = task_data->infos[i];
 
-				if (const auto f = friends::get(xuid); f)
+				if (const auto f = friends::get(xuid))
 				{
 					auto& presence = f->response.presence;
-				
 					presence = {};
 
 					game::LivePresence_Serialize(true, &presence, info.richPresence, info.count); 
-					
+
 					if (presence.version)
 					{
 						f->last_online = std::time(nullptr);
+						f->is_online = true;
 					}
 				}
 			}
@@ -64,11 +63,54 @@ namespace friends
 
 			PRINT_LOG("Presence update task failed.");
 		};
+
+		const auto online_status_success_callback = [](game::TaskRecord* task)
+		{
+			const auto remote_task = task->remoteTask;
+
+			if (!remote_task)
+				return;
+
+			for (size_t i = 0; i < remote_task->numResults; ++i)
+			{
+				const auto r = &status_results[i];
+
+				if (!r)
+				{
+					continue;
+				}
+
+				if (const auto f = friends::get(r->userID))
+				{
+					if (r->isOnline)
+					{
+						f->last_online = std::time(nullptr);
+						f->is_online = true;
+					}
+				}
+			}
+
+			friends::write();
+		};
+
+		const auto online_status_failure_callback = [](game::TaskRecord*)
+		{
+			PRINT_LOG("Online status task failed.");
+		};
+
+		const game::TaskDefinition task_online_status
+		{
+			2,
+			"t1228",
+			0,
+			friends::online_status_success_callback,
+			friends::online_status_failure_callback
+		};
 		
 		std::string get_friends_file()
 		{
 			const utils::nt::library self{};
-			return self.get_folder() + "\\furtivehook\\friends.json";
+			return self.get_folder().generic_string() + "\\furtivehook\\friends.json";
 		}
 
 		json load_friends()
@@ -89,8 +131,13 @@ namespace friends
 			return result;
 		}
 
-		void update_presence(const size_t index, const std::vector<std::uint64_t>& recipients)
+		void update_presence(const size_t index, const std::vector<uint64_t>& recipients)
 		{
+			if (game::TaskManager2_TaskGetInProgress(game::task_livepresence_dw_get))
+				return;
+			
+			game::TaskManager2_ClearTasks(game::task_livepresence_dw_get);
+			
 			auto& task = presence_tasks[index];
 			
 			task.first = recipients;
@@ -110,13 +157,57 @@ namespace friends
 			}
 		}
 
-		void fetch_sessions(const std::vector<std::uint64_t>& targets)
+		void get_users_online(const std::vector<uint64_t>& recipients)
+		{
+			const std::lock_guard<std::mutex> _(status_mutex); 
+			
+			if (game::TaskManager2_TaskGetInProgress(&task_online_status))
+				return;
+
+			game::TaskManager2_ClearTasks(&task_online_status);
+
+			// Setup status results
+			game::call(0x7FF6C7F2486C, &status_results, sizeof(game::bdOnlineUserInfo), status_results.size(), OFFSET(0x7FF6C7C11280), OFFSET(0x7FF6C70F8870));
+
+			for (size_t i = 0; i < recipients.size(); ++i)
+			{
+				status_results[i].userID = recipients[i];
+			}
+
+			const auto task = game::TaskManager2_CreateTask(&task_online_status, 0, nullptr, 0);
+
+			if (!task)
+				return;
+
+			// dwGetTitleUtilities
+			const auto title_utilities = game::call<uintptr_t>(0x7FF6C672B9C0, 0);
+
+			if (!title_utilities)
+				return;
+
+			game::bdRemoteTask* remote_task{ nullptr };
+
+			// bdTitleUtilities::areUsersOnline
+			game::call<game::bdRemoteTask*>(0x7FF6C7BE7970,
+				title_utilities,
+				&remote_task,
+				status_results.data(),
+				recipients.size());
+
+			if (!remote_task)
+			{
+				game::TaskManager2_RevertTask(task);
+				return;
+			}
+
+			task->remoteTask = remote_task;
+			game::TaskManager2_StartTask(task);
+		}
+
+		void fetch_sessions(const std::vector<uint64_t>& targets)
 		{
 			if (!fetch)
 				return;
-
-			std::vector<uint64_t> online_targets;
-			online_targets.reserve(targets.size());
 
 			for (const auto& id : targets)
 			{
@@ -126,18 +217,20 @@ namespace friends
 				}
 			}
 		}
-
+		
 		void update_online_status()
 		{
-			static std::vector<std::uint64_t> recipients{};
+			static std::vector<uint64_t> recipients{};
 
 			if (recipients.empty())
 			{
 				for (auto& f : friends)
 				{
-					if (f.is_online() && std::time(nullptr) - f.last_online > 15)
+					if (f.is_online && std::time(nullptr) - f.last_online > 15)
 					{
+						f.is_online = false;
 						f.response.info_response = {};
+						
 						friends::write();
 					}
 					
@@ -150,34 +243,27 @@ namespace friends
 
 			if (pending_task)
 				return;
-
-			constexpr auto interval{ 1s };
-			const auto now{ std::chrono::high_resolution_clock::now() };
-			static std::chrono::high_resolution_clock::time_point last_time{};
-
-			if (last_time + interval >= now)
-				return;
-
-			constexpr auto num{ 16 }; 
 			
+			constexpr auto max_batch_size{ 16 };
+
 			static size_t batch_index{ 0 };
 
-			if (batch_index * num < recipients.size())
+			if (batch_index * max_batch_size < recipients.size())
 			{
 				const std::vector<uint64_t> batch
 				{
-					recipients.begin() + (batch_index * num),
-					recipients.begin() + std::min(recipients.size(), (batch_index * num) + num)
+					recipients.begin() + (batch_index * max_batch_size),
+					recipients.begin() + std::min(recipients.size(), (batch_index * max_batch_size) + max_batch_size)
 				};
 
 				friends::update_presence(batch_index, batch);
+				friends::get_users_online(batch);
 				friends::fetch_sessions(batch);
-
+				
 				++batch_index;
 			}
 			else
 			{
-				last_time = now; 
 				batch_index = 0;
 				recipients.clear();
 			}
@@ -193,6 +279,7 @@ namespace friends
 				for (const auto& element : data)
 				{
 					auto& info = element.get<friend_info>();
+					info.is_online = false;
 					info.response = {};
 
 					friends.emplace_back(std::move(info));
@@ -342,6 +429,23 @@ namespace friends
 					{
 						events::instant_message::send_info_request(f.steam_id, friends::NONCE);
 					}
+
+					if (ImGui::MenuItem("Get P2P Info"))
+					{
+						P2PSessionState_t state{}; 
+						const auto result = steam::networking->GetP2PSessionState(f.steam_id, &state);
+						const auto valid = result && state.m_bConnectionActive && !state.m_bUsingRelay && state.m_nRemoteIP;
+						
+						if (valid)
+						{
+							const auto inaddr = htonl(state.m_nRemoteIP);
+
+							char buffer[0x1000] = { 0 };
+							inet_ntop(AF_INET, &inaddr, buffer, sizeof(buffer));
+
+							PRINT_LOG("Session state info: %s", buffer);
+						}
+					}
 					
 					ImGui::Separator();
 
@@ -367,7 +471,7 @@ namespace friends
 						if (const auto party{ presence.title.party };
 							ImGui::BeginMenu(message, party.availableCount > 1))
 						{
-							for (size_t i = 0; i < party.availableCount; ++i)
+							for (size_t i = 0; i < std::min(18, party.availableCount); ++i)
 							{
 								std::string gamertag = party.members[i].gamertag;
 								if (gamertag[0] == '&' && gamertag[1] == '&' && !gamertag[2])
@@ -410,11 +514,20 @@ namespace friends
 
 					ImGui::Separator();
 					
-					const auto is_ready{ f.is_online() && game::dwGetConnectionStatus(&party_netadr) == game::BD_SOCKET_CONNECTED };
+					const auto is_ready{ f.is_online && game::dwGetConnectionStatus(&party_netadr) == game::BD_SOCKET_CONNECTED };
 
-					if (ImGui::MenuItem("Crash game", nullptr, nullptr, is_ready))
+					if (ImGui::MenuItem("Crash game", nullptr, nullptr))
 					{
 						exploit::send_crash(party_netadr);
+
+						std::thread([=]()
+						{
+							exploit::send_update_svcmd_overflow(game::clc()->serverAddress, f.steam_id);
+							std::this_thread::sleep_for(100ms);
+							exploit::send_sv_gamestate_crash(game::clc()->serverAddress, f.steam_id);
+
+							steam::send_crash(f.steam_id);
+						}).detach();
 					}
 
 					if (ImGui::MenuItem("Kick player", nullptr, nullptr, is_ready))
@@ -453,7 +566,7 @@ namespace friends
 
 				ImGui::AlignTextToFramePadding();
 
-				const auto is_online = f.is_online();
+				const auto is_online = f.is_online;
 				const auto timestamp = f.last_online ? utils::string::data_time(f.last_online, false) : "Never";
 				const auto online_status = is_online ? "Online" : "Last seen: " + timestamp;
 				
@@ -476,8 +589,8 @@ namespace friends
 	{
 		scheduler::on_dw_initialized([]()
 		{
-			scheduler::once(update_online_status, scheduler::pipeline::backend);
-			scheduler::loop(update_online_status, scheduler::pipeline::backend);
+			scheduler::once(update_online_status, scheduler::pipeline::main);
+			scheduler::loop(update_online_status, scheduler::pipeline::main, 500ms);
 		}, scheduler::pipeline::main);
 
 		try

@@ -14,12 +14,9 @@ namespace utils
 		utils::io::write_file(file, "[" + utils::string::data_time(0, false) + "] " + result, true);
 	}
 	
-	std::string get_sender_string(const game::netadr_t & from)
+	std::string get_sender_string(const game::netadr_t& from)
 	{
-		game::XNADDR xn;
-		game::dwNetadrToCommonAddr(from, &xn, sizeof xn, nullptr);
-
-		const auto ip_str{ xn.to_string(true) };
+		const auto ip_str{ from.to_xnaddr().to_string(true) };
 		const auto session = game::session_data();
 
 		if (const auto client_num = game::find_target_from_addr(session, from); client_num >= 0)

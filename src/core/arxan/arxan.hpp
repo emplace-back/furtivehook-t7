@@ -3,5 +3,6 @@
 
 namespace arxan
 {
-    void initialize();
+	void search_and_patch_integrity_checks();
+	void initialize();
 }

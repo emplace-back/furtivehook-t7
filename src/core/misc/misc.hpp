@@ -4,5 +4,5 @@
 namespace misc
 {
 	void initialize();
-	extern bool no_recoil;
+	extern bool no_recoil, prediction;
 }

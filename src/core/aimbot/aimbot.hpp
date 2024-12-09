@@ -41,7 +41,7 @@ namespace aimbot
 		}
 	};
 
-	extern bool enabled, silent, auto_fire, priority_bonescan, legit;
+	extern bool enabled, silent, auto_fire, priority_bonescan, asynchronous;
 	extern Vec3 aim_angles, view_origin;
 	extern aim_target_t* aim_target;
 	extern target_t target[18];

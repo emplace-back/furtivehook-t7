@@ -342,32 +342,25 @@ namespace game
 	enum NetChanMsgType
 	{
 		NETCHAN_INVALID_CHANNEL = 0xFFFFFFFF,
-		NETCHAN_SNAPSHOT = 0x0,
-		NETCHAN_CLIENTMSG = 0x1,
-		NETCHAN_VOICE = 0x2,
-		NETCHAN_LOBBY_VOICE = 0x3,
-		NETCHAN_LOBBYPRIVATE_STATE = 0x4,
-		NETCHAN_LOBBYPRIVATE_HEARTBEAT = 0x5,
-		NETCHAN_LOBBYPRIVATE_RELIABLE = 0x6,
-		NETCHAN_LOBBYPRIVATE_UNRELIABLE = 0x7,
-		NETCHAN_LOBBYPRIVATE_MIGRATE = 0x8,
-		NETCHAN_LOBBYGAME_STATE = 0x9,
-		NETCHAN_LOBBYGAME_HEARTBEAT = 0xA,
-		NETCHAN_LOBBYGAME_RELIABLE = 0xB,
-		NETCHAN_LOBBYGAME_UNRELIABLE = 0xC,
-		NETCHAN_LOBBYGAME_MIGRATE = 0xD,
-		NETCHAN_LOBBYTRANSITION_STATE = 0xE,
-		NETCHAN_LOBBYTRANSITION_HEARTBEAT = 0xF,
-		NETCHAN_LOBBYTRANSITION_RELIABLE = 0x10,
-		NETCHAN_LOBBYTRANSITION_UNRELIABLE = 0x11,
-		NETCHAN_LOBBYTRANSITION_MIGRATE = 0x12,
-		NETCHAN_LOBBY_JOIN = 0x13,
-		NETCHAN_PTP = 0x14,
-		NETCHAN_CLIENT_CONTENT = 0x15,
-		NETCHAN_CLIENT_CMD = 0x16,
-		NETCHAN_CONNECTIONLESS_CMD = 0x17,
-		NETCHAN_TEST = 0x18,
-		NETCHAN_MAX_CHANNELS = 0x19,
+		NETCHAN_SNAPSHOT,
+		NETCHAN_CLIENTMSG,
+		NETCHAN_VOICE,
+		NETCHAN_LOBBY_VOICE,
+		NETCHAN_LOBBYPRIVATE_STATE,
+		NETCHAN_LOBBYPRIVATE_HEARTBEAT,
+		NETCHAN_LOBBYPRIVATE_RELIABLE,
+		NETCHAN_LOBBYPRIVATE_UNRELIABLE,
+		NETCHAN_LOBBYPRIVATE_MIGRATE,
+		NETCHAN_LOBBYGAME_STATE,
+		NETCHAN_LOBBYGAME_HEARTBEAT,
+		NETCHAN_LOBBYGAME_RELIABLE,
+		NETCHAN_LOBBYGAME_UNRELIABLE,
+		NETCHAN_LOBBYGAME_MIGRATE,
+		NETCHAN_LOBBY_JOIN,
+		NETCHAN_PTP,
+		NETCHAN_CLIENT_CONTENT,
+		NETCHAN_TEST,
+		NETCHAN_MAX_CHANNELS,
 	}; 
 
 	enum JoinType
@@ -869,7 +862,8 @@ namespace game
 			this->write<uint8_t>(MESSAGE_ELEMENT_UINT8);
 			this->write<uint8_t>(msg_type);
 			this->write<uint8_t>(MESSAGE_ELEMENT_STRING);
-			this->write_data("sike");
+			const auto msg_name = LobbyTypes_GetMsgTypeName(static_cast<MsgType>(-1));
+			this->write_data(msg_name);
 		}
 
 		void init(char* buffer, const size_t buf_size)
@@ -959,14 +953,14 @@ namespace game
 			{
 				if (readcount < cursize)
 				{
-					result = data[readcount];
+					result = *reinterpret_cast<T*>(&data[readcount]);
 				}
 				else
 				{
 					if (!splitData)
 						return result; 
 					
-					result = splitData[readcount - cursize];
+					result = *reinterpret_cast<T*>(&splitData[readcount - cursize]);
 				}
 
 				readcount += sizeof(T);
@@ -974,19 +968,6 @@ namespace game
 
 			return result;
 		}
-	};
-	
-	struct netadr_t
-	{
-		union
-		{
-			std::uint8_t ip[4];
-			std::uint32_t inaddr;
-		};
-		
-		std::uint16_t port;
-		netadrtype_t type;
-		netsrc_t localNetID;
 	};
 
 	struct va_info_t
@@ -1071,6 +1052,24 @@ namespace game
 		bdSecurityKey keyExchangeKey;
 	};
 	
+	struct netadr_t
+	{
+		union
+		{
+			std::uint8_t ip[4];
+			std::uint32_t inaddr;
+		};
+
+		std::uint16_t port;
+		netadrtype_t type;
+		netsrc_t localNetID;
+
+		void set_inaddr(const uint32_t inaddr);
+		XNADDR to_xnaddr() const;
+		bool connected() const;
+		bool local() const;
+	}; 
+	
 	struct JoinSessionMessage
 	{
 		IMType mType;
@@ -1084,6 +1083,14 @@ namespace game
 		time_t lastMessageSentToPeer;
 	};
 
+	struct ClientProgression
+	{
+		uint8_t rank;
+		uint8_t prestige;
+		uint16_t paragonRank;
+		uint8_t paragonIconId;
+	};
+	
 	struct FixedClientInfo
 	{
 		std::uint64_t xuid;
@@ -1148,7 +1155,8 @@ namespace game
 		bdSecurityKey secKey;
 		SerializedAdr serializedAdr;
 		LobbyParams lobbyParams;
-		char pad[0x28];
+		char ugcName[32];
+		uint32_t ugcVersion;
 
 		game::XSESSION_INFO get_sess_info() const
 		{
@@ -1220,6 +1228,37 @@ namespace game
 		char pad[0x25D0];
 	};
 	
+	struct uint128_t
+	{
+		uint64_t lower;
+		uint64_t upper;
+	};
+	
+	enum GameServerStatus
+	{
+		GAME_SERVER_STATUS_IDLE = 0x0,
+		GAME_SERVER_STATUS_PRELOADING = 0x1,
+		GAME_SERVER_STATUS_STARTING_SERVER = 0x2,
+		GAME_SERVER_STATUS_MIGRATING = 0x3,
+		GAME_SERVER_STATUS_RUNNING = 0x4,
+		GAME_SERVER_STATUS_RUNNING_DEMO = 0x5,
+	};
+	
+	struct LobbyGameData
+	{
+		ControllerIndex_t controllerIndex;
+		GameServerStatus serverStatus;
+		int launchNonce;
+		uint128_t matchHash;
+		bool preLoaded;
+		char gameType[32];
+		char mapName[32];
+		int status;
+		int statusValue;
+		int pregameState;
+		uint32_t pregameVoteCount;
+	};
+	
 	struct LobbySession
 	{
 		LobbyModule module;
@@ -1235,6 +1274,11 @@ namespace game
 		bool inRecovery;
 		SessionMigrateData migrateData;
 		LobbyData lobbyData;
+
+		auto game_data() const
+		{
+			return *reinterpret_cast<LobbyGameData*>(reinterpret_cast<uintptr_t>(this) + 0x490);
+		}
 	};
 	
 	struct playerState_s
@@ -1303,6 +1347,18 @@ namespace game
 		char pad[0xC0];
 		int health;
 		char pad2[0xDD8];
+
+		auto xuid() const
+		{
+			return *reinterpret_cast<uint64_t*>(reinterpret_cast<uintptr_t>(this) + 0x80 - 0x8);
+		}
+	};
+
+	struct snapshot_t
+	{
+		int snapFlags;
+		int ping;
+		int serverTime;
 	};
 
 	struct cg_t
@@ -1323,6 +1379,21 @@ namespace game
 		char pad6[0x2E5C0];
 		float aimSpreadScale;
 		char pad7[0x1BC7C];
+
+		auto snap() const 
+		{
+			return reinterpret_cast<snapshot_t*>(*reinterpret_cast<uintptr_t*>(reinterpret_cast<uintptr_t>(this) + 0x28));
+		}
+
+		auto next_snap() const 
+		{
+			return reinterpret_cast<snapshot_t*>(*reinterpret_cast<uintptr_t*>(reinterpret_cast<uintptr_t>(this) + 0x30));
+		}
+
+		int frame_time() const
+		{
+			return *reinterpret_cast<int*>(reinterpret_cast<uintptr_t>(this) + 0x11A888);
+		}
 	};
 
 	struct usercmd_s
@@ -1540,7 +1611,15 @@ namespace game
 		eModes sessionMode;
 		eGameModes gameMode;
 	};
-
+	
+	struct JoinPartyMember
+	{
+		uint64_t xuid;
+		uint64_t lobbyID;
+		float skillRating;
+		float skillVariance;
+		uint32_t probationTimeRemaining[2];
+	};
 
 	struct Msg_JoinParty
 	{
@@ -1549,7 +1628,8 @@ namespace game
 		int joinType;
 		uint64_t probedXuid;
 		int memberCount;
-		char pad[0x248];
+		JoinPartyMember members[18];
+		int splitscreenClients;
 		int playlistID;
 		int playlistVersion;
 		int ffotdVersion;
@@ -1562,7 +1642,7 @@ namespace game
 		uint64_t joinNonce;
 		bool isStarterPack;
 		char password[32];
-		bool chunkStatus[3];
+		uint8_t chunkStatus[3];
 	};
 
 	struct MsgFixedClientInfo
@@ -1720,7 +1800,7 @@ namespace game
 		char pad[0x240];
 		MaterialTechniqueSet *techniqueSet;
 	};
-
+	
 	union XAssetHeader
 	{
 		void *physPreset;
@@ -2880,6 +2960,20 @@ namespace game
 		char pad2[0x78];
 	};
 
+	enum netchanMessageState_e
+	{
+		NETCHAN_MESSAGE_COMPLETE = 0x0,
+		NETCHAN_MESSAGE_FAILED = 0x1,
+		NETCHAN_MESSAGE_TIMEOUT = 0x2,
+	};
+
+	struct netchanMsgConfig_t
+	{
+		HANDLE completedEvent;
+		netchanMessageState_e status;
+		int timeoutMS;
+	}; 
+	
 	struct NetChanFragment_s
 	{
 		NetChanFragment_s* next;
@@ -2899,7 +2993,7 @@ namespace game
 		uint64_t sourceXUID;
 		uint16_t sendCount;
 		netadr_t destAddress;
-		void* msgConfig;
+		netchanMsgConfig_t* msgConfig;
 		NetChanMessage_s* next;
 		NetChanFragment_s* fragments;
 		uint32_t acked[4];
@@ -2974,6 +3068,8 @@ namespace game
 		int m_natType;
 		uint32_t m_hash;
 		bool m_isLoopback;
+
+		void get_local_addr(void* buffer) const;
 	};
 
 	enum JoinSourceState
@@ -2988,5 +3084,205 @@ namespace game
 		JOIN_SOURCE_STATE_ENDING_HOST = 0x7,
 		JOIN_SOURCE_STATE_CLEANUP = 0x8,
 		JOIN_SOURCE_STATE_COUNT = 0x9,
+	};
+
+	struct XAnimParent
+	{
+		unsigned __int16 flags;
+		unsigned __int16 children;
+	};
+
+	union $E37A4E440C41A79F4F07586D38CAD2E6
+	{
+		void *parts;
+		XAnimParent animParent;
+	};
+
+	struct XAnimEntry
+	{
+		unsigned __int16 bCreated;
+		unsigned __int16 numAnims;
+		unsigned __int16 firstParamIxPlusOne;
+		unsigned __int16 paramCount;
+		unsigned __int16 parent;
+		$E37A4E440C41A79F4F07586D38CAD2E6 _anon_0;
+	};
+
+	struct XAnimSearchEntry
+	{
+		int name;
+		unsigned __int16 animIndex;
+	};
+
+	struct XAnim
+	{
+		int name;
+		int size;
+		unsigned int paramSize;
+		void *params;
+		int *animNames;
+		XAnimSearchEntry *sortedSearchList;
+		XAnimEntry entries[1];
+	};
+
+	enum bdAddrHandleStatus : __int32
+	{
+		BD_ADDR_NOT_CONSTRUCTED = 0x0,
+		BD_ADDR_NOT_RESOLVED = 0x1,
+		BD_ADDR_ERROR = 0x2,
+		BD_ADDR_RESOLVED = 0x3,
+		BD_ADDR_UNRESOLVED = 0x4,
+	}; 
+	
+	struct bdSockAddr
+	{
+		union
+		{
+			uint8_t ipv4[4];
+			uint32_t inaddr;
+			uint16_t ipv6[8];
+			uint8_t m_iaddr6[16];
+			uint8_t m_sockaddr_storage[128];
+		};
+
+		uint16_t family;
+	};
+
+	struct bdAddr
+	{
+		bdSockAddr address;
+		uint16_t port;
+
+		std::string to_string() const;
+
+		bool operator==(const game::XNADDR& xn) const
+		{
+			return this->address.inaddr == xn.inaddr;
+		}
+
+		bool operator!=(const game::XNADDR& xn) const { return !(*this == xn); };
+	}; 
+	
+	struct bdEndpoint
+	{
+		void* ca;
+		bdSecurityID secid;
+	}; 
+	
+	struct bdAddrHandle
+	{
+		char pad[0x10];
+		bdEndpoint endpoint;
+		bdAddrHandleStatus status;
+		bdAddr addr;
+
+		game::netadr_t get_addr() const;
+	};
+
+	struct bdAddrHandleRef
+	{
+		bdAddrHandle* ptr;
+	};
+
+	struct client_t
+	{
+		int state;
+		char pad[0x28];
+		netadr_t address;
+		char pad1[20468];
+		int reliableSequence;
+		int reliableAcknowledge;
+		char pad2[4];
+		int messageAcknowledge;
+		char pad3[1416];
+		uint64_t xuid;
+		char pad4[0xB5D84];
+		int guid;
+		char pad5[0x8];
+		bool bIsTestClient;
+		char pad6[3];
+		int serverId;
+		char pad7[171432];
+	};
+
+	enum JoinResult
+	{
+		JOIN_RESULT_INVALID = 0x0,
+		JOIN_RESULT_SUCCESS = 0x1,
+		JOIN_RESULT_CONNECT_TO_HOST_FAILURE = 0x2,
+		JOIN_RESULT_PROBE_SEND_FAILURE = 0x3,
+		JOIN_RESULT_PROBE_TIMEOUT = 0x4,
+		JOIN_RESULT_PROBE_INVALID_LOBBY = 0x5,
+		JOIN_RESULT_PROBE_INVALID_INFO = 0x6,
+		JOIN_RESULT_PROBE_RESULT_INVALID = 0x7,
+		JOIN_RESULT_INVALID_LOBBY = 0x8,
+		JOIN_RESULT_SEND_AGREEMENT_REQUEST_FAILED = 0x9,
+		JOIN_RESULT_HANDSHAKE_WINDOW_EXPIRED = 0xA,
+		JOIN_RESULT_AGREEMENT_WINDOW_EXPIRED = 0xB,
+		JOIN_RESULT_JOIN_DISABLED = 0xC,
+		JOIN_RESULT_JOIN_ALREADY_IN_PROGRESS = 0xD,
+		JOIN_RESULT_NOT_JOINABLE_NOT_HOSTING = 0xE,
+		JOIN_RESULT_NOT_JOINABLE_NOT_IDLE = 0xF,
+		JOIN_RESULT_NOT_JOINABLE_CLOSED = 0x10,
+		JOIN_RESULT_NOT_JOINABLE_INVITE_ONLY = 0x11,
+		JOIN_RESULT_NOT_JOINABLE_FRIENDS_ONLY = 0x12,
+		JOIN_RESULT_NOT_JOINABLE_SOLO_MODE = 0x13,
+		JOIN_RESULT_NO_JOIN_IN_PROGRESS = 0x14,
+		JOIN_RESULT_GAME_PAUSED = 0x15,
+		JOIN_RESULT_CHUNK_MP_REQUIRED = 0x16,
+		JOIN_RESULT_CHUNK_ZM_REQUIRED = 0x17,
+		JOIN_RESULT_CHUNK_CP_REQUIRED = 0x18,
+		JOIN_RESULT_CHUNK_MP_REQUIRED_HOST = 0x19,
+		JOIN_RESULT_CHUNK_ZM_REQUIRED_HOST = 0x1A,
+		JOIN_RESULT_CHUNK_CP_REQUIRED_HOST = 0x1B,
+		JOIN_RESULT_SPLITSCREEN_NOT_ALLOWED = 0x1C,
+		JOIN_RESULT_IN_PUBLIC_PROBATION = 0x1D,
+		JOIN_RESULT_IN_ARENA_PROBATION = 0x1E,
+		JOIN_RESULT_OVER_MAX_PARTY_LIMIT = 0x1F,
+		JOIN_RESULT_NO_PARTIES = 0x20,
+		JOIN_RESULT_LOBBY_FULL = 0x21,
+		JOIN_RESULT_NETWORK_MODE_MISMATCH = 0x22,
+		JOIN_RESULT_MISMATCH_PLAYLISTID = 0x23,
+		JOIN_RESULT_MISMATCH_PLAYLIST_VERSION_TO_NEW = 0x24,
+		JOIN_RESULT_MISMATCH_PLAYLIST_VERSION_TO_OLD = 0x25,
+		JOIN_RESULT_MISMATCH_PROTOCOL_VERSION = 0x26,
+		JOIN_RESULT_MISMATCH_NETFIELD_CHECKSUM = 0x27,
+		JOIN_RESULT_MISMATCH_FFOTD_VERSION_TO_NEW = 0x28,
+		JOIN_RESULT_MISMATCH_FFOTD_VERSION_TO_OLD = 0x29,
+		JOIN_RESULT_MIGRATE_IN_PROGRESS = 0x2A,
+		JOIN_RESULT_COULD_NOT_RESERVE = 0x2B,
+		JOIN_RESULT_BAD_DLC_BITS = 0x2C,
+		JOIN_RESULT_VM_FAILURE_1 = 0x2D,
+		JOIN_RESULT_VM_FAILURE_2 = 0x2E,
+		JOIN_RESULT_VM_FAILURE_3 = 0x2F,
+		JOIN_RESULT_VM_FAILURE_4 = 0x30,
+		JOIN_RESPONSE_COUNT = 0x31,
+	};
+	
+	struct Msg_JoinResponse
+	{
+		JoinResult joinResult;
+		char name[32];
+		uint32_t serverLocation;
+		LobbyType lobbyType;
+		LobbyParams lobbyParams;
+		uint64_t reservationKey;
+	};
+
+	struct bdOnlineUserInfo
+	{
+		char pad[0x10];
+		uint64_t userID;
+		bool isOnline;
+		char pad2[0x10];
+	};
+
+	enum bdNATType
+	{
+		BD_NAT_UNKNOWN = 0x0,
+		BD_NAT_OPEN = 0x1,
+		BD_NAT_MODERATE = 0x2,
+		BD_NAT_STRICT = 0x3,
+		BD_NAT_COUNT = 0x4,
 	};
 }

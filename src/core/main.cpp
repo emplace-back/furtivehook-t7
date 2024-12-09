@@ -10,10 +10,14 @@ BOOL __stdcall DllMain(const HMODULE module, const DWORD reason, const LPVOID /*
 			{
 				DisableThreadLibraryCalls(module);
 				
+				if (utils::nt::library{}.get_optional_header()->CheckSum != 0x8880704)
+				{
+					throw std::runtime_error("This version of BlackOps3.exe is not supported.");
+				}
+
 				arxan::initialize();
 				scheduler::initialize();
 				misc::initialize();
-				friends::initialize();
 			}
 			catch (const std::exception& ex) 
 			{

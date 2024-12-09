@@ -20,6 +20,11 @@ namespace utils::nt
 		return library(handle);
 	}
 
+	library library::get_by_address(const uintptr_t address)
+	{
+		return get_by_address(reinterpret_cast<void*>(address));
+	}
+
 	library::library()
 	{
 		this->module_ = GetModuleHandleA(nullptr);
@@ -115,28 +120,28 @@ namespace utils::nt
 
 	std::string library::get_name() const
 	{
-		if (!this->is_valid()) return "";
+		if (!this->is_valid()) return {};
 
-		auto path = this->get_path();
-		const auto pos = path.find_last_of("/\\");
-		if (pos == std::string::npos) return path;
+		const auto path = this->get_path();
+		const auto pos = path.generic_string().find_last_of("/\\");
+		if (pos == std::string::npos) return path.generic_string();
 
-		return path.substr(pos + 1);
+		return path.generic_string().substr(pos + 1);
 	}
 
-	std::string library::get_path() const
+	std::filesystem::path library::get_path() const
 	{
-		if (!this->is_valid()) return "";
+		if (!this->is_valid()) return {};
 
-		char name[MAX_PATH] = { 0 };
-		GetModuleFileNameA(this->module_, name, sizeof name);
+		wchar_t name[MAX_PATH] = { 0 };
+		GetModuleFileNameW(this->module_, name, MAX_PATH);
 
-		return name;
+		return { name };
 	}
 
-	std::string library::get_folder() const
+	std::filesystem::path library::get_folder() const
 	{
-		if (!this->is_valid()) return "";
+		if (!this->is_valid()) return {};
 
 		const auto path = std::filesystem::path(this->get_path());
 		return path.parent_path().generic_string();

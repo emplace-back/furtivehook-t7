@@ -3,7 +3,7 @@
 
 namespace aimbot
 {
-	bool enabled = false, silent = true, auto_fire = true, priority_bonescan = true, legit = true;
+	bool enabled = false, silent = true, auto_fire = true, priority_bonescan = true, asynchronous = true;
 	Vec3 aim_angles, view_origin;
 	bone_target_t* bone_target = nullptr;
 	aim_target_t* aim_target = nullptr;
@@ -18,10 +18,21 @@ namespace aimbot
 		game::bone_tag::head_end,
 		game::bone_tag::head,
 		game::bone_tag::helmet,
+		game::bone_tag::neck,
 		game::bone_tag::shoulder_left,
 		game::bone_tag::shoulder_right,
+		game::bone_tag::spineupper,
 		game::bone_tag::spine,
+		game::bone_tag::spinelower,
 		game::bone_tag::mainroot,
+		game::bone_tag::hip_left,
+		game::bone_tag::hip_right,
+		game::bone_tag::knee_left,
+		game::bone_tag::knee_right,
+		game::bone_tag::wrist_left,
+		game::bone_tag::wrist_right,
+		game::bone_tag::elbow_left,
+		game::bone_tag::elbow_right,
 		game::bone_tag::ankle_left,
 		game::bone_tag::ankle_right,
 		game::bone_tag::ball_left,
@@ -34,11 +45,29 @@ namespace aimbot
 		bone_targets.clear();
 		bone_target = nullptr;
 
-		for (const auto& point : points)
+		if (asynchronous)
 		{
-			if (const auto damage = autowall::get_penetration_damage(start, point, &game::cg()->predictedPlayerState, cent->nextState.number); damage > 0.0f)
+			for (size_t bone = 0; bone < points.size(); ++bone)
 			{
-				bone_targets.emplace_back(damage, point);
+				penetration_damage.emplace_back(std::async(&autowall::get_penetration_damage, start, points[bone], &game::cg()->predictedPlayerState, cent->nextState.number));
+			}
+
+			for (size_t bone = 0; bone < points.size(); ++bone)
+			{
+				if (const auto damage = penetration_damage[bone].get(); damage > 0.0f)
+				{
+					bone_targets.emplace_back(damage, points[bone]);
+				}
+			}
+		}
+		else
+		{
+			for (const auto& point : points)
+			{
+				if (const auto damage = autowall::get_penetration_damage(start, point, &game::cg()->predictedPlayerState, cent->nextState.number); damage > 0.0f)
+				{
+					bone_targets.emplace_back(damage, point);
+				}
 			}
 		}
 

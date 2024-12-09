@@ -191,7 +191,7 @@ namespace utils::string
 		return result;
 	}
 
-	std::string generate_random_string(const size_t length)
+	std::string random(const size_t length)
 	{
 		const auto random_characters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"s;
 		auto result = ""s;
@@ -214,19 +214,62 @@ namespace utils::string
 		return std::regex_replace(string, std::regex{ "\\^[\\d;HIBF]" }, "");
 	}
 
-	void strip_materials(char* string)
+	void clean_ui_text(char* string)
 	{
+		size_t count = 0; 
+		
 		for (size_t i = 0; i < std::strlen(string); ++i)
 		{
 			if (string[i] == '^')
 			{
 				const auto material_char{ &string[i + 1] };
-				
+
 				if (*material_char == 'H' || *material_char == 'I' || *material_char == 'B')
 				{
 					string[i] = '.';
 					++i;
 				}
+			}
+		}
+	}
+
+	info_string::info_string(const std::string& buffer)
+	{
+		this->parse(buffer);
+	}
+
+	info_string::info_string(const char* buffer)
+		: info_string(std::string{ buffer })
+	{
+	}
+	
+	std::string info_string::get(const std::string& key) const
+	{
+		const auto value = this->key_value_pairs.find(key);
+		if (value != this->key_value_pairs.end())
+		{
+			return value->second;
+		}
+
+		return {};
+	}
+
+	void info_string::parse(std::string buffer)
+	{
+		if (buffer[0] == '\\')
+		{
+			buffer = buffer.substr(1);
+		}
+
+		const auto key_values = string::split(buffer, '\\');
+		for (size_t i = 0; !key_values.empty() && i < (key_values.size() - 1); i += 2)
+		{
+			const auto& key = key_values[i];
+			const auto& value = key_values[i + 1];
+
+			if (this->key_value_pairs.find(key) == key_value_pairs.end())
+			{
+				this->key_value_pairs[key] = value;
 			}
 		}
 	}

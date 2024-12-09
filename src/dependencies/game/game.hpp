@@ -54,13 +54,16 @@ namespace game
 				int acknowledge;
 				std::string data;
 			}; 
-			
-			extern bool writing;
-			
-			bool send(const NetChanMsgType type, const std::string& data, const netadr_t& netadr, const uint64_t target_xuid, const uint64_t sender_xuid = 0);
-			bool send_oob(const uint64_t xuid, const netadr_t& netadr, const std::string& data, const bool fill = false);
-			bool write(const write_packet& packet, const netadr_t& netadr, const uint64_t target_xuid, const uint64_t sender_xuid = 0, const bool compress_buffer = true);
+
+			bool get(const NetChanMessage_s* chan, msg_t* msg, NetChanMsgType type);
+			bool send2(const NetChanMsgType type, const std::string& data, const netadr_t& netadr, const uint64_t target_xuid, const uint64_t sender_xuid);
+			bool send(const NetChanMsgType type, std::string data, const netadr_t& netadr, uint64_t dest_xuid = 0, uint64_t src_xuid = 0, uint16_t nonce = 0);
+			bool send_oob(const netadr_t& netadr, const std::string& data);
+			bool write(const write_packet& packet, const netadr_t& netadr, const uint64_t sender_xuid = 0, const uint16_t nonce = 0);
 			bool write(const std::string& data);
+
+			extern bool writing;
+			extern std::unordered_map<uint64_t, uint16_t> nonce_map;
 		}
 		
 		namespace oob
@@ -79,7 +82,6 @@ namespace game
 	void initialize();
 	bool in_game();
 	int find_target_from_addr(const LobbySession* session, const netadr_t& from);
-	bool can_connect_to_player(const LobbySession* session, const size_t client_num, const size_t target_xuid);
 	void on_every_frame();
 	bool is_enemy(const int client_num);
 	bool CG_WorldPosToScreenPos(const Vec3* pos, Vec2* out);
@@ -96,14 +98,16 @@ namespace game
 	bool send_instant_message(const std::vector<std::uint64_t>& recipients, const std::uint8_t type, const std::string & data);
 	bool send_instant_message(const std::vector<std::uint64_t>& recipients, const std::uint8_t type, const msg_t & msg);
 	const char* LobbyTypes_GetMsgTypeName(const MsgType type);
+	bool LobbySession_IsDedicated(const game::LobbySession* session);
 	int LobbySession_GetClientNumByXuid(const game::LobbySession* session, const std::uint64_t xuid);
 	bool is_valid_lobby_type(const int lobby_type);
-	void enum_assets(const XAssetType type, const std::function<void(XAssetHeader)>& callback, const bool includeOverride);
 	bool LobbyMsgRW_PackageElement(msg_t * msg, bool add_element);
 	netadr_t get_session_netadr(const LobbySession* session, const ActiveClient* client);
 	char * I_strncpyz(char * place, const std::string & string, const size_t length);
 	TaskRecord* TaskManager2_SetupRemoteTask(const TaskDefinition* definition, bdRemoteTask* remote_task, const uint32_t timeout = 0);
-	void connect_to_session(const game::HostInfo& info);
+	bool connect_to_session(const game::HostInfo& info);
+	bool NET_CompareXNAddr(const XNADDR* a, const XNADDR* b);
+	game::netadr_t get_netadr_from_xuid(const game::LobbySession* session, const uint64_t xuid);
 	
 	extern std::array<scr_string_t, static_cast<std::uint32_t>(bone_tag::num_tags)> bone_tags;
 
@@ -118,6 +122,23 @@ namespace game
 	inline auto get_offset(const uintptr_t val)
 	{
 		return get_base() + (val - 0x7FF6C52E0000);
+	}
+
+	inline uintptr_t relocate(const uintptr_t val)
+	{
+		const auto base = get_base();
+		return base + (val - 0x7FF6C52E0000);
+	}
+
+	inline uintptr_t derelocate(const uintptr_t val)
+	{
+		const auto base = get_base();
+		return (val - base) + 0x7FF6C52E0000;
+	}
+
+	inline uintptr_t derelocate(const void* val)
+	{
+		return derelocate(reinterpret_cast<size_t>(val));
 	}
 
 	template <typename T = void, typename... Args>
@@ -149,7 +170,7 @@ namespace game
 		{
 			return nullptr;
 		}
-
+		
 		return reinterpret_cast<LobbySession*>(OFFSET(0x7FF6DA957490) + sizeof LobbySession * lobby_type);
 	}
 
@@ -193,7 +214,7 @@ namespace game
 		return reinterpret_cast<centity_t*>(decrypted_centity_ptr + sizeof centity_t * index);
 	}
 
-	const static auto dwGetConnectionStatus = reinterpret_cast<bdDTLSAssociationStatus(*)(netadr_t*)>(OFFSET(0x7FF6C671CAB0));
+	const static auto dwGetConnectionStatus = reinterpret_cast<bdDTLSAssociationStatus(*)(const netadr_t*)>(OFFSET(0x7FF6C671CAB0));
 	const static auto UI_SafeTranslateString = reinterpret_cast<const char* (*)(const char*)>(OFFSET(0x7FF6C756F7B0));
 	const static auto LobbyJoinSource_IMInfoResponse = reinterpret_cast<bool(*)(const ControllerIndex_t, const uint64_t, msg_t*)>(OFFSET(0x7FF6C71C5E00));
 	const static auto LobbyJoinSource_IMInfoRequest = reinterpret_cast<bool(*)(const ControllerIndex_t, const uint64_t, uint32_t)>(OFFSET(0x7FF6C71C2620));
@@ -251,17 +272,22 @@ namespace game
 	const static auto Live_IsUserSignedInToDemonware = reinterpret_cast<bool(*)(const ControllerIndex_t)>(OFFSET(0x7FF6C70ED830));
 	const static auto CL_GetClientName = reinterpret_cast<bool(*)(LocalClientNum_t, int, char*, int, bool)>(OFFSET(0x7FF6C66C3140));
 	const static auto NET_CompareAdr = reinterpret_cast<bool(*)(const netadr_t, const netadr_t)>(OFFSET(0x7FF6C74532D0));
+	const static auto NET_CompareBaseAdr = reinterpret_cast<bool(*)(const netadr_t, const netadr_t)>(OFFSET(0x7FF6C74533B0));
 	const static auto LivePresence_Serialize = reinterpret_cast<int(*)(bool, PresenceData*, const void*, size_t)>(OFFSET(0x7FF6C7173D80));
 	const static auto task_livepresence_dw_get = reinterpret_cast<game::TaskDefinition*>(OFFSET(0x7FF6C82F9A40));
 	const static auto TaskManager2_TaskGetInProgress = reinterpret_cast<bool(*)(const void*)>(OFFSET(0x7FF6C7591780));
+	const static auto TaskManager2_ClearTasks = reinterpret_cast<void(*)(const void*)>(OFFSET(0x7FF6C7590610));
 	const static auto TaskManager2_SetupNestedTask = reinterpret_cast<TaskRecord * (*)(const void*, ControllerIndex_t, TaskRecord*, void*)>(OFFSET(0x7FF6C7591380));
-	const static auto dwPresenceGet = reinterpret_cast<TaskRecord * (*)(const ControllerIndex_t, dwPresenceTask* const)>(OFFSET(0x7FF6C671E7B0));
+	const static auto dwPresenceGet = reinterpret_cast<TaskRecord*(*)(const ControllerIndex_t, dwPresenceTask* const)>(OFFSET(0x7FF6C671E7B0));
 	const static auto TaskManager2_CreateTask = reinterpret_cast<TaskRecord * (*)(const void*, const ControllerIndex_t, TaskRecord*, int)>(OFFSET(0x7FF6C7590770));
 	const static auto TaskManager2_StartTask = reinterpret_cast<void(*)(TaskRecord*)>(OFFSET(0x7FF6C75916C0));
+	const static auto TaskManager2_RevertTask = reinterpret_cast<void(*)(TaskRecord*)>(OFFSET(0x7FF6C7591330));
+	const static auto& s_netchan = reinterpret_cast<NetChanMessageList_s*>(OFFSET(0x7FF6DC14BE20));
 	const static auto& g_fHitLocDamageMult = reinterpret_cast<float*>(OFFSET(0x7FF6CF36D4D0));
 	const static auto& g_assetNames = reinterpret_cast<const char**>(OFFSET(0x7FF6C860A080));
 	const static auto& s_infoProbe = reinterpret_cast<InfoProbe*>(OFFSET(0x7FF6DAA2C590));
 	const static auto& window = *reinterpret_cast<HWND*>(OFFSET(0x7FF6DD1583D0));
 	const static auto& lobbyMsgName = reinterpret_cast<const char**>(OFFSET(0x7FF6C86F14A0));
 	const static auto& s_presenceTaskData = reinterpret_cast<dwPresenceTask*>(OFFSET(0x7FF6D66F00A8));
+	const static auto& s_fragmentFreeHead = reinterpret_cast<game::NetChanFragment_s**>(OFFSET(0x7FF6DC14BC08));
 }

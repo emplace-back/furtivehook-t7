@@ -25,7 +25,7 @@ namespace utils::hook
 		using Assembler::jmp;
 
 		void pushad64();
-		void popad64();
+		void popad64(const bool ret_val = false);
 
 		void prepare_stack_for_call();
 		void restore_stack_after_call();
@@ -100,6 +100,12 @@ namespace utils::hook
 		{
 			return static_cast<T(*)(Args ...)>(this->original)(args...);
 		}
+
+		template <typename T = void, typename... Args>
+		T call_spoofed(Args ... args)
+		{
+			return spoof_call(static_cast<T(*)(Args ...)>(this->original), args...);
+		}
 	private:
 		std::vector<uint8_t> moved_data{};
 		void* place{};
@@ -111,123 +117,29 @@ namespace utils::hook
 	void* get_memory_near(const uintptr_t address, const size_t size);
 	uint8_t* allocate_somewhere_near(const uintptr_t base_address, const size_t size);
 	void retn(const uintptr_t address);
-	void nop(const uintptr_t address, const size_t size);
-	void nop(const void* place, const size_t size);
+	void return_value(const uintptr_t address, const int value = 0);
+	void nop(const uintptr_t address, const size_t length);
+	void nop(const void* place, const size_t length);
+	void copy(const uintptr_t address, const void* data, const size_t length);
+	void copy(const void* place, const void* data, const size_t length);
+	bool is_relatively_far(const uintptr_t address, const void* function, const int offset = 5);
+	void jump(const uintptr_t address, const void* function, const bool use_far = false, const bool use_safe = false);
+	void jump(const void* place, const void* function, const bool use_far = false, const bool use_safe = false);
+	void jump(const uintptr_t address, const uintptr_t function, const bool use_far = false, const bool use_safe = false);
+	void call(const uintptr_t address, const void* function);
 	std::vector<uint8_t> move_hook(const uintptr_t address);
 	std::vector<uint8_t> move_hook(const void* pointer);
 	void* assemble(const std::function<void(assembler&)>& asm_function);
 	void* follow_branch(void* address);
-
-	template <typename T> void copy(const uintptr_t address, const T data, const size_t length)
-	{
-		DWORD old_protect{ 0 };
-		VirtualProtect(reinterpret_cast<void*>(address), length, PAGE_EXECUTE_READWRITE, &old_protect);
-
-		std::memmove(reinterpret_cast<void*>(address), data, length);
-
-		VirtualProtect(reinterpret_cast<void*>(address), length, old_protect, &old_protect);
-
-		FlushInstructionCache(GetCurrentProcess(), reinterpret_cast<void*>(address), length);
-	}
-	
-	template <typename T> void copy(const void* place, const T data, const size_t length)
-	{
-		copy<T>(uintptr_t(place), data, length);
-	}
 	
 	template <typename T> void set(const uintptr_t address, const T value)
 	{
-		DWORD old_protect{ 0 };
-		VirtualProtect(reinterpret_cast<void*>(address), sizeof value, PAGE_EXECUTE_READWRITE, &old_protect);
-
-		*reinterpret_cast<T*>(address) = value;
-
-		VirtualProtect(reinterpret_cast<void*>(address), sizeof value, old_protect, &old_protect);
-
-		FlushInstructionCache(GetCurrentProcess(), reinterpret_cast<void*>(address), sizeof value);
+		copy(address, &value, sizeof(value));
 	}
 
 	template <typename T> void set(const void* place, const T value)
 	{
 		set<T>(uintptr_t(place), value);
-	}
-
-	template <typename T> bool is_relatively_far(const uintptr_t address, const T function, const int offset =  5)
-	{
-		const int64_t diff = uintptr_t(function) - address - offset;
-		const auto small_diff = int32_t(diff);
-		return diff != int64_t(small_diff);
-	}
-
-	template <typename T> void jump(const uintptr_t address, const T function, const bool use_far = false, const bool use_safe = false)
-	{
-		if (!use_far && is_relatively_far(address, function))
-		{
-			auto* trampoline = get_memory_near(address, 14);
-			if (!trampoline)
-			{
-				throw std::runtime_error("Too far away to create 32bit relative branch");
-			}
-			
-			jump(address, trampoline, false, false);
-			jump(trampoline, function, true, true);
-			return;
-		}
-		
-		if (use_far)
-		{
-			const static uint8_t jump_data[] =
-			{
-				0x48, 0xB8, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0xFF, 0xE0
-			}; 
-
-			const static uint8_t jump_data_safe[] =
-			{
-				0xFF, 0x25, 0x00, 0x00, 0x00, 0x00
-			};
-
-			const auto data = use_safe ? jump_data_safe : jump_data;
-			const auto jump_size = use_safe ? sizeof(jump_data_safe) : 2;
-
-			copy(address, data, sizeof(data));
-			copy(address + jump_size, &function, sizeof(function));
-		}
-		else
-		{
-			set(address, instr::jmp);
-			set<uint32_t>(address + 1, uintptr_t(function) - address - 5);
-		}
-	}
-
-	template <typename T> void jump(const void* place, const T function, const bool use_far = false, const bool use_safe = false)
-	{
-		jump<T>(uintptr_t(place), function, use_far, use_safe);
-	}
-
-	template <typename T> void call(const uintptr_t address, const T function)
-	{
-		if (is_relatively_far(address, function))
-		{
-			auto* trampoline = get_memory_near(address, 14);
-			if (!trampoline)
-			{
-				throw std::runtime_error("Too far away to create 32bit relative branch");
-			}
-
-			call(address, trampoline);
-			jump(trampoline, function, true, true);
-			return;
-		}
-		
-		set(address, instr::call);
-		set<uint32_t>(address + 1, uintptr_t(function) - address - 5);
-	}
-
-	template <typename T> void return_value(const uintptr_t address, const T value)
-	{
-		set(address, instr::mov);
-		set(address + 1, uint32_t(value));
-		set(address + 5, instr::ret);
 	}
 
 	template <typename T> auto iat(const std::string& mod_name, const std::string& proc_name, T function)
