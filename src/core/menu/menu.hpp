@@ -7,7 +7,7 @@ namespace menu
 	constexpr static auto console_title = "console";
 	constexpr static auto color_flags = ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoTooltip;
 	constexpr static auto window_flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
-	extern bool initialized, deez;
+	extern bool initialized;
 	extern ImFont* glacial_indifference_bold;
 	extern ImFont* glacial_indifference;
 

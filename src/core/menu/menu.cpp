@@ -133,8 +133,6 @@ namespace menu
 		return result;
 	}
 
-	bool deez = false;
-
 	std::unordered_map<uint64_t, exploit_t> exploits;
 	
 	void draw_player_list(const float width, const float spacing)
@@ -330,17 +328,11 @@ namespace menu
 									exploit::send_sv_gamestate_crash(to, player_xuid);
 
 									steam::send_crash(player_xuid);
-
-									DEBUG_LOG("Called");
 								}).detach();
 							}
 
 							if (ImGui::MenuItem("Crash (2)"))
 							{
-								DEBUG_LOG("Called1");
-
-								deez = true;
-								
 								const auto to = in_game ? game::clc()->serverAddress : netadr; 
 								exploit::send_invalid_cmd_sequence_crash(to, player_xuid);
 							}

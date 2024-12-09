@@ -184,23 +184,6 @@ namespace security
 			return *reinterpret_cast<uintptr_t*>(body_type + 0x108);
 		}
 	}
-
-	utils::hook::detour CL_ParseServerMessage_hook;
-	
-	bool __fastcall CL_ParseServerMessage(LocalClientNum_t localClientNum,
-		game::netadr_t from,
-		game::msg_t *msg,
-		int time,
-		bool connectionlesss_packets_only)
-	{
-		if (menu::deez)
-		{
-			DEBUG_LOG("Called");
-			return false;
-		}
-		
-		return CL_ParseServerMessage_hook.call<bool>(localClientNum, from, msg, time, connectionlesss_packets_only);
-	}
 	
 	void __fastcall sv_packet_event(game::netadr_t from, uint64_t xuid, game::msg_t* msg)
 	{
@@ -269,55 +252,6 @@ namespace security
 		*reinterpret_cast<int*>(data + 0x5444) = 0;
 
 		return handle_lobby_state_core_hook.call<bool>(controllerIndex, adr, xuid, data);
-	}
-
-	typedef void (*DDLWriteCB)(void*, void*);
-	
-	enum ClientContentType
-	{
-		CLIENT_CONTENT_TYPE_PAINTSHOP = 0x0,
-		CLIENT_CONTENT_TYPE_LOADOUT = 0x1,
-		MAX_CLIENT_CONTENT_TYPE = 0x2,
-	};
-	
-	struct DDLContext
-	{
-		void* buff;
-		int len;
-		const void* def;
-		DDLWriteCB writeCB;
-		void* userData;
-	};
-	
-	struct ClientContentState
-	{
-		DDLContext ddlCtx;
-		uint32_t bufferChecksum;
-		uint16_t compressedBufferSize;
-		uint16_t cursorPosition;
-		uint16_t totalContentReceived;
-		bool isDataCompressed;
-	};
-	
-	struct ClientContent
-	{
-		ClientContentState contentStates[2];
-		int sessionMode;
-		int gameMode;
-		char buffer[163840];
-	};
-	
-	void __fastcall ClientContent_SetData(ClientContentType contentType, ClientContent* clientContent, const void* data, uint32_t dataSize)
-	{
-		DEBUG_LOG("content type %i dataSize %i", contentType, dataSize);
-
-		for (size_t i = 0; i < sizeof(ClientContentState); ++i)
-		{
-			DEBUG_LOG("bufferChecksum %i compressedBufferSize %i totalContentReceived %i", 
-				clientContent->contentStates[i].bufferChecksum,
-				clientContent->contentStates[i].compressedBufferSize, 
-				clientContent->contentStates[i].totalContentReceived);
-		}
 	}
 	
 	void initialize()
@@ -391,7 +325,6 @@ namespace security
 		handle_lobby_state_core_hook.create(OFFSET(0x7FF6C71B3570), handle_lobby_state_core);
 		
 		//lobby_msg_rw_package_u_char_hook.create(OFFSET(0x7FF6C71D6850), lobby_msg_rw_package_u_char);
-		//CL_ParseServerMessage_hook.create(OFFSET(0x7FF6C6639E40), CL_ParseServerMessage);
 
 		utils::hook::jump(OFFSET(0x7FF6C74561AE), netchan_save_fragment_stub);
 		utils::hook::nop(OFFSET(0x7FF6C74561AE) + 5, 4);
