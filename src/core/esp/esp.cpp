@@ -209,28 +209,6 @@ namespace esp
 				}
 				
 				screen_positions::size = i;
-
-				/*if (player_name_tag)
-				{
-					if (auto origin = get_bone_tag_position(cent, game::bone_tag::head); !origin.empty())
-					{
-						origin.z += 16.0f;
-
-						const auto old = origin.lerp(cent->pose.origin, 0.5f);
-
-						origin.x = old.x;
-						origin.y = old.y;
-
-						Vec2 screen_pos;
-
-						if (char buffer[40] = { 0 };
-							game::CG_WorldPosToScreenPos(&origin, &screen_pos) && game::CL_GetClientName(0, i, buffer, sizeof buffer, true))
-						{
-							screen_positions::player_name[i].pos = screen_pos;
-							screen_positions::player_name[i].name = buffer;
-						}
-					}
-				}*/
 			}
 		}
 	}
